@@ -4,29 +4,28 @@ export async function POST(req) {
 
     const systemPrompt = `### **SYSTEM ROLE & VIRAL ALGORITHMS (STRICT ADHERENCE REQUIRED)**
 
-**1. ВИЗУАЛЬНЫЙ РИТМ (RETENTION ENGINE):**
- * **ПРАВИЛО 3 СЕКУНД:** Смена визуала СТРОГО каждые 3 секунды. Каждый кадр должен быть динамичным. Использовать: медленный наезд (slow zoom in), отъезд, панорамирование, смену ракурса.
- * **Принцип 40/60:** Главный объект занимает 40–60% кадра. Глубокий контраст между объектом и фоном.
- * **Динамический текст:** Ключевые слова диктора должны быть выделены как визуальные акценты в описании кадров.
+**1. ВИЗУАЛЬНЫЙ РИТМ И МАТЕМАТИКА:**
+ * **ПРАВИЛО 3 СЕКУНД:** Смена кадра СТРОГО каждые 3 секунды.
+ * **КОЛИЧЕСТВО ПРОМПТОВ:** Ты ОБЯЗАН выдать количество промптов, соответствующее длительности. 
+   - Если 30 сек — 10 Image и 10 Video промптов.
+   - Если 60 сек — 20 Image и 20 Video промптов.
+   - Если 90 сек — 30 Image и 30 Video промптов.
+ * **ЗАПРЕЩЕНО:** Выдавать меньше промптов, чем требует тайминг. Каждый кадр сценария должен иметь свой пронумерованный промпт.
 
-**2. СТРУКТУРА СЦЕНАРИЯ (CONVERSION FUNNEL):**
- * **Мгновенный Hook (0–3 сек):** Визуальный шок или парадоксальное утверждение. Никакой воды.
- * **Curiosity Gap:** Финальный твист или разгадка — СТРОГО в последние 5 секунд.
- * **Seamless Loop:** Последнее слово сценария должно идеально переходить в первое слово Hook'а.
+**2. ТЕХНИЧЕСКИЙ РАЙДЕР (ДЕТАЛИЗАЦИЯ 50+ СЛОВ):**
+ * **Image Prompts (Veo/Whisk):** Описывай как для фотографа. Глубина резкости (f/1.8), свет (Rim lighting), частицы пыли, пот, текстура ржавого железа, 8k, cinematic.
+ * **Video Prompts (Grok Super):** Описывай физику. "Камера медленно пролетает сквозь...", "Брызги воды разлетаются под углом...", "Объект вращается в замедленной съемке (slow-motion)".
+ * **СТИЛЬ:** Мрачный, гиперреалистичный, вызывающий тревогу и любопытство.
 
-**3. ТЕХНИЧЕСКИЙ РАЙДЕР ГЕНЕРАЦИИ (STRICT RULES):**
- * **ДЕТАЛИЗАЦИЯ ПРОМПТОВ:** Запрещено писать коротко. Каждый промпт (Image/Video) должен содержать 40+ слов. Описывай: Cinematic lighting, Volumetric fog, 8k resolution, Hyper-realistic textures, ракурс камеры.
- * **Image Prompts:** Использовать ТОЛЬКО для Veo, Whisk. Формат: Высокохудожественное фотореалистичное описание.
- * **Video Prompts:** Использовать ТОЛЬКО для Grok Super. Формат: Описание физического движения, динамики частиц, освещения в динамике.
- * **ЗАПРЕТЫ:** КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО упоминать Midjourney и Leonardo.
- * **ОТСТУПЫ:** Между каждым промптом в списке ОБЯЗАТЕЛЬНО делать пустую строку (двойной перенос).
+**3. СТРУКТУРА ВЫДАЧИ:**
+ 1. **3 Варианта мощного HOOK.**
+ 2. **Полный сценарий** (Таймкоды каждые 3 сек | Текст | Описание).
+ 3. **СПИСОК IMAGE PROMPTS (VEO/WHISK):** Полный перечень под каждый кадр (1, 2, 3...).
+ 4. **СПИСОК VIDEO PROMPTS (GROK SUPER):** Полный перечень под каждый кадр (1, 2, 3...).
 
-### **ПОРЯДОК ВЫДАЧИ ОТВЕТА:**
- 1. **3 Варианта мощного HOOK** (Шок, Тайна, Опасность, Парадокс).
- 2. **Полный сценарий:** Таймкоды (шаг строго 3 сек), текст диктора, детальное описание кадра, режиссерские пометки (SFX).
- 3. **Список промптов (Clean List):** Сначала блок Image prompts (Veo/Whisk), затем блок Video prompts (Grok Super). Между каждым промптом пустая строка.`;
+**ЗАПРЕТЫ:** Никаких Midjourney/Leonardo. Никаких коротких описаний. Между промптами — пустая строка.`;
 
-    const userPrompt = `ТЕМА: ${body.topic}. КОНТЕКСТ: ${body.context}. ЖАНР: ${body.genre}. ДЛИТЕЛЬНОСТЬ: ${body.duration}. ПЛАТФОРМА: ${body.platform}.`;
+    const userPrompt = `ТЕМА: ${body.topic}. КОНТЕКСТ: ${body.context}. ЖАНР: ${body.genre}. ДЛИТЕЛЬНОСТЬ: ${body.duration}. ПЛАТФОРМА: ${body.platform}. Генерируй сценарий и ПОЛНЫЙ набор промптов для каждого 3-секундного отрезка.`;
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -40,23 +39,18 @@ export async function POST(req) {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 0.6
+        temperature: 0.5,
+        max_tokens: 4000 
       })
     });
 
     const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Ошибка API Groq");
-    }
+    if (!response.ok) throw new Error(data.error?.message || "Ошибка API Groq");
 
-    const text = data.choices[0].message.content;
-    
-    return new Response(JSON.stringify({ text }), { headers: { "Content-Type": "application/json" } });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
+    return new Response(JSON.stringify({ text: data.choices[0].message.content }), { 
       headers: { "Content-Type": "application/json" } 
     });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }
