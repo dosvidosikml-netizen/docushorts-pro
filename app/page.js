@@ -53,22 +53,16 @@ const PLATFORMS = [
 ];
 const PALETTE = ["#ff3355","#f97316","#eab308","#06b6d4","#a855f7","#22c55e"];
 
-const REF_CATEGORIES = [
-  { key:"hero",  icon:"👤", col:"#f97316", label:"Главный герой"    },
-  { key:"env",   icon:"🌍", col:"#22c55e", label:"Окружение"        },
-  { key:"style", icon:"🎨", col:"#a855f7", label:"Визуальный стиль" },
-  { key:"light", icon:"💡", col:"#fbbf24", label:"Освещение"        },
-  { key:"mood",  icon:"🎭", col:"#06b6d4", label:"Атмосфера"        },
-];
-
-// СИСТЕМНЫЙ ПРОМПТ ПЕРЕВЕДЕН В ЖЕСТКИЙ JSON
+// СИСТЕМНЫЙ ПРОМПТ ПЕРЕВЕДЕН В РАСШИРЕННЫЙ JSON
 const VIRAL_SYSTEM = `### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT JSON ADHERENCE REQUIRED)
 Ты профессиональный режиссер вирусных видео. ТВОЯ ГЛАВНАЯ И ЕДИНСТВЕННАЯ ЗАДАЧА - ВЫДАТЬ ОТВЕТ В СТРОГОМ ФОРМАТЕ JSON.
-Никакого текста до или после JSON. Никаких маркдаун-блоков. ТОЛЬКО ВАЛИДНЫЙ JSON!
+Никакого текста до или после JSON. Никаких маркдаун-блоков (без \`\`\`json). ТОЛЬКО ВАЛИДНЫЙ JSON!
 
 СТРУКТУРА JSON ДОЛЖНА БЫТЬ ТАКОЙ:
 {
-  "hooks": ["HOOK 1", "HOOK 2", "HOOK 3"],
+  "hooks": [
+    {"text": "Фраза диктора на 0-2 сек", "visual": "Детальное описание мощного визуального хука (шок, интрига)"}
+  ],
   "frames": [
     {
       "timecode": "0-3 сек",
@@ -79,14 +73,18 @@ const VIRAL_SYSTEM = `### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT JSON ADHERENCE 
       "imgPrompt": "ENGLISH VEO/WHISK PROMPT STRICTLY IN ENGLISH",
       "vidPrompt": "ENGLISH GROK SUPER PROMPT STRICTLY IN ENGLISH"
     }
-  ]
+  ],
+  "thumbnail": {
+    "text": "2-4 слова (Психологический разрыв любопытства)",
+    "prompt": "ENGLISH VEO/WHISK PROMPT: 1 main object (40-60% of frame), dark background, bright object, high contrast, shock/fear emotion, cinematic lighting, 8K, highly detailed"
+  }
 }
 
 ЖЕСТКИЕ ПРАВИЛА:
-1. Ключи imgPrompt и vidPrompt ДОЛЖНЫ БЫТЬ ТОЛЬКО НА АНГЛИЙСКОМ ЯЗЫКЕ! Даже если сценарий на русском.
+1. Ключи imgPrompt, vidPrompt и thumbnail.prompt ДОЛЖНЫ БЫТЬ ТОЛЬКО НА АНГЛИЙСКОМ ЯЗЫКЕ! Даже если сценарий на русском.
 2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО упоминать Midjourney или Leonardo.
-3. Массив "frames" должен содержать ТОЧНОЕ количество кадров, которое запросит пользователь. Ни больше, ни меньше.
-4. Один кадр = один imgPrompt + один vidPrompt.`;
+3. Массив "frames" должен содержать ТОЧНОЕ количество кадров, которое запросит пользователь. Ни больше, ни меньше. Один кадр = один imgPrompt + один vidPrompt.
+4. Thumbnail (превью) обязательно! Главный объект 40-60% кадра, сильный контраст.`;
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 async function callAPI(content, maxTokens = 6000) {
@@ -185,14 +183,16 @@ export default function Page() {
   const [view, setView] = useState("form");
   const [tab,  setTab]  = useState("storyboard");
   const [result,  setResult]  = useState("");
+  
   const [frames,  setFrames]  = useState([]);
+  const [hooksList, setHooksList] = useState([]);
+  const [thumb, setThumb] = useState(null);
   const [imgP,    setImgP]    = useState([]);
   const [vidP,    setVidP]    = useState([]);
+  
   const [tags,    setTags]    = useState({});
-  const [refs,    setRefs]    = useState([]);
   const [busy,     setBusy]     = useState(false);
   const [busyTags, setBusyTags] = useState(false);
-  const [busyRefs, setBusyRefs] = useState(false);
   const [err,      setErr]      = useState("");
   const [toast,    setToast]    = useState("");
 
@@ -218,11 +218,20 @@ export default function Page() {
       const imgs = frms.map(f => f.imgPrompt).filter(Boolean);
       const vids = frms.map(f => f.vidPrompt).filter(Boolean);
 
-      const scriptText = "🔥 ВАРИАНТЫ HOOK:\n" + (data.hooks || []).map(h=>"— "+h).join("\n") + "\n\n🎬 СЦЕНАРИЙ:\n" + frms.map((f, i) => `КАДР ${i+1} [${f.timecode}]\n📷 Камера: ${f.camera}\n👁 Визуал: ${f.visual}\n🎙 Диктор: «${f.voice}»\n🎧 Звук: ${f.audio}`).join("\n\n");
-
       setFrames(frms);
+      setHooksList(data.hooks || []);
+      setThumb(data.thumbnail || null);
       setImgP(imgs);
       setVidP(vids);
+
+      let scriptText = "🔥 ВАРИАНТЫ HOOK:\n" + 
+        (data.hooks || []).map((h, i)=>`${i+1}. 🗣 ${h.text}\n   🎬 ${h.visual}`).join("\n\n") + 
+        "\n\n🎬 СЦЕНАРИЙ:\n" + frms.map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n📷 Камера: ${f.camera}\n👁 Визуал: ${f.visual}\n🎙 Диктор: «${f.voice}»\n🎧 Звук: ${f.audio}`).join("\n\n");
+
+      if (data.thumbnail) {
+        scriptText += `\n\n🖼 ПРЕВЬЮ (ОБЛОЖКА):\nТекст: [ ${data.thumbnail.text} ]\nПромпт: ${data.thumbnail.prompt}`;
+      }
+
       setResult(scriptText);
       setTags({});
       setTab("storyboard");
@@ -241,7 +250,7 @@ export default function Page() {
 СТИЛЬ: ${sty.label} — ${sty.prompt}
 ДЛИТЕЛЬНОСТЬ: ${dur} → СТРОГО ${durCfg.frames} КАДРОВ. ТИП HOOK: ${hook}`;
 
-    const req = `ВЫДАЙ ОТВЕТ СТРОГО В ФОРМАТЕ JSON. МАССИВ "frames" ДОЛЖЕН СОДЕРЖАТЬ РОВНО ${durCfg.frames} ЭЛЕМЕНТОВ!`;
+    const req = `ВЫДАЙ ОТВЕТ СТРОГО В ФОРМАТЕ JSON. МАССИВ "frames" ДОЛЖЕН СОДЕРЖАТЬ РОВНО ${durCfg.frames} ЭЛЕМЕНТОВ! Не забудь сгенерировать 3 расписанных варианта хуков и обложку.`;
 
     if (fromScript) return `${ctx}\n\nГОТОВЫЙ СЦЕНАРИЙ:\n${script.trim()}\n\n${req}`;
     return `${ctx}\n\n${req}`;
@@ -269,7 +278,7 @@ export default function Page() {
     if (!result) return;
     setBusyTags(true);
     try {
-      const raw = await callAPI(`Сгенерируй JSON с хештегами для темы: "${topic}". Формат: {"YouTube":["#a"],"TikTok":["#b"],"Instagram":["#c"],"Facebook":["#d"],"Telegram":["#e"]}`, 800);
+      const raw = await callAPI(`Сгенерируй JSON с хештегами для темы: "${topic}". МИНИМУМ по 5 штук для каждой платформы! Обязательно используй микс русских и английских хештегов (например, #мистика #mystery). Формат: {"YouTube":["#ru1", "#en2", "#ru3", "#en4", "#ru5"], "TikTok":["#ru1", "#en2", "#ru3", "#en4", "#ru5"], "Instagram":["#a","#b","#c","#d","#e"], "Facebook":["#a","#b","#c","#d","#e"], "Telegram":["#a","#b","#c","#d","#e"]}`, 800);
       let cleanText = raw.replace(/```json|```/gi, "").trim();
       const startIdx = cleanText.indexOf('{');
       const endIdx = cleanText.lastIndexOf('}');
@@ -395,7 +404,40 @@ export default function Page() {
           </div>
 
           <div style={{padding:"18px 16px"}}>
-            {tab==="storyboard"&&(<div>{frames.map((f,i)=><FrameCard key={i} f={f} i={i}/>)}</div>)}
+            {tab==="storyboard"&&(
+              <div>
+                {/* БЛОК ХУКОВ */}
+                {hooksList.length > 0 && (
+                  <div style={{marginBottom: 20}}>
+                    <div style={{fontSize:11, letterSpacing:1, color:"#ff3355", fontWeight:800, marginBottom:10}}>🔥 ВАРИАНТЫ HOOK</div>
+                    {hooksList.map((h, i) => (
+                      <div key={i} style={{background:"rgba(255,51,85,.05)", border:"1px solid rgba(255,51,85,.2)", borderRadius:14, padding:14, marginBottom:8}}>
+                        <div style={{fontSize:13, fontWeight:700, color:"#fff", marginBottom:6, lineHeight:1.4}}>🗣 «{h.text}»</div>
+                        <div style={{fontSize:11, color:"rgba(255,255,255,.6)", lineHeight:1.5}}>🎬 {h.visual}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* КАДРЫ РАСКАДРОВКИ */}
+                {frames.map((f,i)=><FrameCard key={i} f={f} i={i}/>)}
+                
+                {/* БЛОК ПРЕВЬЮ (THUMBNAIL) */}
+                {thumb && (
+                  <div style={{marginTop: 20, background:"rgba(249,115,22,.05)", border:"1px solid rgba(249,115,22,.2)", borderRadius:16, padding:16}}>
+                    <div style={{fontSize:11, letterSpacing:1, color:"#f97316", fontWeight:800, marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                      <span>🖼 ПРЕВЬЮ ОБЛОЖКИ</span>
+                      <CopyBtn text={thumb.prompt} label="Copy Prompt" small />
+                    </div>
+                    <div style={{fontSize:16, fontWeight:800, color:"#fff", textAlign:"center", marginBottom:12, textTransform:"uppercase", letterSpacing:1, background:"#000", padding:"10px", borderRadius:8, border:"1px solid rgba(255,255,255,.1)"}}>
+                      [ {thumb.text} ]
+                    </div>
+                    <div style={{fontFamily:"monospace", fontSize:11, lineHeight:1.7, color:"rgba(255,255,255,.55)", userSelect:"text"}}>{thumb.prompt}</div>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {tab==="raw"&&(<div style={{background:"rgba(255,255,255,.025)",borderRadius:18,padding:20}}><pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontFamily:"monospace",fontSize:11,lineHeight:2,color:"rgba(255,255,255,.55)",userSelect:"text"}}>{result}</pre></div>)}
             {tab==="prompts"&&(
               <div>
@@ -421,3 +463,4 @@ export default function Page() {
     </div>
   );
 }
+
