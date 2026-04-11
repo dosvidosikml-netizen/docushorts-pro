@@ -45,7 +45,6 @@ const PLATFORMS = [
 ];
 const PALETTE = ["#ef4444","#f97316","#eab308","#06b6d4","#8b5cf6","#10b981"];
 
-// СИСТЕМНЫЙ ПРОМПТ С АЛГОРИТМОМ ОБХОДА ЦЕНЗУРЫ И СПАСЕНИЕМ ОТ ТАЙМАУТА VERCEL
 const VIRAL_SYSTEM = `### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT JSON ADHERENCE REQUIRED)
 Ты профессиональный режиссер вирусных видео (Shorts/Reels/TikTok). ТВОЯ ЗАДАЧА - ВЫДАТЬ ОТВЕТ В СТРОГОМ ФОРМАТЕ JSON. Никакого текста до или после JSON.
 
@@ -77,7 +76,6 @@ const VIRAL_SYSTEM = `### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT JSON ADHERENCE 
 3. Пиши МАКСИМАЛЬНО КОРОТКО (3-6 слов на поля visual/prompts), иначе сервер прервет генерацию по таймауту.
 4. Выдавай ТОЛЬКО валидный JSON.`;
 
-// УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК API (С ПОНИЖЕННЫМ ЛИМИТОМ ТОКЕНОВ)
 async function callAPI(content, maxTokens = 3900, sysPrompt = VIRAL_SYSTEM) {
   try {
     const res = await fetch("/api/chat", {
@@ -263,7 +261,6 @@ export default function Page() {
 
   useEffect(()=>{ scrollRef.current?.scrollTo({top:0,behavior:"smooth"}); },[view]);
 
-  // АЛГОРИТМ-СПАСАТЕЛЬ РАСКАДРОВКИ
   function applyResult(rawText, fromHistory = false) {
     let cleanText = rawText.replace(/```json|```/gi, "").trim();
     const startIdx = cleanText.indexOf('{');
@@ -276,7 +273,6 @@ export default function Page() {
       data = JSON.parse(cleanText);
       successParse = true;
     } catch (e) {
-      // Спасение оборванного JSON
       const framesMatch = cleanText.match(/\{\s*"timecode"[^{]*?"vidPrompt"[^{]*?\}/g);
       if (framesMatch) {
         data.frames = framesMatch.map(f => {
@@ -284,7 +280,7 @@ export default function Page() {
         }).filter(Boolean);
       }
       if (data.frames.length === 0) {
-        throw new Error("Таймаут сервера оборвал генерацию. Уменьшите длительность видео.");
+        throw new Error("Таймаут сервера оборвал генерацию. Уменьшите длительность.");
       }
     }
 
@@ -328,7 +324,6 @@ export default function Page() {
     setShowHistory(false);
   }
 
-  // АНТИЦЕНЗУРА: ПРИ НАПИСАНИИ СЦЕНАРИЯ
   async function handleWriteScript() {
     if (!topic.trim()) { setErr("Сначала введите тему в поле выше!"); return; }
     setErr(""); setBusyScriptProcess(true); setLoadingMsg("Пишу мощный сценарий..."); setView("loading");
@@ -347,7 +342,6 @@ export default function Page() {
     }
   }
 
-  // АНТИЦЕНЗУРА: ПРИ УНИКАЛИЗАЦИИ
   async function handlePrepareVoice() {
     if (!script.trim()) { setErr("Вставьте исходный текст для обработки!"); return; }
     setErr(""); setBusyScriptProcess(true); setLoadingMsg("Расставляю ударения..."); setView("loading");
@@ -389,7 +383,6 @@ STYLE PROMPT: [English instruction on how to read the text, e.g. "Read with deep
     }
   }
 
-  // ПОЛНАЯ ГЕНЕРАЦИЯ С АНТИЦЕНЗУРОЙ
   async function handleGenerateFullPlan() {
     if (!topic.trim() && !script.trim()) { setErr("Введите тему или готовый сценарий!"); return; }
     setErr(""); setBusy(true); setView("loading");
@@ -437,7 +430,7 @@ STYLE PROMPT: [English instruction on how to read the text, e.g. "Read with deep
   }
 
   const S = {
-    root:    { minHeight:"100vh", backgroundColor:"#05050a", backgroundImage:`radial-gradient(circle at 50% 0%, #1c0e3a 0%, #090912 60%, #05050a 100%)`, color:"#e2e8f0", fontFamily:"'SF Pro Display', -apple-system, sans-serif", paddingBottom:110, overflowY:"auto", position:"relative", zIndex:1 },
+    root:    { minHeight:"100vh", backgroundColor:"#05050a", backgroundImage:`radial-gradient(circle at 50% 0%, #1c0e3a 0%, #090912 60%, #05050a 100%)`, color:"#e2e8f0", fontFamily:"'SF Pro Display', -apple-system, sans-serif", paddingBottom:180, overflowY:"auto", position:"relative", zIndex:1 },
     gridBg:  { position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:-1, opacity:0.15, backgroundImage:"url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%236366f1' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E\")" },
     nav:     { position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.7)", backdropFilter:"blur(24px)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px" },
     label:   { fontSize:11, fontWeight:800, letterSpacing:2, color:"#94a3b8", display:"block", marginBottom:12, textTransform:"uppercase" },
@@ -684,7 +677,7 @@ STYLE PROMPT: [English instruction on how to read the text, e.g. "Read with deep
         </div>
       )}
       {view==="form"&&(
-        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:500,padding:"20px 20px 36px",background:"linear-gradient(to top,#05050a 70%,transparent)",zIndex:100}}>
+        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:500,padding:"16px 20px 24px",background:"rgba(5,5,10,0.9)",backdropFilter:"blur(12px)",borderTop:"1px solid rgba(255,255,255,0.05)",zIndex:100}}>
           <button className="gbtn" onClick={handleGenerateFullPlan} disabled={(!script.trim() && !topic.trim()) || busy || busyScriptProcess || busyTts}>
             {busy?"СИСТЕМА В РАБОТЕ...":"🚀 АКТИВИРОВАТЬ НЕЙРОСЕТЬ"}
           </button>
