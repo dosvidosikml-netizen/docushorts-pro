@@ -1,6 +1,9 @@
 // @ts-nocheck
 /* eslint-disable */
 
+// ЭТА СТРОКА ОТКЛЮЧАЕТ ЛИМИТ 10 СЕКУНД В VERCEL
+export const runtime = 'edge'; 
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -12,18 +15,28 @@ export async function POST(req) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.3-70b-versatile", // СТРОГО УМНАЯ МОДЕЛЬ
         messages: body.messages,
-        max_tokens: body.max_tokens || 3900
+        max_tokens: body.max_tokens || 6000 // ВЕРНУЛИ БОЛЬШОЙ ЛИМИТ ДЛЯ ДЛИННЫХ ПРОМПТОВ
       })
     });
 
-    const data = await response.json();
+    const textResponse = await response.text();
 
-    if (!response.ok) {
-      // Теперь Vercel не будет прятать ошибку, а выдаст точный ответ от Groq
-      return new Response(JSON.stringify({ error: data.error?.message || "Ошибка лимитов или ключа Groq" }), {
-        status: 500,
+    let data;
+    try {
+      data = JSON.parse(textResponse);
+    } catch (e) {
+      return new Response(JSON.stringify({ error: "Сбой связи с Groq. Ответ: " + textResponse.substring(0, 100) }), { 
+        status: 200, 
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    if (!response.ok || data.error) {
+      const errorMsg = data.error?.message || "Запрос заблокирован цензурой или лимитами Groq.";
+      return new Response(JSON.stringify({ error: errorMsg }), { 
+        status: 200, 
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -34,9 +47,10 @@ export async function POST(req) {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: "Сбой сервера: " + error.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: "Внутренний сбой сервера: " + error.message }), {
+      status: 200,
       headers: { "Content-Type": "application/json" }
     });
   }
