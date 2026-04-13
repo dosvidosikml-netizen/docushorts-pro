@@ -60,63 +60,50 @@ const FORMATS = [
   { id:"9:16", label:"Вертикальный", ratio:"9/16" }, { id:"16:9", label:"Горизонтальный", ratio:"16/9" }, { id:"1:1", label:"Квадрат", ratio:"1/1" }
 ];
 
+const VISUAL_ENGINES = {
+  "CINEMATIC": { label: "Кино-реализм", prompt: "cinematic realism, photorealistic, deep shadows, 8k, Arri Alexa 65" },
+  "DARK_HISTORY": { label: "Dark History", prompt: "dark history grunge, dirty vintage film effect, scratches, bleak atmosphere, heavy vignette" },
+  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft lighting, cozy atmosphere" },
+  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, detailed engineering diagram, glowing internal parts, cross-section technical render" }
+};
+
 const DURATION_CONFIG = {
-  "15 сек": { sec:15, frames:5, pace:3 }, "30–45 сек": { sec:38, frames:13, pace:3 }, 
-  "До 60 сек": { sec:60, frames:20, pace:3 }, "1.5 мин": { sec:90, frames:30, pace:3 }, 
-  "3 мин": { sec:180, frames:60, pace:3 }, "10-12 мин": { sec:720, frames:80, pace:9 } 
+  "15 сек": { frames: 5 }, "30–45 сек": { frames: 13 }, 
+  "До 60 сек": { frames: 20 }, "1.5 мин": { frames: 30 }, 
+  "3 мин": { frames: 60 }, "10-12 мин": { frames: 80 } 
 };
 const DURATIONS = Object.keys(DURATION_CONFIG);
 
 const COVER_PRESETS = [
-  {
-    id: "netflix", label: "Netflix",
-    style: { hook: { fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000" }, title: { fontSize: 32, fontWeight: 900, fontFamily: "'Georgia', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px rgba(0,0,0,0.9)", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 2, borderBottom: "1px solid #e50914", paddingBottom: 4 } }
-  },
-  {
-    id: "mrbeast", label: "MrBeast",
-    style: { hook: { fontSize: 16, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#ffdd00", textTransform: "uppercase", WebkitTextStroke: "1px #000", textShadow: "3px 3px 0 #000", transform: "rotate(-3deg)", marginBottom: 4 }, title: { fontSize: 40, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1, WebkitTextStroke: "2px #000", textShadow: "5px 5px 0 #000, 0 0 40px #ff00ff", transform: "rotate(-3deg)", marginBottom: 16, textAlign: "center" }, cta: { fontSize: 13, fontWeight: 900, fontFamily: "sans-serif", color: "#ff00ff", background: "#000", border: "2px solid #ff00ff", padding: "6px 14px", borderRadius: 8, textTransform: "uppercase", transform: "rotate(-3deg)", boxShadow: "0 4px 15px rgba(0,0,0,0.8)" } }
-  },
-  {
-    id: "tiktok", label: "TikTok",
-    style: { hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12 }, title: { fontSize: 28, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } }
-  },
-  {
-    id: "documentary", label: "Документалка",
-    style: { hook: { display: "none" }, title: { fontSize: 28, fontWeight: 800, fontFamily: "'Montserrat', sans-serif", color: "#e8dcc8", textTransform: "uppercase", lineHeight: 1.2, letterSpacing: 2, textShadow: "0 4px 15px #000", textAlign: "center", marginBottom: 16 }, cta: { fontSize: 10, fontWeight: 700, fontFamily: "sans-serif", color: "#d4a853", textTransform: "uppercase", letterSpacing: 4 } }
-  },
-  {
-    id: "truecrime", label: "True Crime",
-    style: { hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8 }, title: { fontSize: 34, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px", borderLeft: "4px solid #ffdd00", marginBottom: 12, textAlign: "left" }, cta: { fontSize: 11, fontWeight: 800, fontFamily: "monospace", color: "#aaa", textTransform: "uppercase", letterSpacing: 1 } }
-  },
-  {
-    id: "horror", label: "Ужасы",
-    style: { hook: { fontSize: 14, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#dc2626", textTransform: "uppercase", letterSpacing: 6, marginBottom: 8, textShadow: "0 0 10px #dc2626" }, title: { fontSize: 36, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 5px 20px #000, 0 0 15px #dc2626", marginBottom: 16, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 3, opacity: 0.6 } }
-  },
-  {
-    id: "news", label: "Breaking News",
-    style: { hook: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ef4444", padding: "4px 8px", textTransform: "uppercase", marginBottom: 4 }, title: { fontSize: 30, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#000", background: "#fff", padding: "6px 12px", textTransform: "uppercase", lineHeight: 1.1, marginBottom: 12, textAlign: "left" }, cta: { display: "none" } }
-  },
-  {
-    id: "scifi", label: "Sci-Fi",
-    style: { hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#34d399", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }, title: { fontSize: 32, fontWeight: 900, fontFamily: "monospace", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 10px #34d399, -2px 0 0 #0ea5e9", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "monospace", color: "#0ea5e9", textTransform: "uppercase", border: "1px solid #0ea5e9", padding: "4px 10px", letterSpacing: 1 } }
-  }
+  { id: "netflix", label: "Netflix", style: { hook: { fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000" }, title: { fontSize: 32, fontWeight: 900, fontFamily: "'Georgia', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px rgba(0,0,0,0.9)", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 2, borderBottom: "1px solid #e50914", paddingBottom: 4 } } },
+  { id: "mrbeast", label: "MrBeast", style: { hook: { fontSize: 16, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#ffdd00", textTransform: "uppercase", WebkitTextStroke: "1px #000", textShadow: "3px 3px 0 #000", transform: "rotate(-3deg)", marginBottom: 4 }, title: { fontSize: 40, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1, WebkitTextStroke: "2px #000", textShadow: "5px 5px 0 #000, 0 0 40px #ff00ff", transform: "rotate(-3deg)", marginBottom: 16, textAlign: "center" }, cta: { fontSize: 13, fontWeight: 900, fontFamily: "sans-serif", color: "#ff00ff", background: "#000", border: "2px solid #ff00ff", padding: "6px 14px", borderRadius: 8, textTransform: "uppercase", transform: "rotate(-3deg)", boxShadow: "0 4px 15px rgba(0,0,0,0.8)" } } },
+  { id: "tiktok", label: "TikTok", style: { hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12 }, title: { fontSize: 28, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } } },
+  { id: "documentary", label: "Документалка", style: { hook: { display: "none" }, title: { fontSize: 28, fontWeight: 800, fontFamily: "'Montserrat', sans-serif", color: "#e8dcc8", textTransform: "uppercase", lineHeight: 1.2, letterSpacing: 2, textShadow: "0 4px 15px #000", textAlign: "center", marginBottom: 16 }, cta: { fontSize: 10, fontWeight: 700, fontFamily: "sans-serif", color: "#d4a853", textTransform: "uppercase", letterSpacing: 4 } } },
+  { id: "truecrime", label: "True Crime", style: { hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8 }, title: { fontSize: 34, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px", borderLeft: "4px solid #ffdd00", marginBottom: 12, textAlign: "left" }, cta: { fontSize: 11, fontWeight: 800, fontFamily: "monospace", color: "#aaa", textTransform: "uppercase", letterSpacing: 1 } } },
+  { id: "horror", label: "Ужасы", style: { hook: { fontSize: 14, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#dc2626", textTransform: "uppercase", letterSpacing: 6, marginBottom: 8, textShadow: "0 0 10px #dc2626" }, title: { fontSize: 36, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 5px 20px #000, 0 0 15px #dc2626", marginBottom: 16, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 3, opacity: 0.6 } } },
+  { id: "news", label: "Breaking News", style: { hook: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ef4444", padding: "4px 8px", textTransform: "uppercase", marginBottom: 4 }, title: { fontSize: 30, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#000", background: "#fff", padding: "6px 12px", textTransform: "uppercase", lineHeight: 1.1, marginBottom: 12, textAlign: "left" }, cta: { display: "none" } } },
+  { id: "scifi", label: "Sci-Fi", style: { hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#34d399", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }, title: { fontSize: 32, fontWeight: 900, fontFamily: "monospace", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 10px #34d399, -2px 0 0 #0ea5e9", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "monospace", color: "#0ea5e9", textTransform: "uppercase", border: "1px solid #0ea5e9", padding: "4px 10px", letterSpacing: 1 } } }
 ];
 
 const VIRAL_SYSTEM = `### SYSTEM ROLE (STRICT JSON)
 You are 'Director-X'. OUTPUT STRICTLY IN JSON.
 
 🚨 RULES:
-1. OPUS STYLE: Short punchy sentences. Show, don't tell.
-2. PACING: Strictly 3 seconds per scene!
-3. PROMPTS IN ENGLISH. End every visual prompt with: ", shot on Arri Alexa 65, 8k resolution, hyper-photorealistic, highly detailed, cinematic lighting".
-4. SEAMLESS: If long video use slow pan transitions, if short use match cuts.
-5. NO Midjourney/Leonardo. STRICT BAN. Use Veo or Whisk for Image, Grok Super for Video.
+1. PACING: Strictly 3 seconds per scene! Every 3 seconds a new frame.
+2. GLOBAL ANCHOR: Create a detailed physical description of the main character/location in "global_anchor_EN". This maintains visual consistency.
+3. PROMPTS IN ENGLISH ONLY. Append the Visual Engine style to all image/video prompts.
+4. NO Midjourney/Leonardo. STRICT BAN. Use Veo or Whisk for Image, Grok Super for Video.
+5. LANGUAGE CONTROL: "voice", "thumbnail" texts, "seo", and "retention.feedback" MUST be in the requested target language.
+6. AUDIO: "music_EN" must be instrumental, no vocals.
 
 JSON SCHEMA:
 {
+  "global_anchor_EN": "e.g. 40yo detective, beige trench coat, rainy alleyway...",
+  "retention": { "score": 95, "feedback": "Evaluation of hook and pacing" },
   "frames": [ { "timecode": "0-3 сек", "camera": "Motion", "visual": "Detail", "voice": "Voiceover...", "imgPrompt_EN": "...", "vidPrompt_EN": "... [SFX: ...]" } ],
+  "b_rolls": [ "Flash b-roll 1 (1 sec)", "Flash b-roll 2 (1 sec)" ],
   "thumbnail": { "title": "2-4 words", "hook": "...", "cta": "...", "prompt_EN": "Extreme close up of [OBJECT]. The object takes up 50% of the frame. Absolute black void background, extreme contrast, bright rim lighting." },
-  "music_EN": "Suno AI prompt (e.g. Dark ambient, low drone, 90bpm)",
+  "music_EN": "instrumental, cinematic dark ambient...",
   "seo": { "titles": ["T1", "T2", "T3"], "desc": "YouTube description with CTA", "tags": ["#tag1", "#tag2"] }
 }`;
 
@@ -150,6 +137,8 @@ export default function Page() {
   const [genre, setGenre] = useState("ТАЙНА");
   const [dur, setDur] = useState("До 60 сек");
   const [vidFormat, setVidFormat] = useState("9:16");
+  const [engine, setEngine] = useState("CINEMATIC");
+  const [lang, setLang] = useState("RU"); 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ttsData, setTtsData] = useState("");
 
@@ -158,13 +147,14 @@ export default function Page() {
   const [tab, setTab] = useState("storyboard");
   
   const [frames, setFrames] = useState([]);
+  const [bRolls, setBRolls] = useState([]);
+  const [retention, setRetention] = useState(null);
   const [thumb, setThumb] = useState(null);
   const [music, setMusic] = useState("");
   const [seo, setSeo] = useState(null);
-  const [rawPrompts, setRawPrompts] = useState(""); // ИСПРАВЛЕНО ИМЯ ПЕРЕМЕННОЙ
+  const [rawPrompts, setRawPrompts] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Студия Обложек (X/Y Позиционирование)
   const [bgImage, setBgImage] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [covTitle, setCovTitle] = useState("");
@@ -189,22 +179,28 @@ export default function Page() {
     const startIdx = cleanText.indexOf('{');
     if (startIdx !== -1) cleanText = cleanText.substring(startIdx);
 
-    let data = { frames: [], thumbnail: null, seo: null, music_EN: "" };
+    let data = { frames: [], b_rolls: [], thumbnail: null, seo: null, music_EN: "", retention: null, global_anchor_EN: "" };
     try { data = JSON.parse(cleanText); } catch (e) {
       alert("Таймаут. Попробуйте уменьшить длительность."); return setView("form");
     }
     
     setFrames(data.frames || []); 
-    setThumb(data.thumbnail || null); setMusic(data.music_EN || ""); setSeo(data.seo || null);
+    setBRolls(data.b_rolls || []);
+    setRetention(data.retention || null);
+    setThumb(data.thumbnail || null); 
+    setMusic(data.music_EN || ""); 
+    setSeo(data.seo || null);
     
     if (data.thumbnail) { setCovTitle(data.thumbnail.title || ""); setCovHook(data.thumbnail.hook || ""); setCovCta(data.thumbnail.cta || "СМОТРЕТЬ"); }
     
-    // СТРОГИЕ ПРАВИЛА ИЗ ИСТОРИИ: Сначала сценарий, потом чистые промпты с пустой строкой между ними
+    // ФОРМИРУЕМ ЧИСТЫЕ СПИСКИ ПРОМПТОВ С ЯКОРЕМ
+    let anchorStr = data.global_anchor_EN ? `[GLOBAL ANCHOR: ${data.global_anchor_EN}] ` : "";
     let rScript = "🎬 СЦЕНАРИЙ:\n" + (data.frames || []).map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
-    let imgList = "\n\n🖼 ЧИСТЫЕ IMAGE PROMPTS (Veo/Whisk):\n\n" + (data.frames || []).map(f => f.imgPrompt_EN).filter(Boolean).join("\n\n");
-    let vidList = "\n\n🎥 ЧИСТЫЕ VIDEO PROMPTS (Grok Super):\n\n" + (data.frames || []).map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n");
+    let imgList = "\n\n🖼 ЧИСТЫЕ IMAGE PROMPTS (Veo/Whisk):\n\n" + (data.frames || []).map(f => anchorStr + f.imgPrompt_EN).filter(Boolean).join("\n\n");
+    let vidList = "\n\n🎥 ЧИСТЫЕ VIDEO PROMPTS (Grok Super):\n\n" + (data.frames || []).map(f => anchorStr + f.vidPrompt_EN).filter(Boolean).join("\n\n");
+    let bRollList = (data.b_rolls && data.b_rolls.length) ? "\n\n⚡ FLASH B-ROLLS (Grok Super Перебивки):\n\n" + data.b_rolls.map(b => anchorStr + b).join("\n\n") : "";
     
-    setRawPrompts(rScript + imgList + vidList); // Сохраняем в правильную переменную
+    setRawPrompts(rScript + imgList + vidList + bRollList); 
     setBgImage(null); setTab("storyboard"); setView("result");
 
     if (!fromHistory) {
@@ -214,12 +210,11 @@ export default function Page() {
     }
   }
 
-  // БЕСПЛАТНЫЕ ИНСТРУМЕНТЫ ДЛЯ ТЕКСТА
   async function handleDraftText() {
     if (!topic.trim()) return alert("Введите тему!");
     setBusy(true); setLoadingMsg("Пишем черновик (Opus)...");
     try {
-      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора. Мрачный стиль. Никакой воды. Без разметки.`;
+      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора. Мрачный стиль. Без разметки. Язык: ${lang==="RU" ? "Русский" : "English"}`;
       const text = await callAPI(`Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${dur}\nНапиши чистый текст диктора.`, 3000, sysTxt);
       setScript(text.trim());
     } catch(e) { alert("Ошибка: " + e.message); } finally { setBusy(false); }
@@ -229,7 +224,7 @@ export default function Page() {
     if (!script.trim()) return alert("Нет текста!");
     setBusy(true); setLoadingMsg("Разметка интонаций...");
     try {
-      const sysTxt = `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента. Верни только текст.`;
+      const sysTxt = `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента. Верни только текст. Язык: ${lang==="RU" ? "Русский" : "English"}`;
       const text = await callAPI(`Расставь интонации для диктора:\n\n${script}`, 3000, sysTxt);
       setScript(text.trim());
     } catch(e) { alert("Ошибка: " + e.message); } finally { setBusy(false); }
@@ -244,7 +239,6 @@ export default function Page() {
     } catch(e) { alert("Ошибка: " + e.message); } finally { setBusy(false); }
   }
 
-  // ГЛАВНАЯ ГЕНЕРАЦИЯ (💎)
   async function handleGenerateFullPlan() {
     if (!topic.trim() && !script.trim()) return alert("Заполните идею или текст!");
     if (!checkTokens()) return;
@@ -253,15 +247,16 @@ export default function Page() {
       let currentScript = script.trim();
       if (!currentScript) {
         setLoadingMsg("Создаем текст...");
-        currentScript = await callAPI(`Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${dur}\nНапиши текст.`, 3000, `You are 'Director-X'. Напиши ТОЛЬКО текст.`);
+        currentScript = await callAPI(`Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${dur}\nЯзык: ${lang==="RU" ? "Русский" : "English"}\nНапиши текст.`, 3000, `You are 'Director-X'. Напиши ТОЛЬКО текст.`);
         setScript(currentScript.trim());
       }
-      setLoadingMsg("Создаем промпты, обложку и SEO (8K Quality)...");
+      setLoadingMsg("Режиссура, Якоря и Студия Обложек (8K Quality)...");
       const durCfg = DURATION_CONFIG[dur] || DURATION_CONFIG["До 60 сек"];
       const currFormat = FORMATS.find(f=>f.id === vidFormat) || FORMATS[0];
+      const engineStyle = VISUAL_ENGINES[engine].prompt;
       
-      const req = `ВЫДАЙ СТРОГО В JSON! РОВНО ${durCfg.frames} КАДРОВ (Темп: ${durCfg.pace} сек/кадр). ПРОМПТЫ НА АНГЛИЙСКОМ!`;
-      const text = await callAPI(`ТЕМА: ${topic}\nФОРМАТ: ${currFormat.ratio}\nЖАНР: ${genre}\nСЦЕНАРИЙ:\n${currentScript}\n\n${req}`, 8000, VIRAL_SYSTEM);
+      const req = `ВЫДАЙ СТРОГО В JSON! РОВНО ${durCfg.frames} КАДРОВ. СТРОГО 3 СЕКУНДЫ НА СЦЕНУ.`;
+      const text = await callAPI(`ТЕМА: ${topic}\nФОРМАТ: ${currFormat.ratio}\nЖАНР: ${genre}\nСТИЛЬ РЕНДЕРА (VISUAL ENGINE): ${engineStyle}\nЦЕЛЕВОЙ ЯЗЫК: ${lang==="RU" ? "Русский" : "English"}\nСЦЕНАРИЙ:\n${currentScript}\n\n${req}`, 8000, VIRAL_SYSTEM);
       applyResult(text, false);
     } catch(e) { alert("Ошибка: " + e.message); setView("form"); } finally { setBusy(false); setLoadingMsg(""); }
   }
@@ -351,9 +346,8 @@ export default function Page() {
           <span style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.5}}>DOCU<span style={{color:"#a855f7"}}>SHORTS</span></span>
         </div>
         <div style={{display:"flex",gap:12, alignItems:"center"}}>
-          {/* ИСПРАВЛЕНА ПЕРЕМЕННАЯ ЗДЕСЬ */}
           {view==="form" && rawPrompts && <button onClick={()=>setView("result")} style={{background:"none",border:"none",color:"#d8b4fe",fontSize:12,fontWeight:800,cursor:"pointer"}}>👁 РЕЗУЛЬТАТ</button>}
-          {view==="form" && !rawPrompts && <button onClick={()=>setShowHistory(true)} style={{background:"none",border:"none",color:"#cbd5e1",fontSize:12,fontWeight:700,cursor:"pointer"}}>🗄 АРХИВ</button>}
+          <button onClick={()=>setShowHistory(true)} style={{background:"none",border:"none",color:"#cbd5e1",fontSize:12,fontWeight:700,cursor:"pointer"}}>🗄 АРХИВ</button>
           
           <div style={{fontSize:11, fontWeight:800, color:tokens>0?"#34d399":"#ef4444", background:"rgba(255,255,255,0.05)", padding:"6px 12px", borderRadius:10}}>💎 {tokens}</div>
           <button onClick={()=>setShowPaywall(true)} style={{padding:"6px 12px",background:"linear-gradient(135deg, #a855f7, #ec4899)",border:"none",borderRadius:10,color:"#fff",fontSize:11,fontWeight:900,cursor:"pointer"}}>PRO</button>
@@ -396,10 +390,21 @@ export default function Page() {
              </button>
              {settingsOpen && (
                <div style={{background:"rgba(15,15,25,.3)", border:"1px solid rgba(255,255,255,.05)", borderTop:"none", borderRadius:"0 0 24px 24px", padding:24, backdropFilter:"blur(20px)"}}>
+                  <label style={S.label}>🎨 Визуальный движок</label>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:20}}>
+                    {Object.entries(VISUAL_ENGINES).map(([eId, e])=><button key={eId} onClick={()=>setEngine(eId)} style={{flex:"1 1 45%",background:engine===eId?"rgba(168,85,247,.15)":"rgba(0,0,0,.4)",border:`1px solid ${engine===eId?"#a855f7":"rgba(255,255,255,.05)"}`,borderRadius:14,padding:"10px",fontSize:11,fontWeight:engine===eId?800:500,color:engine===eId?"#d8b4fe":"rgba(255,255,255,.5)",cursor:"pointer"}}>{e.label}</button>)}
+                  </div>
+               
+                  <label style={S.label}>🌐 Язык контента (SEO)</label>
+                  <div style={{display:"flex",gap:8,marginBottom:20}}>
+                    {["RU", "EN"].map(l=><button key={l} onClick={()=>setLang(l)} style={{flex:1,background:lang===l?"rgba(245,158,11,.15)":"rgba(0,0,0,.4)",border:`1px solid ${lang===l?"#fbbf24":"rgba(255,255,255,.05)"}`,borderRadius:14,padding:"10px",fontSize:12,fontWeight:lang===l?800:500,color:lang===l?"#fcd34d":"rgba(255,255,255,.5)",cursor:"pointer"}}>{l === "RU" ? "Русский" : "English"}</button>)}
+                  </div>
+                  
                   <label style={S.label}>📐 Формат</label>
                   <div style={{display:"flex",gap:8,marginBottom:20}}>
-                    {FORMATS.map(f=><button key={f.id} onClick={()=>setVidFormat(f.id)} style={{flex:1,background:vidFormat===f.id?"rgba(168,85,247,.15)":"rgba(0,0,0,.4)",border:`1px solid ${vidFormat===f.id?"#a855f7":"rgba(255,255,255,.05)"}`,borderRadius:14,padding:"10px",fontSize:12,fontWeight:vidFormat===f.id?800:500,color:vidFormat===f.id?"#d8b4fe":"rgba(255,255,255,.5)",cursor:"pointer"}}>{f.id}</button>)}
+                    {FORMATS.map(f=><button key={f.id} onClick={()=>setVidFormat(f.id)} style={{flex:1,background:vidFormat===f.id?"rgba(14,165,233,.15)":"rgba(0,0,0,.4)",border:`1px solid ${vidFormat===f.id?"#0ea5e9":"rgba(255,255,255,.05)"}`,borderRadius:14,padding:"10px",fontSize:12,fontWeight:vidFormat===f.id?800:500,color:vidFormat===f.id?"#bae6fd":"rgba(255,255,255,.5)",cursor:"pointer"}}>{f.id}</button>)}
                   </div>
+                  
                   <label style={S.label}>⏱ Хронометраж</label>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
                     {DURATIONS.map(d=><button key={d} onClick={()=>setDur(d)} style={{background:dur===d?"rgba(249,115,22,.15)":"rgba(0,0,0,.4)",border:`1px solid ${dur===d?"#f97316":"rgba(255,255,255,.05)"}`,borderRadius:20,padding:"10px 16px",fontSize:12,fontWeight:dur===d?800:500,color:dur===d?"#fdba74":"rgba(255,255,255,.5)",cursor:"pointer"}}>{d}</button>)}
@@ -424,6 +429,13 @@ export default function Page() {
       {view==="result" && (
         <div style={{maxWidth:600,margin:"0 auto",padding:"20px"}}>
           
+          {retention && (
+             <div style={{background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:16, padding:16, marginBottom:24}}>
+               <div style={{fontSize:11, fontWeight:900, color:"#34d399", textTransform:"uppercase", marginBottom:6}}>📊 Оценка Удержания: {retention.score}%</div>
+               <div style={{fontSize:13, color:"#a7f3d0"}}>{retention.feedback}</div>
+             </div>
+          )}
+
           <div style={{...S.section, padding:0, overflow:"hidden"}}>
             <div style={{padding:"20px 24px", background:"rgba(0,0,0,0.3)", borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
                <div style={{fontSize:14, fontWeight:900, color:"#d8b4fe", letterSpacing:1, textTransform:"uppercase"}}>🎨 Студия Обложки</div>
@@ -468,14 +480,14 @@ export default function Page() {
 
               <div style={{display:"flex", gap:10}}>
                 <label style={{flex:1, height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:14, color:"#fff", fontSize:12, fontWeight:800, cursor:"pointer", textTransform:"uppercase"}}>
-                  📸 Картинка из Veo
+                  📸 Картинка
                   <input type="file" accept="image/*" onChange={handleImageUpload} style={{display:"none"}} />
                 </label>
                 <button onClick={downloadThumbnail} disabled={downloading} style={{flex:1, height:48, border:"none", borderRadius:14, background:"linear-gradient(135deg, #10b981, #059669)", color:"#fff", fontSize:12, fontWeight:900, cursor:downloading?"not-allowed":"pointer", textTransform:"uppercase"}}>{downloading ? "Рендер..." : "💾 СКАЧАТЬ"}</button>
               </div>
               
               <div style={{marginTop:16, background:"rgba(16,185,129,.05)", border:"1px solid rgba(16,185,129,.2)", borderRadius:14, padding:14}}>
-                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}><span style={{fontSize:10, fontWeight:800, color:"#34d399"}}>ПРОМПТ 50% / ЧЕРНЫЙ ФОН (VEO)</span><CopyBtn text={thumb?.prompt_EN || ""} small/></div>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}><span style={{fontSize:10, fontWeight:800, color:"#34d399"}}>ПРОМПТ 50% / ЧЕРНЫЙ ФОН</span><CopyBtn text={thumb?.prompt_EN || ""} small/></div>
                 <div style={{fontFamily:"monospace", fontSize:12, color:"rgba(255,255,255,.6)", lineHeight:1.5}}>{thumb?.prompt_EN}</div>
               </div>
             </div>
@@ -498,6 +510,15 @@ export default function Page() {
                     {f.vidPrompt_EN && <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (GROK SUPER)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>}
                   </div>
               ))}
+              
+              {bRolls.length > 0 && (
+                <div style={{...S.section, border:"1px solid rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.05)"}}>
+                  <div style={{fontSize:12, fontWeight:900, color:"#fbbf24", marginBottom:16}}>⚡ МИКРО-ПЕРЕБИВКИ (FLASH B-ROLLS)</div>
+                  {bRolls.map((b,i)=>(
+                    <div key={i} style={{fontSize:12, fontFamily:"monospace", color:"#fcd34d", marginBottom:8, paddingBottom:8, borderBottom:"1px solid rgba(245,158,11,0.1)"}}>- {b}</div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
