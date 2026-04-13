@@ -64,7 +64,7 @@ const VISUAL_ENGINES = {
   "CINEMATIC": { label: "Кино-реализм", prompt: "cinematic realism, photorealistic, deep shadows, 8k, Arri Alexa 65" },
   "DARK_HISTORY": { label: "Dark History", prompt: "dark history grunge, dirty vintage film effect, scratches, bleak atmosphere, heavy vignette, 8k, Arri Alexa 65" },
   "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft lighting, 8k" },
-  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, technical render, glowing internal parts, 8k" }
+  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, detailed engineering diagram, glowing internal parts, technical cross-section render, 8k" }
 };
 
 const DURATION_CONFIG = {
@@ -75,26 +75,26 @@ const DURATION_CONFIG = {
 const DURATIONS = Object.keys(DURATION_CONFIG);
 
 const COVER_PRESETS = [
-  { id: "netflix", label: "Netflix", style: { hook: { fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000" }, title: { fontSize: 32, fontWeight: 900, fontFamily: "'Georgia', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px rgba(0,0,0,0.9)", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 2, borderBottom: "1px solid #e50914", paddingBottom: 4 } } },
-  { id: "mrbeast", label: "MrBeast", style: { hook: { fontSize: 16, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#ffdd00", textTransform: "uppercase", WebkitTextStroke: "1px #000", textShadow: "3px 3px 0 #000", transform: "rotate(-3deg)", marginBottom: 4 }, title: { fontSize: 40, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1, WebkitTextStroke: "2px #000", textShadow: "5px 5px 0 #000, 0 0 40px #ff00ff", transform: "rotate(-3deg)", marginBottom: 16, textAlign: "center" }, cta: { fontSize: 13, fontWeight: 900, fontFamily: "sans-serif", color: "#ff00ff", background: "#000", border: "2px solid #ff00ff", padding: "6px 14px", borderRadius: 8, textTransform: "uppercase", transform: "rotate(-3deg)", boxShadow: "0 4px 15px rgba(0,0,0,0.8)" } } },
-  { id: "tiktok", label: "TikTok", style: { hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12 }, title: { fontSize: 28, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } } },
-  { id: "documentary", label: "Документалка", style: { hook: { display: "none" }, title: { fontSize: 28, fontWeight: 800, fontFamily: "'Montserrat', sans-serif", color: "#e8dcc8", textTransform: "uppercase", lineHeight: 1.2, letterSpacing: 2, textShadow: "0 4px 15px #000", textAlign: "center", marginBottom: 16 }, cta: { fontSize: 10, fontWeight: 700, fontFamily: "sans-serif", color: "#d4a853", textTransform: "uppercase", letterSpacing: 4 } } },
-  { id: "truecrime", label: "True Crime", style: { hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8 }, title: { fontSize: 34, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px", borderLeft: "4px solid #ffdd00", marginBottom: 12, textAlign: "left" }, cta: { fontSize: 11, fontWeight: 800, fontFamily: "monospace", color: "#aaa", textTransform: "uppercase", letterSpacing: 1 } } },
-  { id: "horror", label: "Ужасы", style: { hook: { fontSize: 14, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#dc2626", textTransform: "uppercase", letterSpacing: 6, marginBottom: 8, textShadow: "0 0 10px #dc2626" }, title: { fontSize: 36, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 5px 20px #000, 0 0 15px #dc2626", marginBottom: 16, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 3, opacity: 0.6 } } },
-  { id: "news", label: "Breaking News", style: { hook: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ef4444", padding: "4px 8px", textTransform: "uppercase", marginBottom: 4 }, title: { fontSize: 30, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#000", background: "#fff", padding: "6px 12px", textTransform: "uppercase", lineHeight: 1.1, marginBottom: 12, textAlign: "left" }, cta: { display: "none" } } },
-  { id: "scifi", label: "Sci-Fi", style: { hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#34d399", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }, title: { fontSize: 32, fontWeight: 900, fontFamily: "monospace", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 10px #34d399, -2px 0 0 #0ea5e9", marginBottom: 12, textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "monospace", color: "#0ea5e9", textTransform: "uppercase", border: "1px solid #0ea5e9", padding: "4px 10px", letterSpacing: 1 } } }
+  { id: "netflix", label: "Netflix", style: { container: { alignItems: "center" }, hook: { fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000" }, title: { fontSize: 32, fontWeight: 900, fontFamily: "'Georgia', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px rgba(0,0,0,0.9)", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, fontFamily: "sans-serif", color: "#fff", textTransform: "uppercase", letterSpacing: 2, borderBottom: "1px solid #e50914", marginTop: 10 } } },
+  { id: "mrbeast", label: "MrBeast", style: { container: { alignItems: "center" }, hook: { fontSize: 16, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#ffdd00", textTransform: "uppercase", WebkitTextStroke: "1px #000", transform: "rotate(-2deg)" }, title: { fontSize: 40, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1, WebkitTextStroke: "2px #000", textShadow: "5px 5px 0 #000, 0 0 40px #ff00ff", transform: "rotate(-3deg)", textAlign: "center" }, cta: { fontSize: 13, fontWeight: 900, fontFamily: "sans-serif", color: "#ff00ff", background: "#000", border: "2px solid #ff00ff", padding: "6px 14px", transform: "rotate(-1deg)" } } },
+  { id: "tiktok", label: "TikTok", style: { container: { alignItems: "center" }, hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12 }, title: { fontSize: 28, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center" }, cta: { fontSize: 11, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20 } } },
+  { id: "truecrime", label: "True Crime", style: { container: { alignItems: "flex-start" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8 }, title: { fontSize: 34, fontWeight: 900, fontFamily: "'Arial Black', sans-serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px", borderLeft: "4px solid #ffdd00", textAlign: "left" }, cta: { fontSize: 11, fontWeight: 800, color: "#888", marginTop: 10 } } },
+  { id: "horror", label: "Ужасы", style: { container: { alignItems: "center" }, hook: { fontSize: 14, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#dc2626", textTransform: "uppercase", letterSpacing: 6, marginBottom: 8, textShadow: "0 0 10px #dc2626" }, title: { fontSize: 36, fontWeight: 900, fontFamily: "'Cinzel', serif", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 5px 20px #000, 0 0 15px #dc2626", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, color: "#fff", opacity: 0.5, letterSpacing: 2 } } },
+  { id: "scifi", label: "Sci-Fi", style: { container: { alignItems: "center" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#34d399", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }, title: { fontSize: 32, fontWeight: 900, fontFamily: "monospace", color: "#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 10px #34d399, -2px 0 0 #0ea5e9", textAlign: "center" }, cta: { fontSize: 10, border: "1px solid #0ea5e9", color: "#0ea5e9", padding: "4px 8px" } } },
+  { id: "news", label: "News", style: { container: { alignItems: "flex-start" }, hook: { fontSize: 11, fontWeight: 900, background: "#ef4444", color: "#fff", padding: "4px 10px", textTransform: "uppercase" }, title: { fontSize: 30, fontWeight: 900, background: "#fff", color: "#000", padding: "5px 10px", textTransform: "uppercase" }, cta: { display: "none" } } },
+  { id: "documentary", label: "Документалка", style: { container: { alignItems: "center" }, hook: { display: "none" }, title: { fontSize: 28, fontWeight: 800, fontFamily: "'Montserrat', sans-serif", color: "#e8dcc8", textTransform: "uppercase", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 700, color: "#d4a853", letterSpacing: 4 } } }
 ];
 
 const VIRAL_SYSTEM = `### SYSTEM ROLE (STRICT JSON)
 You are 'Director-X'. OUTPUT STRICTLY IN JSON.
 
 🚨 RULES:
-1. PACING: Strictly 3 seconds per scene! Every 3 seconds a new frame.
-2. GLOBAL ANCHOR: Create a detailed physical description of the main character/location in "global_anchor_EN". This maintains visual consistency.
-3. 8K QUALITY: Append ", shot on Arri Alexa 65, 8k resolution, photorealistic, masterpiece, cinematic lighting" to every "imgPrompt_EN" and "vidPrompt_EN".
-4. PROMPTS IN ENGLISH ONLY: Even if the target language is Russian, fields "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN" and "music_EN" MUST be strictly in ENGLISH. Translate actions like "ветер" to "wind" automatically.
-5. NO Midjourney/Leonardo. STRICT BAN. Use Veo or Whisk for Image, Grok Super for Video.
-6. AUDIO: "music_EN" must be instrumental, no vocals.
+1. PACING: Strictly 3 seconds per scene!
+2. GLOBAL ANCHOR: Define characters and location in "global_anchor_EN" for consistency.
+3. QUALITY: ALWAYS append ", shot on Arri Alexa 65, 8k resolution, photorealistic, masterpiece, cinematic lighting" to every image and video prompt.
+4. PROMPTS IN ENGLISH ONLY: Even if target language is Russian, "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN" and "music_EN" MUST be in ENGLISH. Translate everything (actions, sounds, camera) to English.
+5. NO Midjourney/Leonardo. Use Veo or Whisk for Image, Grok Super for Video.
+6. AUDIO: "music_EN" must be instrumental Suno prompt, no vocals.
 
 JSON SCHEMA:
 {
@@ -169,20 +169,14 @@ export default function Page() {
   const [showHistory, setShowHistory] = useState(false);
 
   const scrollRef = useRef(null);
-  useEffect(() => { try { const saved = localStorage.getItem("ds_history"); if (saved) setHistory(JSON.parse(saved)); } catch(e) {} }, []);
+  useEffect(() => { 
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ds_history"); if (saved) setHistory(JSON.parse(saved)); 
+    }
+  }, []);
   useEffect(() => { scrollRef.current?.scrollTo({top:0,behavior:"smooth"}); }, [view]);
 
   const checkTokens = () => { if (tokens <= 0) { setShowPaywall(true); return false; } setTokens(prev => prev - 1); return true; };
-
-  const saveToHistory = (cleanText) => {
-      const tName = topic ? (topic.length > 30 ? topic.substring(0,30)+"..." : topic) : "Генерация ИИ";
-      const newItem = { id: Date.now(), topic: tName, time: new Date().toLocaleString("ru-RU", {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}), text: cleanText, format: vidFormat };
-      setHistory(prev => { 
-        const next = [newItem, ...prev].slice(0, 10); 
-        localStorage.setItem("ds_history", JSON.stringify(next)); 
-        return next; 
-      });
-  };
 
   const deleteFromHistory = (id) => {
     setHistory(prev => {
@@ -193,9 +187,8 @@ export default function Page() {
   };
 
   const clearHistory = () => {
-    if(confirm("Удалить все проекты из архива?")) {
-      setHistory([]);
-      localStorage.removeItem("ds_history");
+    if(confirm("Очистить весь архив?")) {
+      setHistory([]); localStorage.removeItem("ds_history");
     }
   };
 
@@ -227,7 +220,11 @@ export default function Page() {
     setRawPrompts(rScript + imgList + vidList + bRollList); 
     setBgImage(null); setTab("storyboard"); setView("result");
 
-    if (!fromHistory) { saveToHistory(cleanText); }
+    if (!fromHistory) {
+      const tName = topic ? (topic.length > 30 ? topic.substring(0,30)+"..." : topic) : "Генерация ИИ";
+      const newItem = { id: Date.now(), topic: tName, time: new Date().toLocaleString("ru-RU", {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}), text: cleanText, format: vidFormat };
+      setHistory(prev => { const next = [newItem, ...prev].slice(0, 10); localStorage.setItem("ds_history", JSON.stringify(next)); return next; });
+    }
   }
 
   async function handleDraftText() {
@@ -276,7 +273,7 @@ export default function Page() {
       const engineStyle = VISUAL_ENGINES[engine].prompt;
       
       const req = `ВЫДАЙ СТРОГО В JSON! РОВНО ${durCfg.frames} КАДРОВ. СТРОГО 3 СЕКУНДЫ НА СЦЕНУ.`;
-      const text = await callAPI(`ТЕМА: ${topic}\nФОРМАТ: ${currFormat.ratio}\nЖАНР: ${genre}\nСТИЛЬ РЕНДЕРА (VISUAL ENGINE): ${engineStyle}\nЦЕЛЕВОЙ ЯЗЫК: ${lang==="RU" ? "Русский" : "English"}\nСЦЕНАРИЙ:\n${currentScript}\n\n${req}`, 8000, VIRAL_SYSTEM);
+      const text = await callAPI(`ТЕМА: ${topic}\nФОРМАТ: ${currFormat.ratio}\nЖАНР: ${genre}\nСТИЛЬ РЕНДЕРА: ${engineStyle}\nЦЕЛЕВОЙ ЯЗЫК: ${lang==="RU" ? "Русский" : "English"}\nСЦЕНАРИЙ:\n${currentScript}\n\n${req}`, 8000, VIRAL_SYSTEM);
       applyResult(text, false);
     } catch(e) { alert("Ошибка: " + e.message); setView("form"); } finally { setBusy(false); setLoadingMsg(""); }
   }
@@ -354,7 +351,7 @@ export default function Page() {
                         <div style={{fontSize:10,color:"#8b5cf6",fontWeight:700,marginBottom:6}}>{h.time}</div>
                         <div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{h.topic}</div>
                      </div>
-                     <button onClick={() => deleteFromHistory(h.id)} style={{position:"absolute", right:10, top:10, background:"none", border:"none", color:"#ef4444", fontSize:18, cursor:"pointer"}}>🗑️</button>
+                     <button onClick={() => deleteFromHistory(h.id)} style={{position:"absolute", right:10, top:20, background:"none", border:"none", color:"#ef4444", fontSize:20, cursor:"pointer"}}>🗑️</button>
                    </div>
                  ))
                }
