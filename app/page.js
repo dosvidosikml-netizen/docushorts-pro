@@ -56,13 +56,6 @@ const GENRE_PRESETS = {
   "ПСИХОЛОГИЯ":    { icon:"🧠", col:"#ec4899" }, "КОНСПИРОЛОГИЯ": { icon:"👁", col:"#fbbf24" },
 };
 
-const STORYBOARD_STYLES = [
-  { id:"CINEMATIC",    label:"Кино-реализм",   prompt:"cinematic realism, photorealistic, deep shadows" },
-  { id:"UGC_PHONE",    label:"UGC (Телефон)",  prompt:"UGC style, vertical video footage, raw authentic" },
-  { id:"DARK_FANTASY", label:"Тёмное фэнтези", prompt:"dark fantasy movie style, misty eerie atmosphere" },
-  { id:"FOUND_FOOTAGE",label:"Найденная плёнка",prompt:"found footage horror style, shaky handheld amateur camera" },
-];
-
 const FORMATS = [
   { id:"9:16", label:"Вертикальный", ratio:"9/16" }, { id:"16:9", label:"Горизонтальный", ratio:"16/9" }, { id:"1:1", label:"Квадрат", ratio:"1/1" }
 ];
@@ -73,7 +66,6 @@ const DURATION_CONFIG = {
   "3 мин": { sec:180, frames:60, pace:3 }, "10-12 мин": { sec:720, frames:80, pace:9 } 
 };
 const DURATIONS = Object.keys(DURATION_CONFIG);
-const HOOKS = ["⚡ ШОК","🔮 ТАЙНА","☠ ОПАСНОСТЬ","🌀 ПАРАДОКС","🩸 ПРОВОКАЦИЯ"];
 
 const COVER_PRESETS = [
   {
@@ -114,15 +106,14 @@ const VIRAL_SYSTEM = `### SYSTEM ROLE (STRICT JSON)
 You are 'Director-X'. OUTPUT STRICTLY IN JSON.
 
 🚨 RULES:
-1. OPUS STYLE: Short punchy sentences. Use ellipses (...). Show, don't tell.
-2. NO CLICHES: Never use "погрузитесь", "добро пожаловать".
-3. PROMPTS IN ENGLISH. End every visual prompt with: ", shot on Arri Alexa 65, 8k resolution, hyper-photorealistic, masterpiece, highly detailed, cinematic lighting".
+1. OPUS STYLE: Short punchy sentences. Show, don't tell.
+2. PACING: Strictly 3 seconds per scene!
+3. PROMPTS IN ENGLISH. End every visual prompt with: ", shot on Arri Alexa 65, 8k resolution, hyper-photorealistic, highly detailed, cinematic lighting".
 4. SEAMLESS: If long video use slow pan transitions, if short use match cuts.
-5. NO Midjourney/Leonardo. Veo for Image, Grok Super for Video.
+5. NO Midjourney/Leonardo. STRICT BAN. Use Veo or Whisk for Image, Grok Super for Video.
 
 JSON SCHEMA:
 {
-  "hooks": [ {"text": "Hook 1", "visual": "Vis 1"} ],
   "frames": [ { "timecode": "0-3 сек", "camera": "Motion", "visual": "Detail", "voice": "Voiceover...", "imgPrompt_EN": "...", "vidPrompt_EN": "... [SFX: ...]" } ],
   "thumbnail": { "title": "2-4 words", "hook": "...", "cta": "...", "prompt_EN": "Extreme close up of [OBJECT]. The object takes up 50% of the frame. Absolute black void background, extreme contrast, bright rim lighting." },
   "music_EN": "Suno AI prompt (e.g. Dark ambient, low drone, 90bpm)",
@@ -158,7 +149,6 @@ export default function Page() {
   const [script, setScript] = useState("");
   const [genre, setGenre] = useState("ТАЙНА");
   const [dur, setDur] = useState("До 60 сек");
-  const [plat, setPlat] = useState("YouTube");
   const [vidFormat, setVidFormat] = useState("9:16");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ttsData, setTtsData] = useState("");
@@ -168,11 +158,10 @@ export default function Page() {
   const [tab, setTab] = useState("storyboard");
   
   const [frames, setFrames] = useState([]);
-  const [hooksList, setHooksList] = useState([]);
   const [thumb, setThumb] = useState(null);
   const [music, setMusic] = useState("");
   const [seo, setSeo] = useState(null);
-  const [rawPrompts, setRawPrompts] = useState("");
+  const [rawPrompts, setRawPrompts] = useState(""); // ИСПРАВЛЕНО ИМЯ ПЕРЕМЕННОЙ
   const [busy, setBusy] = useState(false);
 
   // Студия Обложек (X/Y Позиционирование)
@@ -200,22 +189,22 @@ export default function Page() {
     const startIdx = cleanText.indexOf('{');
     if (startIdx !== -1) cleanText = cleanText.substring(startIdx);
 
-    let data = { hooks: [], frames: [], thumbnail: null, seo: null, music_EN: "" };
+    let data = { frames: [], thumbnail: null, seo: null, music_EN: "" };
     try { data = JSON.parse(cleanText); } catch (e) {
       alert("Таймаут. Попробуйте уменьшить длительность."); return setView("form");
     }
     
-    setFrames(data.frames || []); setHooksList(data.hooks || []); 
+    setFrames(data.frames || []); 
     setThumb(data.thumbnail || null); setMusic(data.music_EN || ""); setSeo(data.seo || null);
     
     if (data.thumbnail) { setCovTitle(data.thumbnail.title || ""); setCovHook(data.thumbnail.hook || ""); setCovCta(data.thumbnail.cta || "СМОТРЕТЬ"); }
     
-    // Формируем чистые списки промптов с отступами (по правилам!)
+    // СТРОГИЕ ПРАВИЛА ИЗ ИСТОРИИ: Сначала сценарий, потом чистые промпты с пустой строкой между ними
     let rScript = "🎬 СЦЕНАРИЙ:\n" + (data.frames || []).map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
     let imgList = "\n\n🖼 ЧИСТЫЕ IMAGE PROMPTS (Veo/Whisk):\n\n" + (data.frames || []).map(f => f.imgPrompt_EN).filter(Boolean).join("\n\n");
     let vidList = "\n\n🎥 ЧИСТЫЕ VIDEO PROMPTS (Grok Super):\n\n" + (data.frames || []).map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n");
     
-    setRawPrompts(rScript + imgList + vidList);
+    setRawPrompts(rScript + imgList + vidList); // Сохраняем в правильную переменную
     setBgImage(null); setTab("storyboard"); setView("result");
 
     if (!fromHistory) {
@@ -230,7 +219,7 @@ export default function Page() {
     if (!topic.trim()) return alert("Введите тему!");
     setBusy(true); setLoadingMsg("Пишем черновик (Opus)...");
     try {
-      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора. Рваный ритм. Мрачный стиль. Никакой воды. Без разметки.`;
+      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора. Мрачный стиль. Никакой воды. Без разметки.`;
       const text = await callAPI(`Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${dur}\nНапиши чистый текст диктора.`, 3000, sysTxt);
       setScript(text.trim());
     } catch(e) { alert("Ошибка: " + e.message); } finally { setBusy(false); }
@@ -362,8 +351,9 @@ export default function Page() {
           <span style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.5}}>DOCU<span style={{color:"#a855f7"}}>SHORTS</span></span>
         </div>
         <div style={{display:"flex",gap:12, alignItems:"center"}}>
-          {view==="form" && result && <button onClick={()=>setView("result")} style={{background:"none",border:"none",color:"#d8b4fe",fontSize:12,fontWeight:800,cursor:"pointer"}}>👁 РЕЗУЛЬТАТ</button>}
-          {view==="form" && !result && <button onClick={()=>setShowHistory(true)} style={{background:"none",border:"none",color:"#cbd5e1",fontSize:12,fontWeight:700,cursor:"pointer"}}>🗄 АРХИВ</button>}
+          {/* ИСПРАВЛЕНА ПЕРЕМЕННАЯ ЗДЕСЬ */}
+          {view==="form" && rawPrompts && <button onClick={()=>setView("result")} style={{background:"none",border:"none",color:"#d8b4fe",fontSize:12,fontWeight:800,cursor:"pointer"}}>👁 РЕЗУЛЬТАТ</button>}
+          {view==="form" && !rawPrompts && <button onClick={()=>setShowHistory(true)} style={{background:"none",border:"none",color:"#cbd5e1",fontSize:12,fontWeight:700,cursor:"pointer"}}>🗄 АРХИВ</button>}
           
           <div style={{fontSize:11, fontWeight:800, color:tokens>0?"#34d399":"#ef4444", background:"rgba(255,255,255,0.05)", padding:"6px 12px", borderRadius:10}}>💎 {tokens}</div>
           <button onClick={()=>setShowPaywall(true)} style={{padding:"6px 12px",background:"linear-gradient(135deg, #a855f7, #ec4899)",border:"none",borderRadius:10,color:"#fff",fontSize:11,fontWeight:900,cursor:"pointer"}}>PRO</button>
@@ -380,7 +370,6 @@ export default function Page() {
             <label style={S.label}>📝 ИЛИ ГОТОВЫЙ ТЕКСТ</label>
             <textarea rows={4} value={script} onChange={e=>setScript(e.target.value)} placeholder="Вставьте готовый текст диктора..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"16px",fontSize:14,color:"#cbd5e1",resize:"none",marginBottom:16}}/>
             
-            {/* ИНСТРУМЕНТЫ РЕДАКТОРА (БЕСПЛАТНО) */}
             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
                <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать черновик</button>
                <button onClick={handleIntonations} disabled={busy || !script.trim()} style={{background:"rgba(168,85,247,0.1)", border:"1px solid rgba(168,85,247,0.3)", color:"#d8b4fe", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>🎭 Добавить интонации</button>
@@ -435,7 +424,6 @@ export default function Page() {
       {view==="result" && (
         <div style={{maxWidth:600,margin:"0 auto",padding:"20px"}}>
           
-          {/* СТУДИЯ ОБЛОЖЕК */}
           <div style={{...S.section, padding:0, overflow:"hidden"}}>
             <div style={{padding:"20px 24px", background:"rgba(0,0,0,0.3)", borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
                <div style={{fontSize:14, fontWeight:900, color:"#d8b4fe", letterSpacing:1, textTransform:"uppercase"}}>🎨 Студия Обложки</div>
@@ -454,7 +442,6 @@ export default function Page() {
                   background: bgImage ? `url(${bgImage}) center/cover no-repeat` : "#111",
                 }}>
                   <div style={{position:"absolute", inset:0, background:`linear-gradient(to top, rgba(0,0,0,${covDark/100}) 0%, rgba(0,0,0,${covDark/200}) 50%, transparent 100%)`, zIndex:1}} />
-                  {/* Контейнер с позиционированием X/Y */}
                   <div style={{position:"absolute", left:`${covX}%`, top:`${covY}%`, transform:"translate(-50%, -50%)", zIndex:2, width:"90%", display: "flex", flexDirection: "column", alignItems: activeStyle.container?.alignItems || "center", textAlign: activeStyle.title?.textAlign || "center"}}>
                     <div style={activeStyle.hook}>{covHook}</div>
                     <div style={{...activeStyle.title, wordWrap:"break-word"}}>{covTitle}</div>
@@ -466,11 +453,11 @@ export default function Page() {
               <div style={{background:"rgba(0,0,0,0.3)", borderRadius:16, padding:20, marginBottom:20}}>
                  <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16}}>
                    <div>
-                     <label style={{fontSize:10, color:"#94a3b8", fontWeight:800, textTransform:"uppercase", marginBottom:8, display:"block"}}>Позиция (Влево/Вправо)</label>
+                     <label style={{fontSize:10, color:"#94a3b8", fontWeight:800, textTransform:"uppercase", marginBottom:8, display:"block"}}>Позиция X (Влево/Вправо)</label>
                      <input type="range" min="10" max="90" value={covX} onChange={e=>setCovX(e.target.value)} />
                    </div>
                    <div>
-                     <label style={{fontSize:10, color:"#94a3b8", fontWeight:800, textTransform:"uppercase", marginBottom:8, display:"block"}}>Позиция (Вверх/Вниз)</label>
+                     <label style={{fontSize:10, color:"#94a3b8", fontWeight:800, textTransform:"uppercase", marginBottom:8, display:"block"}}>Позиция Y (Вверх/Вниз)</label>
                      <input type="range" min="10" max="90" value={covY} onChange={e=>setCovY(e.target.value)} />
                    </div>
                  </div>
@@ -494,7 +481,6 @@ export default function Page() {
             </div>
           </div>
 
-          {/* НАВИГАЦИЯ РЕЗУЛЬТАТОВ */}
           <div style={{display:"flex", gap:10, marginBottom:20, borderBottom:"1px solid rgba(255,255,255,0.05)", paddingBottom:16, overflowX:"auto"}}>
              <button onClick={()=>setTab("storyboard")} style={{background:"none", border:"none", color:tab==="storyboard"?"#a855f7":"#94a3b8", fontWeight:800, fontSize:12, textTransform:"uppercase", cursor:"pointer", whiteSpace:"nowrap"}}>Раскадровка</button>
              <button onClick={()=>setTab("raw")} style={{background:"none", border:"none", color:tab==="raw"?"#a855f7":"#94a3b8", fontWeight:800, fontSize:12, textTransform:"uppercase", cursor:"pointer", whiteSpace:"nowrap"}}>Скрипт и Промпты</button>
@@ -508,8 +494,8 @@ export default function Page() {
                     <div style={{display:"flex", justifyContent:"space-between", marginBottom:16}}><span style={{fontSize:12, fontWeight:900, color:"#ef4444", display:"flex", alignItems:"center", gap:6}}><span style={{width:8,height:8,background:"#ef4444",borderRadius:"50%",animation:"blink 1.5s infinite"}}/> REC {String(i+1).padStart(2,"0")}</span><span style={{fontSize:10, color:"#cbd5e1", background:"rgba(255,255,255,0.1)", padding:"4px 8px", borderRadius:6, fontFamily:"monospace"}}>TC: {f.timecode}</span></div>
                     {f.visual && <div style={{fontSize:14, color:"#fff", marginBottom:12, lineHeight:1.5}}>👁 {f.visual}</div>}
                     {f.voice && <div style={{fontSize:14, fontStyle:"italic", color:"#a855f7", marginBottom:16, borderLeft:`3px solid #a855f7`, paddingLeft:12}}>«{f.voice}»</div>}
-                    {f.imgPrompt_EN && <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (VEO)</span><CopyBtn text={f.imgPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div></div>}
-                    {f.vidPrompt_EN && <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (GROK)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>}
+                    {f.imgPrompt_EN && <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (VEO/WHISK)</span><CopyBtn text={f.imgPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div></div>}
+                    {f.vidPrompt_EN && <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (GROK SUPER)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>}
                   </div>
               ))}
             </div>
