@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// --- ЖИВОЙ ФОН НЕЙРОСЕТИ (CANVAS ENGINE) ---
+// --- ЖИВОЙ ФОН НЕЙРОСЕТИ ---
 const NeuralBackground = () => {
   const canvasRef = useRef(null);
   
@@ -117,13 +117,13 @@ const COVER_PRESETS = [
 ];
 
 const VIRAL_SYSTEM = `### SYSTEM ROLE (STRICT JSON)
-You are 'Director-X'. OUTPUT STRICTLY IN JSON.
+You are 'Director-X'. OUTPUT STRICTLY IN VALID JSON.
 
 🚨 RULES (STRICT ADHERENCE REQUIRED):
-1. PACING: Strictly 3 seconds per scene! Change visual strictly every 3 seconds.
+1. PACING: Strictly 3 seconds per scene!
 2. GLOBAL ANCHOR: Define physical details of character/location in "global_anchor_EN". Repeat this exact anchor in ALL scene prompts.
 3. 8K QUALITY: ALWAYS append ", shot on Arri Alexa 65, 8k resolution, photorealistic, cinematic lighting" to every image and video prompt.
-4. PROMPTS IN ENGLISH ONLY: Even if the script/target language is Russian, "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN" and "music_EN" MUST be strictly in ENGLISH. Translate everything (actions, camera, sounds) to English.
+4. PROMPTS IN ENGLISH ONLY: "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN" and "music_EN" MUST be strictly in ENGLISH. Translate everything (actions, camera, sounds) to English.
 5. RESTRICTIONS: KATEGORICHESKI ZAPRESHENO to mention Midjourney or Leonardo. Use ONLY Veo, Whisk, and Grok Super.
 6. AUDIO: "music_EN" must be detailed instrumental Suno prompt (no vocals).
 
@@ -153,7 +153,7 @@ async function callAPI(content, maxTokens = 8000, sysPrompt = VIRAL_SYSTEM) {
     });
     
     const textRes = await res.text();
-    if (!res.ok) throw new Error(`Ошибка API: ${res.status} - ${textRes}`);
+    if (!res.ok) throw new Error(`Ошибка API: ${res.status}`);
     
     const data = JSON.parse(textRes);
     if (data.error) throw new Error(data.error.message || data.error);
@@ -236,8 +236,10 @@ export default function Page() {
   
   useEffect(() => { 
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("ds_history"); 
-      if (saved) setHistory(JSON.parse(saved)); 
+      try {
+        const saved = localStorage.getItem("ds_history"); 
+        if (saved) setHistory(JSON.parse(saved)); 
+      } catch(e) {}
     }
   }, []);
   
@@ -278,7 +280,7 @@ export default function Page() {
     try { 
       data = JSON.parse(cleanText); 
     } catch (e) {
-      alert("Ошибка генерации. Нейросеть выдала неверный формат (Таймаут). Попробуйте еще раз."); 
+      alert("Ошибка генерации. Нейросеть выдала неверный формат. Попробуйте еще раз."); 
       setView("form");
       return;
     }
@@ -291,19 +293,18 @@ export default function Page() {
     setSeo(data.seo || null);
     
     if (data.thumbnail) { 
-      setCovTitle(data.thumbnail.title || ""); 
-      setCovHook(data.thumbnail.hook || ""); 
-      setCovCta(data.thumbnail.cta || "СМОТРЕТЬ"); 
+      setCovTitle(data.thumbnail?.title || ""); 
+      setCovHook(data.thumbnail?.hook || ""); 
+      setCovCta(data.thumbnail?.cta || "СМОТРЕТЬ"); 
     }
     
-    // Формирование итогового скрипта с отступами и чистыми списками промптов
     let anchorStr = data.global_anchor_EN ? `[GLOBAL ANCHOR: ${data.global_anchor_EN}] ` : "";
     
-    let rScript = "🎬 СЦЕНАРИЙ:\n" + (data.frames || []).map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
+    let rScript = "🎬 СЦЕНАРИЙ:\n" + (data.frames || []).map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual || ''}\n🎙 Диктор: «${f.voice || ''}»`).join("\n\n");
     
-    let imgList = "\n\n🖼 ЧИСТЫЕ IMAGE PROMPTS (Veo/Whisk):\n\n" + (data.frames || []).map(f => anchorStr + f.imgPrompt_EN).filter(Boolean).join("\n\n");
+    let imgList = "\n\n🖼 ЧИСТЫЕ IMAGE PROMPTS (Veo/Whisk):\n\n" + (data.frames || []).map(f => f.imgPrompt_EN ? anchorStr + f.imgPrompt_EN : "").filter(Boolean).join("\n\n");
     
-    let vidList = "\n\n🎥 ЧИСТЫЕ VIDEO PROMPTS (Grok Super):\n\n" + (data.frames || []).map(f => anchorStr + f.vidPrompt_EN).filter(Boolean).join("\n\n");
+    let vidList = "\n\n🎥 ЧИСТЫЕ VIDEO PROMPTS (Grok Super):\n\n" + (data.frames || []).map(f => f.vidPrompt_EN ? anchorStr + f.vidPrompt_EN : "").filter(Boolean).join("\n\n");
     
     let bRollList = (data.b_rolls && data.b_rolls.length) ? "\n\n⚡ FLASH B-ROLLS (Grok Super Перебивки):\n\n" + data.b_rolls.map(b => anchorStr + b).join("\n\n") : "";
     
@@ -330,30 +331,23 @@ export default function Page() {
     }
   }
 
-  async function handleDraftText() {
-    if (!topic.trim()) return alert("Введите тему или идею!");
+  async function handleDraftText(type) {
+    if (!topic.trim() && type === 'draft') return alert("Введите тему или идею!");
+    if (!script.trim() && type === 'intonations') return alert("Сначала добавьте текст для обработки!");
+    
     setBusy(true); 
-    setLoadingMsg("Пишем черновик (Opus)...");
+    setLoadingMsg(type === 'draft' ? "Пишем черновик (Opus)..." : "Разметка интонаций...");
     
     try {
-      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора. Мрачный стиль. Без разметки. Язык: ${lang==="RU" ? "Русский" : "English"}`;
-      const text = await callAPI(`Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${dur}\nНапиши чистый текст диктора.`, 3000, sysTxt);
-      setScript(text.trim());
-    } catch(e) { 
-      alert("Ошибка: " + e.message); 
-    } finally { 
-      setBusy(false); 
-    }
-  }
+      const sysTxt = type === 'draft' 
+        ? `You are 'Director-X'. Напиши ТОЛЬКО текст диктора. Мрачный стиль. Без разметки. Язык: ${lang==="RU" ? "Русский" : "English"}`
+        : `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента. Верни только текст. Язык: ${lang==="RU" ? "Русский" : "English"}`;
+        
+      const content = type === 'draft' 
+        ? `Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${dur}\nНапиши чистый текст диктора.`
+        : `Расставь интонации для диктора:\n\n${script}`;
 
-  async function handleIntonations() {
-    if (!script.trim()) return alert("Нет текста для обработки!");
-    setBusy(true); 
-    setLoadingMsg("Разметка интонаций...");
-    
-    try {
-      const sysTxt = `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента. Верни только текст. Язык: ${lang==="RU" ? "Русский" : "English"}`;
-      const text = await callAPI(`Расставь интонации для диктора:\n\n${script}`, 3000, sysTxt);
+      const text = await callAPI(content, 3000, sysTxt);
       setScript(text.trim());
     } catch(e) { 
       alert("Ошибка: " + e.message); 
@@ -423,15 +417,16 @@ export default function Page() {
   }
 
   async function downloadThumbnail() {
-    const el = document.getElementById("thumbnail-export"); 
+    const el = document.getElementById("cover-export"); 
     if (!el) return;
     setDownloading(true);
     
+    // БЕЗОПАСНАЯ загрузка html2canvas без краша сборки Vercel
     if (!window.html2canvas) {
-      const script = document.createElement("script"); 
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      script.onload = doCapture; 
-      document.body.appendChild(script);
+      const scriptElement = document.createElement("script"); 
+      scriptElement.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      scriptElement.onload = doCapture; 
+      document.body.appendChild(scriptElement);
     } else {
       doCapture();
     }
@@ -544,8 +539,8 @@ export default function Page() {
             <textarea rows={4} value={script} onChange={e=>setScript(e.target.value)} placeholder="Вставьте готовый текст диктора..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"16px",fontSize:14,color:"#cbd5e1",resize:"none",marginBottom:16}}/>
             
             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
-               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать черновик</button>
-               <button onClick={handleIntonations} disabled={busy || !script.trim()} style={{background:"rgba(168,85,247,0.1)", border:"1px solid rgba(168,85,247,0.3)", color:"#d8b4fe", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>🎭 Добавить интонации</button>
+               <button onClick={()=>handleDraftText('draft')} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать черновик</button>
+               <button onClick={()=>handleDraftText('intonations')} disabled={busy || !script.trim()} style={{background:"rgba(168,85,247,0.1)", border:"1px solid rgba(168,85,247,0.3)", color:"#d8b4fe", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>🎭 Добавить интонации</button>
                <button onClick={handleTTS} disabled={busy || !script.trim()} style={{gridColumn:"1 / -1", background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:"12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Настройки голоса (Google AI Studio)</button>
             </div>
             {ttsData && <pre style={{marginTop:12, padding:12, background:"rgba(0,0,0,0.5)", borderRadius:10, fontSize:11, color:"#bae6fd", fontFamily:"monospace", whiteSpace:"pre-wrap"}}>{ttsData}</pre>}
@@ -626,6 +621,10 @@ export default function Page() {
       {view==="result" && (
         <div style={{maxWidth:600,margin:"0 auto",padding:"20px"}}>
           
+          <button onClick={()=>setView("form")} style={{marginBottom:20, color:"#a855f7", background:"none", border:"none", fontWeight:800, cursor:"pointer", fontSize:12}}>
+            ← НАЗАД К ПРОЕКТАМ
+          </button>
+
           {retention && (
              <div style={{background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:16, padding:16, marginBottom:24}}>
                <div style={{fontSize:11, fontWeight:900, color:"#34d399", textTransform:"uppercase", marginBottom:6}}>📊 Оценка Удержания: {retention.score}%</div>
@@ -648,15 +647,15 @@ export default function Page() {
               </div>
 
               <div style={{display:"flex", justifyContent:"center", marginBottom:24}}>
-                <div id="thumbnail-export" style={{
+                <div id="cover-export" style={{
                   width: 320, aspectRatio: currFormat.ratio, overflow: "hidden", position: "relative",
                   background: bgImage ? `url(${bgImage}) center/cover no-repeat` : "#111",
                 }}>
                   <div style={{position:"absolute", inset:0, background:`linear-gradient(to top, rgba(0,0,0,${covDark/100}) 0%, rgba(0,0,0,${covDark/200}) 50%, transparent 100%)`, zIndex:1}} />
                   <div style={{position:"absolute", left:`${covX}%`, top:`${covY}%`, transform:"translate(-50%, -50%)", zIndex:2, width:"90%", display: "flex", flexDirection: "column", alignItems: activeStyle.container?.alignItems || "center", textAlign: activeStyle.title?.textAlign || "center"}}>
-                    <div style={activeStyle.hook}>{covHook}</div>
+                    <div style={{...activeStyle.hook}}>{covHook}</div>
                     <div style={{...activeStyle.title, wordWrap:"break-word"}}>{covTitle}</div>
-                    <div style={activeStyle.cta}>{covCta}</div>
+                    <div style={{...activeStyle.cta}}>{covCta}</div>
                   </div>
                 </div>
               </div>
@@ -679,7 +678,7 @@ export default function Page() {
 
               <div style={{display:"flex", gap:10}}>
                 <label style={{flex:1, height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:14, color:"#fff", fontSize:12, fontWeight:800, cursor:"pointer", textTransform:"uppercase"}}>
-                  📸 Фон обложки
+                  📸 Картинка
                   <input type="file" accept="image/*" onChange={handleImageUpload} style={{display:"none"}} />
                 </label>
                 <button onClick={downloadThumbnail} disabled={downloading} style={{flex:1, height:48, border:"none", borderRadius:14, background:"linear-gradient(135deg, #10b981, #059669)", color:"#fff", fontSize:12, fontWeight:900, cursor:downloading?"not-allowed":"pointer", textTransform:"uppercase"}}>
@@ -707,7 +706,7 @@ export default function Page() {
 
           {tab === "storyboard" && (
             <div>
-              {frames.map((f,i)=>(
+              {frames?.map((f,i)=>(
                   <div key={i} style={{...S.section, position:"relative", overflow:"hidden"}}>
                     <div style={{display:"flex", justifyContent:"space-between", marginBottom:16}}>
                       <span style={{fontSize:12, fontWeight:900, color:"#ef4444", display:"flex", alignItems:"center", gap:6}}>
@@ -722,10 +721,10 @@ export default function Page() {
                   </div>
               ))}
               
-              {bRolls.length > 0 && (
+              {bRolls?.length > 0 && (
                 <div style={{...S.section, border:"1px solid rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.05)"}}>
                   <div style={{fontSize:12, fontWeight:900, color:"#fbbf24", marginBottom:16}}>⚡ МИКРО-ПЕРЕБИВКИ (FLASH B-ROLLS)</div>
-                  {bRolls.map((b,i)=>(
+                  {bRolls?.map((b,i)=>(
                     <div key={i} style={{fontSize:12, fontFamily:"monospace", color:"#fcd34d", marginBottom:8, paddingBottom:8, borderBottom:"1px solid rgba(245,158,11,0.1)"}}>- {b}</div>
                   ))}
                 </div>
