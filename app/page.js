@@ -62,7 +62,6 @@ const VISUAL_ENGINES = {
 const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
 const DURATIONS = Object.keys(DURATION_SECONDS);
 
-// Очищенные от жестких left/top шаблоны для умного позиционирования
 const COVER_PRESETS = [
   { id: "netflix", label: "Netflix", defaultX: 50, defaultY: 50, style: { container: { alignItems: "center", width: "90%" }, hook: { fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000" }, title: { fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px rgba(0,0,0,0.9)", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } } },
   { id: "mrbeast", label: "MrBeast", defaultX: 50, defaultY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 16, fontWeight: 900, fontFamily: "Impact, sans-serif", color: "#ffdd00", textTransform: "uppercase", WebkitTextStroke: "1px #000", textShadow: "3px 3px 0 #000", transform: "rotate(-3deg)", marginBottom: 4 }, title: { fontSize: 40, fontWeight: 900, textTransform: "uppercase", lineHeight: 1, WebkitTextStroke: "2px #000", textShadow: "5px 5px 0 #000, 0 0 40px rgba(0,0,0,0.8)", transform: "rotate(-3deg)", textAlign: "center", marginBottom: 16 }, cta: { fontSize: 13, fontWeight: 900, color: "#ff00ff", background: "#000", border: "2px solid #ff00ff", padding: "6px 14px", borderRadius: 8, textTransform: "uppercase", transform: "rotate(-3deg)", boxShadow: "0 4px 15px rgba(0,0,0,0.8)" } } },
@@ -74,19 +73,27 @@ const COVER_PRESETS = [
 
 const FONTS = [
   { id: "Impact, sans-serif", label: "Viral (Толстый)" },
+  { id: "'Bebas Neue', sans-serif", label: "YouTube (Кликбейт)" },
   { id: "'Creepster', cursive", label: "Horror (Рваный)" },
   { id: "'Cinzel', serif", label: "Cinematic (Кино)" },
+  { id: "'Oswald', sans-serif", label: "Oswald (Строгий)" },
   { id: "'Montserrat', sans-serif", label: "Clean (Док)" },
+  { id: "'Permanent Marker', cursive", label: "Marker (Гранж)" },
+  { id: "'Playfair Display', serif", label: "Elegance (Курсив)" },
   { id: "'Courier New', monospace", label: "Secret (Машинка)" }
 ];
 
 const COLORS = [
   { id: "#ffffff", label: "Белый" },
   { id: "#ffdd00", label: "Желтый" },
+  { id: "#facc15", label: "Золотой" },
   { id: "#ef4444", label: "Кровавый" },
+  { id: "#ec4899", label: "Розовый" },
   { id: "#0ea5e9", label: "Неоновый" },
   { id: "#a855f7", label: "Фиолетовый" },
-  { id: "#22c55e", label: "Токсичный" }
+  { id: "#22c55e", label: "Токсичный" },
+  { id: "#f97316", label: "Оранжевый" },
+  { id: "#000000", label: "Черный" }
 ];
 
 // --- СИСТЕМНЫЕ ПРОМПТЫ ---
@@ -158,7 +165,7 @@ function CopyBtn({ text, label="Копировать", small=false }) {
 export default function Page() {
   const [tokens, setTokens] = useState(3);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [clicks, setClicks] = useState(0); // Для God Mode
+  const [clicks, setClicks] = useState(0); 
   
   const [topic, setTopic] = useState("");
   const [finalTwist, setFinalTwist] = useState(""); 
@@ -209,13 +216,17 @@ export default function Page() {
   const [covColor, setCovColor] = useState(COLORS[0].id);
   const [activePreset, setActivePreset] = useState("netflix");
 
+  // Индивидуальные размеры текста
+  const [sizeHook, setSizeHook] = useState(12);
+  const [sizeTitle, setSizeTitle] = useState(32);
+  const [sizeCta, setSizeCta] = useState(10);
+
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
   const scrollRef = useRef(null);
 
-  // --- ИНИЦИАЛИЗАЦИЯ И БИЛЛИНГ ---
   useEffect(() => { 
     if (typeof window !== "undefined") { 
       const savedHist = localStorage.getItem("ds_history"); 
@@ -252,7 +263,6 @@ export default function Page() {
     } 
   }, []);
 
-  // Авто-смена шрифта и цвета при смене жанра
   useEffect(() => {
     if (GENRE_PRESETS[genre]) {
       setCovFont(GENRE_PRESETS[genre].defaultFont);
@@ -266,7 +276,6 @@ export default function Page() {
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0,behavior:"smooth"}); }, [view]);
 
-  // God Mode (5 тапов)
   const handleGodMode = () => {
     setClicks(c => c + 1);
     if (clicks + 1 >= 5) {
@@ -294,11 +303,17 @@ export default function Page() {
   const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); localStorage.setItem("ds_history", JSON.stringify(next)); return next; }); };
   const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
 
-  // Умный выбор пресета
+  // Умный выбор пресета с авто-размерами
   const applyPreset = (presetId) => {
     setActivePreset(presetId);
     const p = COVER_PRESETS.find(x => x.id === presetId);
-    if (p) { setCovX(p.defaultX); setCovY(p.defaultY); }
+    if (p) { 
+      setCovX(p.defaultX); 
+      setCovY(p.defaultY); 
+      setSizeHook(p.style.hook.fontSize || 12);
+      setSizeTitle(p.style.title.fontSize || 32);
+      setSizeCta(p.style.cta?.fontSize || 10);
+    }
   };
 
   async function handleGenerateHooks() {
@@ -362,7 +377,14 @@ export default function Page() {
       setCharRef(data.character_ref_EN || ""); setLocRef(data.location_ref_EN || ""); setStyleRef(data.style_ref_EN || ""); 
       setBRolls([]); setStep2Done(false);
       
-      if (data.thumbnail) { setCovTitle(data.thumbnail.title || ""); setCovHook(data.thumbnail.hook || ""); setCovCta(data.thumbnail.cta || "СМОТРЕТЬ"); }
+      if (data.thumbnail) { 
+        setCovTitle(data.thumbnail.title || ""); setCovHook(data.thumbnail.hook || ""); setCovCta(data.thumbnail.cta || "СМОТРЕТЬ");
+        // Обновляем размеры под пресет Netflix по умолчанию
+        const defaultP = COVER_PRESETS[0];
+        setSizeHook(defaultP.style.hook.fontSize || 12);
+        setSizeTitle(defaultP.style.title.fontSize || 32);
+        setSizeCta(defaultP.style.cta?.fontSize || 10);
+      }
       
       rebuildRawText(data.frames || [], false);
       deductToken(); 
@@ -444,7 +466,7 @@ export default function Page() {
       <NeuralBackground />
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0}
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Montserrat:wght@800;900&family=Creepster&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;900&family=Creepster&family=Montserrat:wght@800;900&family=Oswald:wght@700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
         @keyframes blink { 0%, 100% {opacity:1} 50% {opacity:0.3} }
         @keyframes pulse-glow { 0% {box-shadow: 0 0 15px rgba(236,72,153,0.5);} 50% {box-shadow: 0 0 30px rgba(236,72,153,1);} 100% {box-shadow: 0 0 15px rgba(236,72,153,0.5);} }
         @keyframes spin {to{transform:rotate(360deg)}}
@@ -650,9 +672,9 @@ export default function Page() {
                 <div id="thumbnail-export" style={{width:320, aspectRatio:currFormat.ratio, position:"relative", background:bgImage?`url(${bgImage}) center/cover no-repeat`:"#111", overflow:"hidden"}}>
                   <div style={{position:"absolute", inset:0, background:`linear-gradient(to top, rgba(0,0,0,${covDark/100}) 0%, rgba(0,0,0,${covDark/200}) 50%, transparent 100%)`, zIndex:1}} />
                   <div style={{...activeStyle.container, position:"absolute", left:`${covX}%`, top:`${covY}%`, transform: activeStyle.container.customTransform || "translate(-50%,-50%)", zIndex:2 }}>
-                    <div style={activeStyle.hook}>{covHook}</div>
-                    <div style={{...activeStyle.title, fontFamily: covFont, color: covColor, wordWrap:"break-word"}}>{covTitle}</div>
-                    <div style={activeStyle.cta}>{covCta}</div>
+                    <div style={{...activeStyle.hook, fontSize: Number(sizeHook)}}>{covHook}</div>
+                    <div style={{...activeStyle.title, fontFamily: covFont, color: covColor, fontSize: Number(sizeTitle), wordWrap:"break-word"}}>{covTitle}</div>
+                    <div style={{...activeStyle.cta, fontSize: Number(sizeCta)}}>{covCta}</div>
                   </div>
                   {showSafeZone && vidFormat === "9:16" && (
                     <div style={{position:"absolute", inset:0, pointerEvents:"none", zIndex:10}}>
@@ -668,11 +690,23 @@ export default function Page() {
               </div>
 
               <div style={{background:"rgba(0,0,0,0.3)", borderRadius:16, padding:20, marginBottom:20}}>
-                 <label style={{fontSize:11, color:"#d8b4fe", fontWeight:900, textTransform:"uppercase", marginBottom:12, display:"block"}}>📝 ТЕКСТ НА ОБЛОЖКЕ</label>
-                 <div style={{display:"flex", flexDirection:"column", gap:10, marginBottom:20}}>
-                   <input type="text" value={covHook} onChange={e=>setCovHook(e.target.value)} placeholder="Верхний текст (Hook)" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", padding:"12px", borderRadius:10, color:"#fff", fontSize:13}} />
-                   <input type="text" value={covTitle} onChange={e=>setCovTitle(e.target.value)} placeholder="Главный заголовок" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(168,85,247,0.4)", padding:"12px", borderRadius:10, color:"#fff", fontSize:13, fontWeight:800}} />
-                   <input type="text" value={covCta} onChange={e=>setCovCta(e.target.value)} placeholder="Нижний текст (CTA)" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", padding:"12px", borderRadius:10, color:"#fff", fontSize:13}} />
+                 <label style={{fontSize:11, color:"#d8b4fe", fontWeight:900, textTransform:"uppercase", marginBottom:12, display:"block"}}>📝 ТЕКСТ И РАЗМЕРЫ</label>
+                 
+                 <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:20}}>
+                   <div>
+                     <input type="text" value={covHook} onChange={e=>setCovHook(e.target.value)} placeholder="Верхний текст (Hook)" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", padding:"12px", borderRadius:10, color:"#fff", fontSize:13, marginBottom:6}} />
+                     <div style={{display:"flex", alignItems:"center", gap:10}}><span style={{fontSize:10, color:"#94a3b8", width:50}}>Размер</span><input type="range" min="8" max="40" value={sizeHook} onChange={e=>setSizeHook(e.target.value)} style={{flex:1}}/></div>
+                   </div>
+                   
+                   <div>
+                     <input type="text" value={covTitle} onChange={e=>setCovTitle(e.target.value)} placeholder="Главный заголовок" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(168,85,247,0.4)", padding:"12px", borderRadius:10, color:"#fff", fontSize:13, fontWeight:800, marginBottom:6}} />
+                     <div style={{display:"flex", alignItems:"center", gap:10}}><span style={{fontSize:10, color:"#94a3b8", width:50}}>Размер</span><input type="range" min="16" max="80" value={sizeTitle} onChange={e=>setSizeTitle(e.target.value)} style={{flex:1}}/></div>
+                   </div>
+
+                   <div>
+                     <input type="text" value={covCta} onChange={e=>setCovCta(e.target.value)} placeholder="Нижний текст (CTA)" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", padding:"12px", borderRadius:10, color:"#fff", fontSize:13, marginBottom:6}} />
+                     <div style={{display:"flex", alignItems:"center", gap:10}}><span style={{fontSize:10, color:"#94a3b8", width:50}}>Размер</span><input type="range" min="8" max="30" value={sizeCta} onChange={e=>setSizeCta(e.target.value)} style={{flex:1}}/></div>
+                   </div>
                  </div>
                  
                  <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20}}>
@@ -683,12 +717,12 @@ export default function Page() {
                  {/* Мини-Canva: Шрифты и Цвета */}
                  <div style={{background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12, padding:16, marginBottom:16}}>
                     <label style={{fontSize:10, color:"#94a3b8", fontWeight:800, textTransform:"uppercase", marginBottom:10, display:"block"}}>Атмосфера текста</label>
-                    <div style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:8, marginBottom:8}} className="hide-scroll">
+                    <div style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:8, marginBottom:12}} className="hide-scroll">
                       {FONTS.map(f => ( <button key={f.id} onClick={()=>setCovFont(f.id)} style={{background:covFont===f.id?"rgba(168,85,247,0.2)":"rgba(0,0,0,0.5)", border:`1px solid ${covFont===f.id?"#a855f7":"rgba(255,255,255,0.1)"}`, color:"#fff", padding:"6px 12px", borderRadius:8, fontSize:11, fontFamily:f.id, whiteSpace:"nowrap", cursor:"pointer"}}>{f.label}</button> ))}
                     </div>
-                    <div style={{display:"flex", gap:10, alignItems:"center"}}>
-                      {COLORS.map(c => ( <div key={c.id} onClick={()=>setCovColor(c.id)} style={{width:24, height:24, borderRadius:"50%", background:c.id, cursor:"pointer", border:covColor===c.id?"3px solid #fff":"1px solid rgba(255,255,255,0.2)", boxShadow:covColor===c.id?`0 0 10px ${c.id}`:"none"}}/> ))}
-                      <input type="color" value={covColor} onChange={e=>setCovColor(e.target.value)} style={{width:26, height:26, padding:0, border:"none", borderRadius:"50%", cursor:"pointer", background:"none"}}/>
+                    <div className="hide-scroll" style={{display:"flex", gap:10, alignItems:"center", overflowX:"auto", paddingBottom:4}}>
+                      {COLORS.map(c => ( <div key={c.id} onClick={()=>setCovColor(c.id)} style={{flexShrink:0, width:26, height:26, borderRadius:"50%", background:c.id, cursor:"pointer", border:covColor===c.id?"3px solid #fff":"1px solid rgba(255,255,255,0.2)", boxShadow:covColor===c.id?`0 0 10px ${c.id}`:"none"}}/> ))}
+                      <input type="color" value={covColor} onChange={e=>setCovColor(e.target.value)} style={{flexShrink:0, width:28, height:28, padding:0, border:"none", borderRadius:"50%", cursor:"pointer", background:"none"}} title="Свой цвет"/>
                     </div>
                  </div>
 
