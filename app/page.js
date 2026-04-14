@@ -117,13 +117,13 @@ You are 'Director-X'. You must output ONLY a valid JSON object. Do not wrap in m
 1. LANGUAGES MUST BE SPLIT:
    - "voice", "visual", "camera", "thumbnail.title", "thumbnail.hook", "thumbnail.cta", "seo.titles", "seo.desc", "retention.feedback" MUST BE IN RUSSIAN (РУССКИЙ ЯЗЫК).
    - "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN", "music_EN", "b_rolls", "thumbnail.prompt_EN" MUST BE IN ENGLISH.
-2. DETAILED PROMPTS (CRITICAL): Every English prompt (imgPrompt_EN, vidPrompt_EN, b_rolls, thumbnail.prompt_EN) MUST BE HIGHLY DETAILED and LONG (minimum 20-40 words). Describe the subject, environment, lighting (e.g. volumetric, cinematic), camera angle (e.g. extreme close-up), mood, and textures. DO NOT write short prompts. 
-3. B-ROLLS RULE: The "b_rolls" array MUST contain 2-3 HIGHLY DETAILED visual prompts in English. DO NOT use placeholders like "Flash b-roll".
+2. DETAILED PROMPTS (CRITICAL): Every English prompt (imgPrompt_EN, vidPrompt_EN, b_rolls, thumbnail.prompt_EN) MUST BE DETAILED (15-25 words max). Describe the subject, environment, lighting (e.g. volumetric, cinematic), camera angle, mood, and textures. DO NOT write short prompts.
+3. B-ROLLS RULE: The "b_rolls" array MUST contain 2-3 DETAILED visual prompts in English. DO NOT use placeholders like "Flash b-roll".
 4. PACING: Strictly 3 seconds per scene.
 
 JSON STRUCTURE EXACTLY AS THIS:
 {
-  "global_anchor_EN": "Highly detailed English character/location description to maintain consistency across scenes...",
+  "global_anchor_EN": "Detailed English character/location description to maintain consistency across scenes...",
   "retention": { "score": 95, "feedback": "Русский текст анализа..." },
   "frames": [ 
     { 
@@ -131,12 +131,12 @@ JSON STRUCTURE EXACTLY AS THIS:
       "camera": "Наезд камеры", 
       "visual": "Старый заброшенный бункер, тусклый свет", 
       "voice": "В глубинах советской эпохи...", 
-      "imgPrompt_EN": "A highly detailed, cinematic wide shot of a dark, abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, volumetric fog, hyper-realistic, 8k...", 
-      "vidPrompt_EN": "A highly detailed, cinematic wide shot of a dark, abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, volumetric fog, hyper-realistic, 8k..." 
+      "imgPrompt_EN": "Cinematic wide shot of a dark abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, hyper-realistic, 8k...", 
+      "vidPrompt_EN": "Cinematic wide shot of a dark abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, hyper-realistic, 8k..." 
     } 
   ],
-  "b_rolls": [ "Extreme close-up of a rusty red button on a vintage console, dust particles floating in the air, macro photography, dramatic lighting, 8k...", "Detailed English prompt 2..." ],
-  "thumbnail": { "title": "МЕРТВАЯ РУКА", "hook": "СЕКРЕТНЫЙ ПРОЕКТ", "cta": "СМОТРЕТЬ", "prompt_EN": "Highly detailed English prompt for the cover image, describing lighting, mood, and composition..." },
+  "b_rolls": [ "Extreme close-up of a rusty red button on a vintage console, dust particles floating, dramatic lighting, 8k...", "Detailed English prompt 2..." ],
+  "thumbnail": { "title": "МЕРТВАЯ РУКА", "hook": "СЕКРЕТНЫЙ ПРОЕКТ", "cta": "СМОТРЕТЬ", "prompt_EN": "Detailed English prompt for the cover image, describing lighting, mood, and composition..." },
   "music_EN": "Epic cinematic orchestral music with deep bass...",
   "seo": { "titles": ["Русский заголовок"], "desc": "Русский текст", "tags": ["#тег"] }
 }`;
@@ -243,18 +243,15 @@ export default function Page() {
   };
 
   function applyResult(rawText, fromHistory = false) {
-    let cleanText = rawText;
+    // Очистка от маркдауна
+    let cleanText = rawText.replace(/```json/gi, "").replace(/```/gi, "").trim();
     
-    // ПЫЛЕСОС: Ищем строгие границы JSON, чтобы отсечь лишний текст от ИИ
+    // Пытаемся вытащить строго JSON (помогает если ИИ добавила лишний текст)
     const startIdx = cleanText.indexOf('{');
     const endIdx = cleanText.lastIndexOf('}');
-    
     if (startIdx !== -1 && endIdx !== -1) {
       cleanText = cleanText.substring(startIdx, endIdx + 1);
     }
-    
-    // Убиваем случайные переносы строк и спецсимволы внутри JSON, которые крашат парсер
-    cleanText = cleanText.replace(/[\u0000-\u001F]+/g, " ");
 
     try {
       const data = JSON.parse(cleanText);
@@ -288,45 +285,56 @@ export default function Page() {
         localStorage.setItem("ds_history", JSON.stringify(newHistory));
       }
     } catch (e) {
-      console.error(e);
-      alert("Ошибка JSON. ИИ выдал неверный формат. Попробуйте еще раз.");
+      console.error("Parse Error:", e, "\nRAW TEXT:", cleanText);
+      alert("Ошибка JSON: Нейросеть оборвала текст или выдала неверный формат. Попробуйте нажать генерацию еще раз.");
       setView("form");
     }
   }
 
   async function handleDraftText() {
     if (!topic.trim()) return alert("Введите тему!");
-    setBusy(true); setLoadingMsg("Пишем черновик (Opus)...");
+    setBusy(true); 
+    setLoadingMsg("Пишем черновик (Opus)..."); 
+    setView("loading"); // ВАЖНО: Показываем экран загрузки
     try {
       const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Мрачный стиль.`;
       const text = await callAPI(topic, 3000, sysTxt);
       setScript(text.trim());
-    } catch(e) { alert(e.message); } finally { setBusy(false); }
+    } catch(e) { alert(e.message); } 
+    finally { setBusy(false); setView("form"); } // Возвращаем форму
   }
 
   async function handleIntonations() {
     if (!script.trim()) return alert("Нет текста!");
-    setBusy(true); setLoadingMsg("Разметка интонаций...");
+    setBusy(true); 
+    setLoadingMsg("Разметка интонаций..."); 
+    setView("loading");
     try {
       const sysTxt = `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента в этом РУССКОМ тексте.`;
       const text = await callAPI(script, 3000, sysTxt);
       setScript(text.trim());
-    } catch(e) { alert(e.message); } finally { setBusy(false); }
+    } catch(e) { alert(e.message); } 
+    finally { setBusy(false); setView("form"); }
   }
 
   async function handleTTS() {
     if (!script.trim()) return alert("Нет текста!");
-    setBusy(true); setLoadingMsg("Подбор голоса...");
+    setBusy(true); 
+    setLoadingMsg("Подбор голоса..."); 
+    setView("loading");
     try {
       const text = await callAPI(script.substring(0,100), 1000, "Provide TTS settings for Google AI Studio: VOICE: [Name], SPEED: [Value], STYLE PROMPT: [English instruction]");
       setTtsData(text.trim());
-    } catch(e) { alert(e.message); } finally { setBusy(false); }
+    } catch(e) { alert(e.message); } 
+    finally { setBusy(false); setView("form"); }
   }
 
   async function handleGenerateFullPlan() {
     if (!topic.trim() && !script.trim()) return alert("Заполните поля!");
     if (!checkTokens()) return;
-    setBusy(true); setView("loading");
+    setBusy(true); 
+    setLoadingMsg("Генерация сценария..."); // Заменили старый текст
+    setView("loading");
     try {
       let currentScript = script.trim();
       if (!currentScript) {
@@ -337,7 +345,7 @@ export default function Page() {
       const engineStyle = VISUAL_ENGINES[engine].prompt;
       
       const req = `СТРОГОЕ ПРАВИЛО ПО ЯЗЫКАМ: Сценарий (voice, visual, camera) и SEO - строго на ${lang === "RU" ? "РУССКОМ" : "АНГЛИЙСКОМ"}. Промпты - на АНГЛИЙСКОМ.
-СТРОГОЕ ПРАВИЛО ДЕТАЛИЗАЦИИ: Промпты для картинок, видео, обложки и B-Rolls ДОЛЖНЫ БЫТЬ МАКСИМАЛЬНО ДЛИННЫМИ И ДЕТАЛЬНЫМИ (минимум 20-40 слов). Обязательно описывай атмосферу, освещение, текстуры, ракурс камеры и детали объектов! Короткие промпты запрещены. Прикрепи "shot on Arri Alexa 65, 8k resolution, photorealistic, cinematic lighting" к каждому промпту.
+СТРОГОЕ ПРАВИЛО ДЕТАЛИЗАЦИИ: Промпты (картинки, видео, B-Rolls) должны быть детальными (15-25 слов). Короткие промпты запрещены. Прикрепи "shot on Arri Alexa 65, 8k resolution, photorealistic, cinematic lighting" к каждому промпту.
 ОБЯЗАТЕЛЬНО: Создай мощный "global_anchor_EN" для согласованности.
 
 ТЕМА: ${topic}
@@ -351,7 +359,8 @@ ${currentScript}
       const text = await callAPI(req, 8000);
       setTokens(t => t - 1);
       applyResult(text, false);
-    } catch(e) { alert(e.message); setView("form"); } finally { setBusy(false); setLoadingMsg(""); }
+    } catch(e) { alert(e.message); setView("form"); } 
+    finally { setBusy(false); }
   }
 
   function handleImageUpload(e) {
@@ -572,7 +581,6 @@ ${currentScript}
 
           {tab==="storyboard" && (
             <div>
-              {/* ВЫВОД ГЛОБАЛЬНОГО ЯКОРЯ */}
               {anchor && (
                 <div style={{...S.section, border:"1px solid rgba(56,189,248,0.3)", background:"rgba(56,189,248,0.05)"}}>
                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
