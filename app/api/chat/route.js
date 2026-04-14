@@ -5,14 +5,14 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "meta-llama/llama-3.3-70b-instruct", // Правильное название модели в OpenRouter
         messages: body.messages,
         max_tokens: body.max_tokens || 8000,
         temperature: 0.7
@@ -22,7 +22,7 @@ export async function POST(req) {
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.error?.message || "Ошибка API Groq");
+      throw new Error(data.error?.message || "Ошибка API OpenRouter");
     }
 
     const text = data.choices[0].message.content;
