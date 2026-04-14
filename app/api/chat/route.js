@@ -1,29 +1,20 @@
-export const runtime = 'edge'; 
+// Расширяем лимит времени выполнения для Vercel (до 60 секунд)
+export const maxDuration = 60;
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const apiKey = process.env.GROQ_API_KEY; 
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "API ключ не найден в настройках Vercel" }), { status: 400 });
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://docushorts-pro.vercel.app", 
-        "X-Title": "DocuShorts Pro",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct",
-        provider: {
-          order: ["Groq"] // 🔥 Исправил опечатку: теперь OpenRouter поймет команду
-        },
+        model: "llama-3.3-70b-versatile",
         messages: body.messages,
-        max_tokens: 3000,
+        max_tokens: body.max_tokens || 8000,
         temperature: 0.7
       })
     });
@@ -31,12 +22,16 @@ export async function POST(req) {
     const data = await response.json();
     
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: data.error?.message || "Ошибка OpenRouter" }), { status: response.status });
+      throw new Error(data.error?.message || "Ошибка API Groq");
     }
 
-    return new Response(JSON.stringify({ text: data.choices[0].message.content }), { status: 200 });
-
+    const text = data.choices[0].message.content;
+    
+    return new Response(JSON.stringify({ text }), { headers: { "Content-Type": "application/json" } });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json" } 
+    });
   }
 }
