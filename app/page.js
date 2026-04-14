@@ -111,19 +111,20 @@ const COVER_PRESETS = [
 ];
 
 const VIRAL_SYSTEM = `### SYSTEM ROLE
-You are 'Director-X'. You must output ONLY a valid JSON object. Do not wrap in markdown or add text outside JSON.
+You are 'Director-X'. You must output ONLY a valid JSON object. Do not wrap in markdown or add text outside JSON. DO NOT use newlines (\\n) inside string values.
 
 🚨 FATAL RULES - FOLLOW OR FAIL 🚨
 1. LANGUAGES MUST BE SPLIT:
    - "voice", "visual", "camera", "thumbnail.title", "thumbnail.hook", "thumbnail.cta", "seo.titles", "seo.desc", "retention.feedback" MUST BE IN RUSSIAN (РУССКИЙ ЯЗЫК).
    - "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN", "music_EN", "b_rolls", "thumbnail.prompt_EN" MUST BE IN ENGLISH.
-2. DETAILED PROMPTS (CRITICAL): Every English prompt (imgPrompt_EN, vidPrompt_EN, b_rolls, thumbnail.prompt_EN) MUST BE DETAILED (15-25 words max). Describe the subject, environment, lighting (e.g. volumetric, cinematic), camera angle, mood, and textures. DO NOT write short prompts.
-3. B-ROLLS RULE: The "b_rolls" array MUST contain 2-3 DETAILED visual prompts in English. DO NOT use placeholders like "Flash b-roll".
+2. DETAILED PROMPTS (CRITICAL): Every English prompt (imgPrompt_EN, vidPrompt_EN, b_rolls, thumbnail.prompt_EN) MUST BE HIGHLY DETAILED and LONG (minimum 20-40 words). Describe the subject, environment, lighting (e.g. volumetric, cinematic), camera angle (e.g. extreme close-up), mood, and textures. DO NOT write short prompts!
+3. B-ROLLS RULE: The "b_rolls" array MUST contain 2-3 HIGHLY DETAILED visual prompts in English. DO NOT use placeholders like "Flash b-roll".
 4. PACING: Strictly 3 seconds per scene.
+5. NO Midjourney or Leonardo AI mentions. Design prompts for Grok Super, Veo, Whisk.
 
 JSON STRUCTURE EXACTLY AS THIS:
 {
-  "global_anchor_EN": "Detailed English character/location description to maintain consistency across scenes...",
+  "global_anchor_EN": "Highly detailed English character/location description to maintain consistency across scenes...",
   "retention": { "score": 95, "feedback": "Русский текст анализа..." },
   "frames": [ 
     { 
@@ -131,12 +132,12 @@ JSON STRUCTURE EXACTLY AS THIS:
       "camera": "Наезд камеры", 
       "visual": "Старый заброшенный бункер, тусклый свет", 
       "voice": "В глубинах советской эпохи...", 
-      "imgPrompt_EN": "Cinematic wide shot of a dark abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, hyper-realistic, 8k...", 
-      "vidPrompt_EN": "Cinematic wide shot of a dark abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, hyper-realistic, 8k..." 
+      "imgPrompt_EN": "A highly detailed cinematic wide shot of a dark abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, volumetric fog, hyper-realistic, 8k...", 
+      "vidPrompt_EN": "A highly detailed cinematic wide shot of a dark abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, volumetric fog, hyper-realistic, 8k..." 
     } 
   ],
-  "b_rolls": [ "Extreme close-up of a rusty red button on a vintage console, dust particles floating, dramatic lighting, 8k...", "Detailed English prompt 2..." ],
-  "thumbnail": { "title": "МЕРТВАЯ РУКА", "hook": "СЕКРЕТНЫЙ ПРОЕКТ", "cta": "СМОТРЕТЬ", "prompt_EN": "Detailed English prompt for the cover image, describing lighting, mood, and composition..." },
+  "b_rolls": [ "Extreme close-up of a rusty red button on a vintage console, dust particles floating in the air, macro photography, dramatic lighting, 8k...", "Detailed English prompt 2..." ],
+  "thumbnail": { "title": "МЕРТВАЯ РУКА", "hook": "СЕКРЕТНЫЙ ПРОЕКТ", "cta": "СМОТРЕТЬ", "prompt_EN": "Highly detailed English prompt for the cover image, describing lighting, mood, and composition..." },
   "music_EN": "Epic cinematic orchestral music with deep bass...",
   "seo": { "titles": ["Русский заголовок"], "desc": "Русский текст", "tags": ["#тег"] }
 }`;
@@ -243,15 +244,17 @@ export default function Page() {
   };
 
   function applyResult(rawText, fromHistory = false) {
-    // Очистка от маркдауна
     let cleanText = rawText.replace(/```json/gi, "").replace(/```/gi, "").trim();
     
-    // Пытаемся вытащить строго JSON (помогает если ИИ добавила лишний текст)
+    // Бронебойный парсер (вырезаем всё до первой { и после последней })
     const startIdx = cleanText.indexOf('{');
     const endIdx = cleanText.lastIndexOf('}');
     if (startIdx !== -1 && endIdx !== -1) {
       cleanText = cleanText.substring(startIdx, endIdx + 1);
     }
+    
+    // Убиваем физические переносы строк внутри JSON, которые крашат парсер (заменяем на пробел)
+    cleanText = cleanText.replace(/\r?\n|\r/g, " ").replace(/[\u0000-\u0019]+/g, "");
 
     try {
       const data = JSON.parse(cleanText);
@@ -286,67 +289,56 @@ export default function Page() {
       }
     } catch (e) {
       console.error("Parse Error:", e, "\nRAW TEXT:", cleanText);
-      alert("Ошибка JSON: Нейросеть оборвала текст или выдала неверный формат. Попробуйте нажать генерацию еще раз.");
+      alert("Ошибка JSON: Нейросеть выдала кривой формат. Попробуйте сгенерировать еще раз.");
       setView("form");
     }
   }
 
   async function handleDraftText() {
     if (!topic.trim()) return alert("Введите тему!");
-    setBusy(true); 
-    setLoadingMsg("Пишем черновик (Opus)..."); 
-    setView("loading"); // ВАЖНО: Показываем экран загрузки
+    setBusy(true); setLoadingMsg("Пишем черновик (Opus)..."); setView("loading");
     try {
-      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Мрачный стиль.`;
-      const text = await callAPI(topic, 3000, sysTxt);
+      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Сделай его захватывающим. Жанр текста: ${genre}.`;
+      const text = await callAPI(`Тема: ${topic}`, 3000, sysTxt);
       setScript(text.trim());
-    } catch(e) { alert(e.message); } 
-    finally { setBusy(false); setView("form"); } // Возвращаем форму
+    } catch(e) { alert(e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleIntonations() {
     if (!script.trim()) return alert("Нет текста!");
-    setBusy(true); 
-    setLoadingMsg("Разметка интонаций..."); 
-    setView("loading");
+    setBusy(true); setLoadingMsg("Разметка интонаций..."); setView("loading");
     try {
-      const sysTxt = `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента в этом РУССКОМ тексте.`;
+      const sysTxt = `You are an Audio Director. Расставь паузы (...) и выдели КАПСОМ слова для акцента в этом РУССКОМ тексте. Жанр: ${genre}.`;
       const text = await callAPI(script, 3000, sysTxt);
       setScript(text.trim());
-    } catch(e) { alert(e.message); } 
-    finally { setBusy(false); setView("form"); }
+    } catch(e) { alert(e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleTTS() {
     if (!script.trim()) return alert("Нет текста!");
-    setBusy(true); 
-    setLoadingMsg("Подбор голоса..."); 
-    setView("loading");
+    setBusy(true); setLoadingMsg("Подбор голоса..."); setView("loading");
     try {
-      const text = await callAPI(script.substring(0,100), 1000, "Provide TTS settings for Google AI Studio: VOICE: [Name], SPEED: [Value], STYLE PROMPT: [English instruction]");
+      const text = await callAPI(`Текст: ${script.substring(0,100)}... Жанр: ${genre}`, 1000, "Provide TTS settings for Google AI Studio: VOICE: [Name], SPEED: [Value], STYLE PROMPT: [English instruction]");
       setTtsData(text.trim());
-    } catch(e) { alert(e.message); } 
-    finally { setBusy(false); setView("form"); }
+    } catch(e) { alert(e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleGenerateFullPlan() {
     if (!topic.trim() && !script.trim()) return alert("Заполните поля!");
     if (!checkTokens()) return;
-    setBusy(true); 
-    setLoadingMsg("Генерация сценария..."); // Заменили старый текст
-    setView("loading");
+    setBusy(true); setLoadingMsg("Генерация сценария..."); setView("loading");
     try {
       let currentScript = script.trim();
       if (!currentScript) {
-        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text. TARGET LANGUAGE MUST BE ${lang === "RU" ? "RUSSIAN" : "ENGLISH"}.`);
+        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text. TARGET LANGUAGE MUST BE ${lang === "RU" ? "RUSSIAN" : "ENGLISH"}. Genre: ${genre}`);
         setScript(currentScript.trim());
       }
       const durCfg = DURATION_CONFIG[dur] || DURATION_CONFIG["До 60 сек"];
       const engineStyle = VISUAL_ENGINES[engine].prompt;
       
       const req = `СТРОГОЕ ПРАВИЛО ПО ЯЗЫКАМ: Сценарий (voice, visual, camera) и SEO - строго на ${lang === "RU" ? "РУССКОМ" : "АНГЛИЙСКОМ"}. Промпты - на АНГЛИЙСКОМ.
-СТРОГОЕ ПРАВИЛО ДЕТАЛИЗАЦИИ: Промпты (картинки, видео, B-Rolls) должны быть детальными (15-25 слов). Короткие промпты запрещены. Прикрепи "shot on Arri Alexa 65, 8k resolution, photorealistic, cinematic lighting" к каждому промпту.
-ОБЯЗАТЕЛЬНО: Создай мощный "global_anchor_EN" для согласованности.
+СТРОГОЕ ПРАВИЛО ДЕТАЛИЗАЦИИ: Промпты (картинки, видео, обложка, B-Rolls) ДОЛЖНЫ БЫТЬ ОЧЕНЬ ДЛИННЫМИ И ДЕТАЛЬНЫМИ (минимум 20-40 слов). Описывай атмосферу, освещение, текстуры, ракурс камеры. Прикрепи "shot on Arri Alexa 65, 8k resolution, photorealistic, cinematic lighting" к каждому.
+ОБЯЗАТЕЛЬНО: Создай мощный "global_anchor_EN".
 
 ТЕМА: ${topic}
 ЖАНР: ${genre}
@@ -359,8 +351,7 @@ ${currentScript}
       const text = await callAPI(req, 8000);
       setTokens(t => t - 1);
       applyResult(text, false);
-    } catch(e) { alert(e.message); setView("form"); } 
-    finally { setBusy(false); }
+    } catch(e) { alert(e.message); setView("form"); } finally { setBusy(false); }
   }
 
   function handleImageUpload(e) {
@@ -385,7 +376,7 @@ ${currentScript}
   const S = {
     root: { minHeight:"100vh", color:"#e2e8f0", paddingBottom:120, overflowY:"auto", position:"relative", zIndex:1 },
     nav: { position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.5)", backdropFilter:"blur(24px)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px" },
-    section: { marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, backdropFilter:"blur(20px)" },
+    section: { marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, backdropFilter:"blur(20px)", boxShadow:"0 10px 40px rgba(0,0,0,0.2)" },
     label: { fontSize:11, fontWeight:800, letterSpacing:2, color:"#94a3b8", display:"block", marginBottom:12, textTransform:"uppercase" }
   };
 
@@ -406,6 +397,7 @@ ${currentScript}
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #a855f7; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px #a855f7; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .genre-scroll::-webkit-scrollbar { display: none; }
       `}</style>
 
       {showPaywall && (
@@ -457,24 +449,21 @@ ${currentScript}
 
       {view==="form" && (
         <div style={{maxWidth:600,margin:"0 auto",padding:"30px 20px"}}>
-          <div style={{...S.section, borderColor:"rgba(168,85,247,0.4)", boxShadow:"0 10px 40px rgba(168,85,247,0.15)"}}>
-            <label style={{...S.label, color:"#d8b4fe"}}>🎯 ЦЕЛЬ ВАШЕГО ХИТА</label>
-            <textarea rows={2} value={topic} onChange={e=>setTopic(e.target.value)} placeholder="Например: Загадка Мертвой Руки..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:18,fontSize:16,color:"#fff",marginBottom:16, resize:"none"}}/>
-            <label style={S.label}>📝 ИЛИ ГОТОВЫЙ ТЕКСТ</label>
-            <textarea rows={4} value={script} onChange={e=>setScript(e.target.value)} placeholder="Вставьте готовый текст диктора..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:16,fontSize:14,color:"#cbd5e1",marginBottom:16, resize:"none"}}/>
-            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
-               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать</button>
-               <button onClick={handleIntonations} disabled={busy || !script.trim()} style={{background:"rgba(168,85,247,0.1)", border:"1px solid rgba(168,85,247,0.3)", color:"#d8b4fe", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>🎭 Интонации</button>
-               <button onClick={handleTTS} disabled={busy || !script.trim()} style={{gridColumn:"1/-1", background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Настройки голоса</button>
-            </div>
-            {ttsData && <pre style={{marginTop:12, padding:12, background:"rgba(0,0,0,0.5)", borderRadius:10, fontSize:11, color:"#bae6fd", fontFamily:"monospace", whiteSpace:"pre-wrap"}}>{ttsData}</pre>}
+          
+          {/* НОВАЯ СТРУКТУРА: 1. Тема -> 2. Жанр -> 3. Текст -> 4. Настройки */}
+          
+          {/* 1. ТЕМА */}
+          <div style={{...S.section, borderColor:"rgba(168,85,247,0.4)"}}>
+            <label style={{...S.label, color:"#d8b4fe"}}>🎯 ИДЕЯ ИЛИ ТЕМА ХИТА</label>
+            <textarea rows={2} value={topic} onChange={e=>setTopic(e.target.value)} placeholder="Например: Загадка перевала Дятлова..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:18,fontSize:16,color:"#fff", resize:"none", marginBottom:0}}/>
           </div>
 
-          <div style={S.section}>
-            <label style={S.label}>🎭 ЖАНР</label>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {/* 2. ЖАНР (Скроллируемый компактный список) */}
+          <div style={{...S.section, padding:"20px 0"}}>
+            <label style={{...S.label, paddingLeft:24}}>🎭 ЖАНР РАССКАЗА</label>
+            <div className="genre-scroll" style={{display:"flex", gap:10, overflowX:"auto", padding:"0 24px"}}>
               {Object.entries(GENRE_PRESETS).map(([g,p])=>(
-                <button key={g} onClick={()=>setGenre(g)} style={{background:genre===g?`${p.col}22`:"rgba(0,0,0,.4)",border:`1px solid ${genre===g?p.col:"rgba(255,255,255,.05)"}`,borderRadius:16,padding:"14px 4px",display:"flex",flexDirection:"column",alignItems:"center",gap:8, cursor:"pointer", transition:"all 0.2s"}}>
+                <button key={g} onClick={()=>setGenre(g)} style={{flexShrink:0, width:90, background:genre===g?`${p.col}22`:"rgba(0,0,0,.4)",border:`1px solid ${genre===g?p.col:"rgba(255,255,255,.05)"}`,borderRadius:16,padding:"14px 4px",display:"flex",flexDirection:"column",alignItems:"center",gap:8, cursor:"pointer", transition:"all 0.2s"}}>
                   <span style={{fontSize:24,filter:genre===g?"none":"grayscale(100%) opacity(50%)"}}>{p.icon}</span>
                   <span style={{fontSize:9,color:genre===g?p.col:"rgba(255,255,255,.4)",fontWeight:800}}>{g}</span>
                 </button>
@@ -482,6 +471,19 @@ ${currentScript}
             </div>
           </div>
 
+          {/* 3. ТЕКСТ И КНОПКИ */}
+          <div style={S.section}>
+             <label style={S.label}>📝 СЦЕНАРИЙ (ТЕКСТ ДИКТОРА)</label>
+             <textarea rows={5} value={script} onChange={e=>setScript(e.target.value)} placeholder="Вставьте готовый текст или нажмите кнопку «Написать» ниже..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:16,fontSize:14,color:"#cbd5e1",marginBottom:16, resize:"none"}}/>
+             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать</button>
+               <button onClick={handleIntonations} disabled={busy || !script.trim()} style={{background:"rgba(168,85,247,0.1)", border:"1px solid rgba(168,85,247,0.3)", color:"#d8b4fe", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>🎭 Интонации</button>
+               <button onClick={handleTTS} disabled={busy || !script.trim()} style={{gridColumn:"1/-1", background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Настройки голоса</button>
+             </div>
+             {ttsData && <pre style={{marginTop:12, padding:12, background:"rgba(0,0,0,0.5)", borderRadius:10, fontSize:11, color:"#bae6fd", fontFamily:"monospace", whiteSpace:"pre-wrap"}}>{ttsData}</pre>}
+          </div>
+
+          {/* 4. ТЕХНИЧЕСКИЕ НАСТРОЙКИ */}
           <div style={{marginBottom: 24}}>
              <button onClick={()=>setSettingsOpen(!settingsOpen)} style={{width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.1)", padding:"16px 24px", borderRadius:settingsOpen?"24px 24px 0 0":24, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", textTransform:"uppercase"}}>
                <span>⚙️ Технические настройки</span><span>{settingsOpen?"▲":"▼"}</span>
@@ -509,7 +511,7 @@ ${currentScript}
       )}
 
       {view==="loading" && (
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"100px 20px",textAlign:"center"}}>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"50vh",padding:"20px",textAlign:"center"}}>
            <div style={{width:60,height:60,border:"4px solid rgba(168,85,247,0.2)",borderTopColor:"#a855f7",borderRadius:"50%",animation:"spin 1s linear infinite",marginBottom:24}} />
            <div style={{fontSize:20,fontWeight:900,color:"#fff", letterSpacing:2}}>{loadingMsg}</div>
         </div>
