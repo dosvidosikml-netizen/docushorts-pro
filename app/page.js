@@ -115,14 +115,15 @@ You are 'Director-X'. You must output ONLY a valid JSON object. Do not wrap in m
 
 🚨 FATAL RULES - FOLLOW OR FAIL 🚨
 1. LANGUAGES MUST BE SPLIT:
-   - "voice", "visual", "camera", "thumbnail.title", "thumbnail.hook", "thumbnail.cta", "seo.titles", "seo.desc", "retention.feedback" MUST BE TRANSLATED TO RUSSIAN (РУССКИЙ ЯЗЫК). Do NOT use English for these fields!
-   - "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN", "music_EN", "b_rolls" MUST BE IN ENGLISH.
-2. B-ROLLS RULE: The "b_rolls" array MUST contain 2-3 detailed visual prompts in English (e.g. "Extreme close-up of a dusty computer keyboard, 8k, cinematic"). DO NOT use placeholders like "Flash b-roll".
-3. PACING: Strictly 3 seconds per scene.
+   - "voice", "visual", "camera", "thumbnail.title", "thumbnail.hook", "thumbnail.cta", "seo.titles", "seo.desc", "retention.feedback" MUST BE IN RUSSIAN (РУССКИЙ ЯЗЫК).
+   - "global_anchor_EN", "imgPrompt_EN", "vidPrompt_EN", "music_EN", "b_rolls", "thumbnail.prompt_EN" MUST BE IN ENGLISH.
+2. DETAILED PROMPTS (CRITICAL): Every English prompt (imgPrompt_EN, vidPrompt_EN, b_rolls, thumbnail.prompt_EN) MUST BE HIGHLY DETAILED and LONG (minimum 20-40 words). You MUST describe the subject, environment, lighting (e.g. volumetric, cinematic, dramatic), camera angle (e.g. extreme close-up, wide shot), mood, and textures. DO NOT write short prompts. 
+3. B-ROLLS RULE: The "b_rolls" array MUST contain 2-3 HIGHLY DETAILED visual prompts in English. DO NOT use placeholders like "Flash b-roll".
+4. PACING: Strictly 3 seconds per scene.
 
-JSON STRUCTURE EXACTLY AS THIS (replace content):
+JSON STRUCTURE EXACTLY AS THIS:
 {
-  "global_anchor_EN": "Detailed English character/location desc...",
+  "global_anchor_EN": "Highly detailed English character/location description...",
   "retention": { "score": 95, "feedback": "Русский текст анализа..." },
   "frames": [ 
     { 
@@ -130,13 +131,13 @@ JSON STRUCTURE EXACTLY AS THIS (replace content):
       "camera": "Наезд камеры", 
       "visual": "Старый заброшенный бункер, тусклый свет", 
       "voice": "В глубинах советской эпохи...", 
-      "imgPrompt_EN": "Dimly lit abandoned bunker, 8k...", 
-      "vidPrompt_EN": "Dimly lit abandoned bunker, 8k..." 
+      "imgPrompt_EN": "A highly detailed, cinematic wide shot of a dark, abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, volumetric fog, hyper-realistic, 8k...", 
+      "vidPrompt_EN": "A highly detailed, cinematic wide shot of a dark, abandoned Soviet military bunker, dusty control panels, eerie green emergency lights, thick atmosphere, volumetric fog, hyper-realistic, 8k..." 
     } 
   ],
-  "b_rolls": [ "English detailed prompt 1...", "English detailed prompt 2..." ],
-  "thumbnail": { "title": "МЕРТВАЯ РУКА", "hook": "СЕКРЕТНЫЙ ПРОЕКТ СССР", "cta": "СМОТРЕТЬ", "prompt_EN": "English..." },
-  "music_EN": "English prompt...",
+  "b_rolls": [ "Extreme close-up of a rusty red button on a vintage console, dust particles floating in the air, macro photography, dramatic lighting, 8k...", "Detailed English prompt 2..." ],
+  "thumbnail": { "title": "МЕРТВАЯ РУКА", "hook": "СЕКРЕТНЫЙ ПРОЕКТ", "cta": "СМОТРЕТЬ", "prompt_EN": "Highly detailed English prompt for the cover image, describing lighting, mood, and composition..." },
+  "music_EN": "Epic cinematic orchestral music with deep bass...",
   "seo": { "titles": ["Русский заголовок"], "desc": "Русский текст", "tags": ["#тег"] }
 }`;
 
@@ -323,9 +324,8 @@ export default function Page() {
       const durCfg = DURATION_CONFIG[dur] || DURATION_CONFIG["До 60 сек"];
       const engineStyle = VISUAL_ENGINES[engine].prompt;
       
-      const req = `СТРОГОЕ ПРАВИЛО: ВСЕ ПОЛЯ СЦЕНАРИЯ (voice, visual, camera) И SEO ДОЛЖНЫ БЫТЬ НА ${lang === "RU" ? "РУССКОМ ЯЗЫКЕ" : "АНГЛИЙСКОМ"}.
-ПРОМПТЫ ДЛЯ КАРТИНОК И ВИДЕО - ТОЛЬКО НА АНГЛИЙСКОМ.
-B-ROLLS - ЭТО ПОЛНОЦЕННЫЕ АНГЛИЙСКИЕ ПРОМПТЫ, ЗАПРЕЩЕНО ПИСАТЬ "Flash b-roll".
+      const req = `СТРОГОЕ ПРАВИЛО ПО ЯЗЫКАМ: Сценарий (voice, visual, camera) и SEO - строго на ${lang === "RU" ? "РУССКОМ" : "АНГЛИЙСКОМ"}. Промпты - на АНГЛИЙСКОМ.
+СТРОГОЕ ПРАВИЛО ДЕТАЛИЗАЦИИ: Промпты для картинок, видео, обложки и B-Rolls ДОЛЖНЫ БЫТЬ МАКСИМАЛЬНО ДЛИННЫМИ И ДЕТАЛЬНЫМИ (минимум 20-40 слов). Обязательно описывай атмосферу, освещение, текстуры, ракурс камеры и детали объектов! Короткие промпты запрещены. Прикрепи "shot on Arri Alexa 65, 8k resolution, photorealistic, cinematic lighting" к каждому промпту.
 
 ТЕМА: ${topic}
 ЖАНР: ${genre}
