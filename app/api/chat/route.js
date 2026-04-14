@@ -1,12 +1,9 @@
-// @ts-nocheck
-/* eslint-disable */
-
-export const runtime = 'edge'; // 🔥 ВОТ ОН, КЛЮЧ К СПАСЕНИЮ. Переводит сервер на Edge-режим (обходит лимит 10 секунд)
+export const runtime = 'edge'; 
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const apiKey = process.env.GROQ_API_KEY; // Здесь лежит твой ключ от OpenRouter
+    const apiKey = process.env.GROQ_API_KEY; 
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API ключ не найден в настройках Vercel" }), { status: 400 });
@@ -21,9 +18,9 @@ export async function POST(req) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.1-70b-instruct", 
+        model: "openai/gpt-4o-mini", // 🔥 Ставим сверхбыструю модель-спринтера
         messages: body.messages,
-        max_tokens: 4000,
+        max_tokens: 3000, // Чуть урезали лимит, чтобы ускорить ответ
         temperature: 0.7
       })
     });
