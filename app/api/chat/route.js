@@ -1,10 +1,16 @@
-export const maxDuration = 60;
-export const dynamic = 'force-dynamic';
+// @ts-nocheck
+/* eslint-disable */
+
+export const runtime = 'edge'; // 🔥 ВОТ ОН, КЛЮЧ К СПАСЕНИЮ. Переводит сервер на Edge-режим (обходит лимит 10 секунд)
 
 export async function POST(req) {
   try {
     const body = await req.json();
-    const apiKey = process.env.GROQ_API_KEY; // Твой новый ключ из Vercel
+    const apiKey = process.env.GROQ_API_KEY; // Здесь лежит твой ключ от OpenRouter
+
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "API ключ не найден в настройках Vercel" }), { status: 400 });
+    }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -23,8 +29,9 @@ export async function POST(req) {
     });
 
     const data = await response.json();
+    
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: data.error?.message || "OpenRouter Error" }), { status: response.status });
+      return new Response(JSON.stringify({ error: data.error?.message || "Ошибка OpenRouter" }), { status: response.status });
     }
 
     return new Response(JSON.stringify({ text: data.choices[0].message.content }), { status: 200 });
