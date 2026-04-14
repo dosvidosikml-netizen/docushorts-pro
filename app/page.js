@@ -272,11 +272,20 @@ export default function Page() {
     finally { setBusy(false); setView("form"); }
   }
 
+  // --- УМНЫЙ ГЕНЕРАТОР ТЕКСТА С ЛИМИТОМ СЛОВ ---
   async function handleDraftText() {
     if (!topic.trim()) return alert("Введите тему!");
     setBusy(true); setLoadingMsg("Пишем сценарий..."); setView("loading");
     try {
-      const text = await callAPI(`Тема: ${topic}`, 3000, `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Жанр: ${genre}. ${finalTwist ? `Сохраняй интригу (${finalTwist}) до финала.` : ""}`);
+      // Рассчитываем точный лимит слов на основе выбранного времени
+      const sec = DURATION_SECONDS[dur] || 60;
+      const maxWords = Math.floor(sec * 2.2); // При 60 сек ~ 132 слова (комфортный темп)
+      
+      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Жанр: ${genre}. 
+      ОГРАНИЧЕНИЕ: Текст должен звучать ровно ${sec} секунд. Напиши СТРОГО не более ${maxWords} слов! Это критично! 
+      ${finalTwist ? `Сохраняй интригу (${finalTwist}) до финала.` : ""}`;
+      
+      const text = await callAPI(`Тема: ${topic}`, 3000, sysTxt);
       setScript(text.trim()); setHooksList([]);
     } catch(e) { alert(e.message || "Ошибка сети"); } 
     finally { setBusy(false); setView("form"); }
@@ -318,13 +327,16 @@ export default function Page() {
     setBusy(true); setLoadingMsg("Шаг 1: Создаем раскадровку и режиссуру..."); setView("loading");
     try {
       let currentScript = script.trim();
+      const sec = DURATION_SECONDS[dur] || 60;
+      
       if (!currentScript) {
-        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}.`);
+        const maxWords = Math.floor(sec * 2.2);
+        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. MUST be under ${maxWords} words.`);
         setScript(currentScript.trim());
       }
       
       // Строго 3 секунды на сцену по правилам системы
-      const targetFrames = Math.floor((DURATION_SECONDS[dur] || 60) / 3);
+      const targetFrames = Math.floor(sec / 3);
       const req = `TARGET LANGUAGE FOR SCENARIO AND SEO: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.
 ТЕМА: ${topic}
 ЖАНР: ${genre}
