@@ -478,9 +478,8 @@ export default function Page() {
     } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
   }
 
-  // Обновленный ребилд с ПУСТЫМИ СТРОКАМИ между промптами для удобного копирования
   function rebuildRawText(frms, s2done) {
-    let scriptTxt = frms.map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🔊 SFX: ${f.sfx||''}\n🔤 Типиры: ${f.text_on_screen||''}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
+    let scriptTxt = frms.map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🔊 SFX: ${f.sfx||''}\n🔤 Титры: ${f.text_on_screen||''}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
     let imgTxt = s2done ? frms.map(f => f.imgPrompt_EN).filter(Boolean).join("\n\n") : "";
     let vidTxt = s2done ? frms.map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n") : "";
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
@@ -791,12 +790,45 @@ export default function Page() {
           </div>
 
           <div style={{marginBottom: 24}}>
-             <button onClick={() => setSettingsOpen(!settingsOpen)} style={{width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.1)", padding:"16px 24px", borderRadius:settingsOpen ? "24px 24px 0 0" : 24, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer"}}><span>⚙️ Настройки</span><span>{settingsOpen ? "▲" : "▼"}</span></button>
+             <button onClick={() => setSettingsOpen(!settingsOpen)} style={{width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.1)", padding:"16px 24px", borderRadius:settingsOpen ? "24px 24px 0 0" : 24, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", textTransform:"uppercase"}}>
+               <span>⚙️ Технические настройки</span><span>{settingsOpen ? "▲" : "▼"}</span>
+             </button>
              {settingsOpen && (
                <div style={{background:"rgba(15,15,25,.3)", border:"1px solid rgba(255,255,255,.05)", borderTop:"none", padding:24, borderRadius:"0 0 24px 24px", backdropFilter:"blur(20px)"}}>
+                  
+                  <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>🎨 Визуальный движок</label>
                   <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
-                    {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} style={{flex:"1 1 45%", background: engine === eId ? "rgba(168,85,247,.15)" : "rgba(0,0,0,.4)", border:`1px solid ${engine === eId ? "#a855f7" : "rgba(255,255,255,0.1)"}`, borderRadius:14, padding:10, fontSize:11, color: engine === eId ? "#d8b4fe" : "rgba(255,255,255,.5)", cursor:"pointer"}}>{e.label}</button>))}
+                    {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} style={{flex:"1 1 45%", background: engine === eId ? "rgba(168,85,247,.15)" : "rgba(0,0,0,.4)", border:`1px solid ${engine === eId ? "#a855f7" : "rgba(255,255,255,.05)"}`, borderRadius:14, padding:10, fontSize:11, color: engine === eId ? "#d8b4fe" : "rgba(255,255,255,.5)", cursor:"pointer"}}>{e.label}</button>))}
                   </div>
+                  
+                  <input type="text" value={customStyle} onChange={e => setCustomStyle(e.target.value)} placeholder="Особый стиль (VHS, Киберпанк и т.д.)" style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:12, fontSize:12, color:"#cbd5e1", marginBottom:20}}/>
+                  
+                  <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>🌐 Язык и Формат</label>
+                  <div style={{display:"flex", gap:8, marginBottom:16}}>
+                    {["RU", "EN"].map(l => (
+                      <button key={l} onClick={() => setLang(l)} style={{flex:1, background: lang === l ? "rgba(245,158,11,.15)" : "rgba(0,0,0,.4)", border:`1px solid ${lang === l ? "#fbbf24" : "rgba(255,255,255,.05)"}`, borderRadius:14, padding:10, fontSize:12, fontWeight: lang === l ? 800 : 500, color: lang === l ? "#fcd34d" : "rgba(255,255,255,.5)", cursor:"pointer"}}>
+                        {l === "RU" ? "Русский" : "English"}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div style={{display:"flex", gap:8, marginBottom:20}}>
+                    {FORMATS.map(f => (
+                      <button key={f.id} onClick={() => setVidFormat(f.id)} style={{flex:1, background: vidFormat === f.id ? "rgba(14,165,233,.15)" : "rgba(0,0,0,.4)", border:`1px solid ${vidFormat === f.id ? "#0ea5e9" : "rgba(255,255,255,.05)"}`, borderRadius:14, padding:10, fontSize:12, fontWeight: vidFormat === f.id ? 800 : 500, color: vidFormat === f.id ? "#bae6fd" : "rgba(255,255,255,.5)", cursor:"pointer"}}>
+                        {f.id}
+                      </button>
+                    ))}
+                  </div>
+
+                  <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>⏳ Длительность видео</label>
+                  <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+                    {DURATIONS.map(d => (
+                      <button key={d} onClick={() => setDur(d)} style={{background: dur === d ? "rgba(249,115,22,.15)" : "rgba(0,0,0,.4)", border:`1px solid ${dur === d ? "#f97316" : "rgba(255,255,255,.05)"}`, borderRadius:20, padding:"10px 16px", fontSize:12, fontWeight: dur === d ? 800 : 500, color: dur === d ? "#fdba74" : "rgba(255,255,255,.5)", cursor:"pointer"}}>
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+
                </div>
              )}
           </div>
@@ -989,10 +1021,10 @@ export default function Page() {
                   </div>
                   
                   {step2Done && f.imgPrompt_EN && (
-                    <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (WHISK)</span><CopyBtn text={f.imgPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div></div>
+                    <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (WHISK/VEO)</span><CopyBtn text={f.imgPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div></div>
                   )}
                   {step2Done && f.vidPrompt_EN && (
-                    <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (VEO/GROK)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>
+                    <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (GROK SUPER)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>
                   )}
                 </div>
               ))}
