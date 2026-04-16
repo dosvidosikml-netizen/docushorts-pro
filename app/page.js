@@ -132,16 +132,16 @@ const SEO_COLORS = [
   { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" }  
 ];
 
-// --- СИСТЕМНЫЕ ПРОМПТЫ (V6.2 - VISION & CONTINUITY) ---
+// --- СИСТЕМНЫЕ ПРОМПТЫ (V6.3 - VISION, CONTINUITY & FINAL FIXES) ---
 const SYS_STEP_1 = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
 ### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT ADHERENCE REQUIRED)
 1. РИТМ (RETENTION ENGINE): Смена кадра СТРОГО каждые 3 секунды.
 2. СЛОВАРНЫЙ ЛИМИТ: 5-8 слов на сцену. Без слова "Диктор:".
 3. ВИЗУАЛЬНЫЙ ЯКОРЬ (ANTI-MARKDOWN): Выдели 1-2 главных слова в сцене КАПСОМ. ЗАПРЕЩЕНО использовать markdown-разметку (звездочки **). Только чистый текст в верхнем регистре (например: ТАЙНА).
-4. TEXT ON SCREEN: Каждое слово КАПСОМ дублируется в поле "text_on_screen" (без звездочек).
-5. RE-ENGAGEMENT: На 15-18 секунде обязателен резкий триггер смены интонации.
-6. SEAMLESS LOOP: Финальная фраза грамматически соединяется с первой.
-7. SFX: Текст в конце сцен заканчивается "...", оставляя время для звука (e.g. "[0:02] Deep Boom").
+4. ПРАВИЛО ФИНАЛА: Сценарий должен быть логически завершен. Всегда дописывай мысль и ставь точку в последнем предложении. Не обрывай текст на полуслове!
+5. TEXT ON SCREEN: Каждое слово КАПСОМ дублируется в поле "text_on_screen" (без звездочек).
+6. RE-ENGAGEMENT: На 15-18 секунде обязателен резкий триггер смены интонации.
+7. SEAMLESS LOOP: Финальная фраза грамматически соединяется с первой.
 8. МУЗЫКА (SUNO): Сгенерируй УНИКАЛЬНЫЕ теги под конкретную атмосферу. Не копируй шаблоны! Формат: "[Genre: <твой жанр>], [Mood: <твое настроение>], [Instruments: <твои инструменты>]".
 9. SEO МАТРИЦА: Сгенерируй 3 РАЗНЫХ варианта (1: Агрессивный Шок, 2: Тайна/Интрига, 3: Поиск/SEO).
 10. ПЕРСОНАЖИ (CHARACTER FORGE): Для переданных персонажей создай профессиональный 'ref_sheet_prompt' (Technical model turnaround, front/profile/back, neutral background). Если передано поле 'dna', обязательно включи эти черты в промпт. Привязывай персонажей к кадрам массива 'frames'.
@@ -247,6 +247,8 @@ export default function Page() {
   
   const [settingsOpen, setSettingsOpen] = useState(true); 
   const [showTTS, setShowTTS] = useState(false);
+  const [ttsVoice, setTtsVoice] = useState("Male_Deep"); // Выбор голоса
+
   const [hooksList, setHooksList] = useState([]); 
   const [view, setView] = useState("form");
   const [loadingMsg, setLoadingMsg] = useState("");
@@ -405,6 +407,7 @@ export default function Page() {
 
       const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Без слова "Диктор:". Жанр: ${genre}. ЗАПРЕЩЕНО использовать markdown-разметку (**).
 ОГРАНИЧЕНИЕ: Напиши текст объемом ${wordLimitRule}. Это критически важно для удержания тайминга!
+ПРАВИЛО ФИНАЛА: Текст ОБЯЗАН быть логически завершен. Никогда не обрывай предложение на полуслове. Завершение мысли и правильная пунктуация (точки в конце) ВАЖНЕЕ точного попадания в лимит слов. Обязательно доведи рассказ до финала и поставь точку.
 ПРАВИЛО ЭКВАТОРА: Ровно в середине текста (экватор видео) ты ОБЯЗАН вставить фразу-триггер, которая ломает ритм и заново захватывает внимание.
 Последнее предложение - байт на комментарий. ${finalTwist ? `Интрига: ${finalTwist}` : ""}`;
       
@@ -442,12 +445,12 @@ export default function Page() {
       
       if (!currentScript) {
         const maxWords = Math.floor(sec * 2.2);
-        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. NO MARKDOWN (**). MUST be under ${maxWords} words. DO NOT WRITE "Narrator:".`);
+        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. NO MARKDOWN (**). MUST be under ${maxWords} words. Logical ending required. DO NOT WRITE "Narrator:".`);
         setScript(currentScript.trim());
       }
       
       const targetFrames = Math.floor(sec / 3);
-      const req = `LANGUAGE FOR SCENARIO/SEO: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}. ПЕРСОНАЖИ ВВОДНЫЕ: ${JSON.stringify(chars)}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ.`;
+      const req = `LANGUAGE FOR SCENARIO/SEO: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}. ПЕРСОНАЖИ ВВОДНЫЕ: ${JSON.stringify(chars)}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!`;
 
       const text = await callAPI(req, 8000, SYS_STEP_1);
       const data = cleanJSON(text);
@@ -612,7 +615,7 @@ export default function Page() {
           <div style={{background:"#111827", border:"1px solid #a855f7", borderRadius:24, padding:30, maxWidth:400, textAlign:"center", position:"relative", boxShadow:"0 10px 50px rgba(168,85,247,0.3)"}}>
             <button onClick={() => setShowPaywall(false)} style={{position:"absolute", top:15, right:15, background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button>
             <div style={{fontSize:50, marginBottom:10}}>💎</div><h2 style={{fontSize:22, fontWeight:900, color:"#fff", marginBottom:10}}>Лимит исчерпан</h2>
-            <p style={{fontSize:14, color:"#cbd5e1", marginBottom:24, lineHeight:1.5}}>Магия на сегодня закончилась (3 кристалла). Возвращайтесь завтра или оформите PRO.</p>
+            <p style={{fontSize:14, color:"#cbd5e1", marginBottom:24, lineHeight:1.5}}>Магия на сегодня закончилась. Возвращайтесь завтра или оформите PRO.</p>
             <button onClick={() => setShowPaywall(false)} style={{width:"100%", background:"linear-gradient(135deg, #a855f7, #ec4899)", border:"none", padding:"16px", borderRadius:16, color:"#fff", fontWeight:900, cursor:"pointer"}}>ПОНЯТНО</button>
           </div>
         </div>
@@ -626,7 +629,7 @@ export default function Page() {
             <ul style={{color:"#cbd5e1", fontSize:14, lineHeight:1.6, paddingLeft:20}}>
               <li style={{marginBottom:10}}><b>Правило 3 секунд:</b> Картинка должна меняться каждые 3 секунды. Не пишите длинные тексты, иначе ритм умрет.</li>
               <li style={{marginBottom:10}}><b>Визуальный Якорь:</b> Забудьте про общие планы! Просите ИИ показывать макро-детали. Одно акцентное слово КАПСОМ в тексте = фокус в кадре.</li>
-              <li style={{marginBottom:10}}><b>Экватор (15 сек):</b> В середине видео зритель скучает. Обязательно ломайте ритм фразой-крючком ("Но самое странное...").</li>
+              <li style={{marginBottom:10}}><b>Экватор (15 сек):</b> В середине видео зритель скучает. Обязательно ломайте ритм фразой-крючком.</li>
               <li style={{marginBottom:10}}><b>Хоррор Обложки:</b> Обложка должна вызывать дикое любопытство или легкое отвращение.</li>
             </ul>
             <button onClick={() => setShowGuide(false)} style={{width:"100%", background:"#10b981", border:"none", padding:"12px", borderRadius:12, color:"#fff", fontWeight:900, cursor:"pointer", marginTop:10}}>Я ГОТОВ СОЗДАВАТЬ ХИТЫ</button>
@@ -725,13 +728,51 @@ export default function Page() {
                      <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer"}}>×</button>
                    </div>
                    <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Краткая роль (например: злой аптекарь)" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none", marginBottom:6}} />
-                   <textarea rows={2} value={c.dna} onChange={e => updateChar(c.id, 'dna', e.target.value)} placeholder="Внешность (Visual DNA): Детально опишите лицо, шрамы, одежду с вашей картинки, чтобы ИИ намертво их запомнил..." style={{width:"100%", background:"rgba(236,72,153,0.05)", border:"1px dashed rgba(236,72,153,0.3)", borderRadius:8, padding:10, fontSize:11, color:"#f9a8d4", resize:"none"}} />
+                   <textarea rows={2} value={c.dna} onChange={e => updateChar(c.id, 'dna', e.target.value)} placeholder="Внешность (Visual DNA): Детально опишите лицо, шрамы, одежду с вашей картинки..." style={{width:"100%", background:"rgba(236,72,153,0.05)", border:"1px dashed rgba(236,72,153,0.3)", borderRadius:8, padding:10, fontSize:11, color:"#f9a8d4", resize:"none"}} />
                  </div>
                ))}
              </div>
           </div>
 
-          {/* ТЕХНИЧЕСКИЕ НАСТРОЙКИ (С ПАЙПЛАЙНОМ) */}
+          <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
+             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
+               <label style={{fontSize:11, fontWeight:800, letterSpacing:2, color:"#94a3b8", display:"block", marginBottom:0, textTransform:"uppercase"}}>📝 Сценарий</label>
+               <div style={{display:"flex", gap:8}}>
+                 <CopyBtn text={script} small />
+                 <button onClick={handleGenerateHooks} disabled={busy || !topic.trim()} style={{background:"rgba(249,115,22,0.15)", color:"#fbbf24", border:"1px solid rgba(249,115,22,0.3)", borderRadius:8, padding:"4px 10px", fontSize:10, fontWeight:900, cursor:"pointer"}}>🔥 3 ХУКА</button>
+               </div>
+             </div>
+             
+             {hooksList.length > 0 && (
+               <div style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(249,115,22,0.3)", borderRadius:12, padding:12, marginBottom:16}}>
+                 <div style={{display:"flex", flexDirection:"column", gap:6}}>
+                   {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{background:"rgba(255,255,255,0.05)", padding:10, borderRadius:8, fontSize:13, color:"#fcd34d", cursor:"pointer", borderLeft:"3px solid #f59e0b"}}>{h}</div> ))}
+                 </div>
+               </div>
+             )}
+             
+             <textarea rows={5} value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте текст или нажмите 'Написать'..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:16, padding:16, fontSize:14, color:"#cbd5e1", marginBottom:16, resize:"none"}}/>
+             
+             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать текст</button>
+               <button onClick={() => setShowTTS(!showTTS)} style={{background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Голос (TTS)</button>
+             </div>
+
+             {/* TTS ОЖИВЛЕНИЕ (V6.3) */}
+             {showTTS && (
+               <div style={{marginTop:16, padding:16, background:"rgba(0,0,0,0.3)", borderRadius:16, border:"1px solid rgba(14,165,233,0.4)"}}>
+                 <label style={{fontSize:10, color:"#7dd3fc", display:"block", marginBottom:8, fontWeight:800, textTransform:"uppercase"}}>ВЫБОР ДИКТОРА (ElevenLabs API Stub)</label>
+                 <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{width:"100%", background:"#111", color:"#fff", border:"1px solid #333", padding:10, borderRadius:10, fontSize:13, marginBottom:12, cursor:"pointer"}}>
+                   <option value="Male_Deep">Мужской: Глубокий бас (Детектив)</option>
+                   <option value="Female_Mystic">Женский: Мистический шепот (Тайны)</option>
+                   <option value="Doc_Narrator">Универсальный Документальный</option>
+                 </select>
+                 <button style={{width:"100%", background:"rgba(14,165,233,0.2)", border:"1px solid #0ea5e9", color:"#bae6fd", padding:10, borderRadius:10, fontSize:12, fontWeight:800, cursor:"not-allowed"}}>🔊 СГЕНЕРИРОВАТЬ АУДИО (В разработке)</button>
+               </div>
+             )}
+          </div>
+
+          {/* ТЕХНИЧЕСКИЕ НАСТРОЙКИ (СПУЩЕНЫ ВНИЗ V6.3) */}
           <div style={{marginBottom: 24}}>
              <button onClick={() => setSettingsOpen(!settingsOpen)} style={{width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.1)", padding:"16px 24px", borderRadius:settingsOpen ? "24px 24px 0 0" : 24, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", textTransform:"uppercase"}}>
                <span>⚙️ Технические настройки</span><span>{settingsOpen ? "▲" : "▼"}</span>
@@ -784,31 +825,6 @@ export default function Page() {
              )}
           </div>
 
-          <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
-             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
-               <label style={{fontSize:11, fontWeight:800, letterSpacing:2, color:"#94a3b8", display:"block", marginBottom:0, textTransform:"uppercase"}}>📝 Сценарий</label>
-               <div style={{display:"flex", gap:8}}>
-                 <CopyBtn text={script} small />
-                 <button onClick={handleGenerateHooks} disabled={busy || !topic.trim()} style={{background:"rgba(249,115,22,0.15)", color:"#fbbf24", border:"1px solid rgba(249,115,22,0.3)", borderRadius:8, padding:"4px 10px", fontSize:10, fontWeight:900, cursor:"pointer"}}>🔥 3 ХУКА</button>
-               </div>
-             </div>
-             
-             {hooksList.length > 0 && (
-               <div style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(249,115,22,0.3)", borderRadius:12, padding:12, marginBottom:16}}>
-                 <div style={{display:"flex", flexDirection:"column", gap:6}}>
-                   {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{background:"rgba(255,255,255,0.05)", padding:10, borderRadius:8, fontSize:13, color:"#fcd34d", cursor:"pointer", borderLeft:"3px solid #f59e0b"}}>{h}</div> ))}
-                 </div>
-               </div>
-             )}
-             
-             <textarea rows={5} value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте текст или нажмите 'Написать'..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:16, padding:16, fontSize:14, color:"#cbd5e1", marginBottom:16, resize:"none"}}/>
-             
-             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
-               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать текст</button>
-               <button onClick={() => setShowTTS(!showTTS)} style={{background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Голос (TTS)</button>
-             </div>
-          </div>
-
           <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 50%, transparent)", zIndex:100}}>
             <button className="gbtn" onClick={handleStep1} disabled={(!script.trim() && !topic.trim()) || busy}>{busy ? "СИСТЕМА В РАБОТЕ..." : "🚀 ШАГ 1: СОЗДАТЬ РАСКАДРОВКУ (💎 1)"}</button>
           </div>
@@ -835,7 +851,7 @@ export default function Page() {
              </div>
           )}
 
-          {/* СТУДИЯ ОБЛОЖКИ */}
+          {/* СТУДИЯ ОБЛОЖКИ (FULL RESTORED) */}
           <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:0, overflow:"hidden", backdropFilter:"blur(20px)"}}>
             <div style={{padding:"20px 24px", background:"rgba(0,0,0,0.3)", borderBottom:"1px solid rgba(255,255,255,0.05)", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
                <div style={{fontSize:14, fontWeight:900, color:"#d8b4fe", letterSpacing:1, textTransform:"uppercase"}}>🎨 Студия Обложки</div>
@@ -877,7 +893,7 @@ export default function Page() {
                  </label>
               </div>
 
-              {/* РЕДАКТОР ТЕКСТА */}
+              {/* РЕДАКТОР ТЕКСТА ОБЛОЖКИ */}
               <div style={{background:"rgba(0,0,0,0.3)", borderRadius:16, padding:20, marginBottom:20}}>
                  <label style={{fontSize:11, color:"#d8b4fe", fontWeight:900, textTransform:"uppercase", marginBottom:12, display:"block"}}>📝 ТЕКСТ И РАЗМЕРЫ</label>
                  <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:20}}>
@@ -1086,7 +1102,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* КНОПКА СКАЧИВАНИЯ PDF - ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ ШАГА 2 */}
+      {/* КНОПКА СКАЧИВАНИЯ PDF (ТЕМНАЯ) */}
       {view === "result" && step2Done && frames.length > 0 && (
          <div style={{padding:"0 20px 40px", maxWidth:600, margin:"0 auto"}}>
            <button onClick={downloadPDF} disabled={pdfDownloading} style={{width:"100%", height:56, background:"rgba(15,15,25,0.6)", backdropFilter:"blur(10px)", border:"1px solid rgba(168,85,247,0.5)", borderRadius:16, color:"#d8b4fe", fontWeight:900, fontSize:14, cursor: pdfDownloading ? "not-allowed" : "pointer", boxShadow:"0 4px 20px rgba(168,85,247,0.15)", textTransform:"uppercase"}}>
