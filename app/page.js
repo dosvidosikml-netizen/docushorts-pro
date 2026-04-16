@@ -102,7 +102,6 @@ const VISUAL_ENGINES = {
 const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
 const DURATIONS = Object.keys(DURATION_SECONDS);
 
-// Базовая защита от обрезки текста для всех пресетов
 const SAFE_TEXT_STYLE = { width: "100%", padding: "0 15px", boxSizing: "border-box", wordBreak: "break-word", overflowWrap: "break-word" };
 
 const COVER_PRESETS = [
@@ -127,47 +126,51 @@ const FONTS = [
 
 const COLORS = ["#ffffff", "#ffdd00", "#facc15", "#ef4444", "#ec4899", "#0ea5e9", "#a855f7", "#22c55e", "#f97316", "#000000"];
 
-// --- СИСТЕМНЫЕ ПРОМПТЫ (V6.0 - ULTIMATE MATRIX) ---
+const SEO_COLORS = [
+  { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, // Шок
+  { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, // Тайна
+  { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" }  // Поиск
+];
+
+// --- СИСТЕМНЫЕ ПРОМПТЫ (V6.1 - THE CONTINUITY UPDATE) ---
 const SYS_STEP_1 = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
 ### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT ADHERENCE REQUIRED)
-1. РИТМ (RETENTION ENGINE): Смена кадра СТРОГО каждые 3 секунды. Никаких плавающих диапазонов.
+1. РИТМ (RETENTION ENGINE): Смена кадра СТРОГО каждые 3 секунды.
 2. СЛОВАРНЫЙ ЛИМИТ: 5-8 слов на сцену. Без слова "Диктор:".
-3. ВИЗУАЛЬНЫЙ ЯКОРЬ: Выдели 1-2 главных слова в сцене КАПСОМ. Визуал ДОЛЖЕН быть сфокусирован ИМЕННО на этом слове (макро/детали). ЗАПРЕЩЕНЫ абстрактные общие планы!
-4. TEXT ON SCREEN: Каждое слово КАПСОМ должно дублироваться в поле "text_on_screen".
-5. RE-ENGAGEMENT: На 15-18 секунде обязателен резкий триггер смены интонации ("Но самое странное...", "И тут происходит необъяснимое...").
+3. ВИЗУАЛЬНЫЙ ЯКОРЬ (ANTI-MARKDOWN): Выдели 1-2 главных слова в сцене КАПСОМ. ЗАПРЕЩЕНО использовать markdown-разметку (звездочки **). Только чистый текст в верхнем регистре. ЗАПРЕЩЕНЫ абстрактные планы!
+4. TEXT ON SCREEN: Каждое слово КАПСОМ дублируется в поле "text_on_screen" (без звездочек).
+5. RE-ENGAGEMENT: На 15-18 секунде обязателен резкий триггер смены интонации.
 6. SEAMLESS LOOP: Финальная фраза грамматически соединяется с первой.
-7. SFX: Текст в конце сцен заканчивается "...", оставляя время для звукового эффекта (e.g. "[0:02] Deep Boom").
-8. МУЗЫКА (SUNO): Строгий формат: "[Genre: Dark Ambient], [Mood: Suspenseful], [Instruments: Deep drone]".
-9. SEO МАТРИЦА: Сгенерируй 3 РАЗНЫХ варианта заголовков и описаний (Агрессивный, Тайна, Поиск).
-10. NATIVE CYRILLIC: В блоке thumbnail создай 'text_for_rendering' (1-3 русских слова) для генерации на обложке.
+7. SFX: Текст в конце сцен заканчивается "...", оставляя время для звука (e.g. "[0:02] Deep Boom").
+8. МУЗЫКА (SUNO): Сгенерируй УНИКАЛЬНЫЕ теги под конкретную атмосферу сценария. Не копируй шаблоны! Формат: "[Genre: <твой жанр>], [Mood: <твое настроение>], [Instruments: <твои инструменты>]".
+9. SEO МАТРИЦА: Сгенерируй 3 РАЗНЫХ варианта (1: Агрессивный Шок, 2: Тайна/Интрига, 3: Поиск/SEO).
+10. ПЕРСОНАЖИ (CHARACTER FORGE): Для переданных персонажей создай профессиональный 'ref_sheet_prompt'. Требование: "Technical model turnaround, front/profile/back, neutral background, perfect identity consistency, 8k". Привязывай персонажей к кадрам массива 'frames'.
 
 JSON FORMAT:
 {
-  "character_ref_EN": "Detailed description of the main entity/person for continuity. 8k.",
+  "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "ref_sheet_prompt": "Create a professional character reference sheet of..." } ],
   "location_ref_EN": "A wide architectural establishing shot...",
   "style_ref_EN": "[Era/Atmosphere tags...]",
   "retention": { "score": 95, "feedback": "Критическая оценка удержания на русском." },
-  "frames": [ { "timecode": "0-3 сек", "camera": "Macro Close-up", "visual": "Крупный план детали", "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "Текст диктора с АКЦЕНТ словом..." } ],
+  "frames": [ { "timecode": "0-3 сек", "camera": "Macro Close-up", "visual": "Крупный план детали", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "Текст диктора с АКЦЕНТ словом..." } ],
   "thumbnail": { "title": "ЗАГОЛОВОК", "hook": "ХУК", "cta": "СМОТРЕТЬ", "text_for_rendering": "КОРОТКИЙ ТЕКСТ" },
   "music_EN": "[Genre: Cinematic Thriller], [Mood: Suspenseful], [Instruments: Cello]",
-  "seo_variants": [
-    { "title": "Вариант 1 (Кликбейт)", "desc": "Описание 1...", "tags": ["#тег1"] },
-    { "title": "Вариант 2 (Тайна)", "desc": "Описание 2...", "tags": ["#тег2"] },
-    { "title": "Вариант 3 (Поиск)", "desc": "Описание 3...", "tags": ["#тег3"] }
-  ]
+  "seo_variants": [ { "title": "Вариант 1", "desc": "...", "tags": ["#тег"] } ]
 }`;
 
 const SYS_STEP_2 = `You are an Elite AI Prompter. Output ONLY valid JSON.
 ### STRICT RULES FOR PROMPT GENERATION
 1. PLATFORM BANNED: NO Midjourney or Leonardo parameters.
-2. IMAGE PROMPTS (Whisk/Veo): 'imgPrompt_EN' - STRICTLY RETENTIONAL HORROR. NO wide shots. Focus entirely on a single shocking detail, extreme macro, disturbing textures, harsh dramatic lighting.
-3. NATIVE CYRILLIC: If 'text_for_rendering' is provided, you MUST include this exact phrase in the 'thumbnail_prompt_EN': \`a text string "[TEXT_FOR_RENDERING]" written in bold cinematic script on the main object\`. Do not translate the text!
-4. VIDEO PROMPTS (Grok Super): 'vidPrompt_EN' must describe camera movement. AT THE END of every vidPrompt_EN, you MUST append the exact ASMR audio tag based on the SFX. Format: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
-5. CONTINUITY: Apply 'character_ref_EN' if a person is in the frame.
+2. T2V PROMPT COMPILER (GLOBAL ANCHORS): For 'vidPrompt_EN', you MUST rigidly construct the prompt using this exact formula:
+   [location_ref_EN] + [character's ref_sheet_prompt details (if in frame)] + [visual action] + [camera movement] + [ASMR audio tag].
+   Do not hallucinate new details. Reuse the anchors to ensure consistency.
+3. IMAGE PROMPTS (Whisk/Veo): 'imgPrompt_EN' - STRICTLY RETENTIONAL HORROR for thumbnail. NO wide shots. Focus entirely on a single shocking detail.
+4. NATIVE CYRILLIC: If 'text_for_rendering' is provided, you MUST include this exact phrase in the 'thumbnail_prompt_EN': \`a text string "[TEXT_FOR_RENDERING]" written in bold cinematic script\`. Do not translate!
+5. AUDIO ANCHOR: At the END of every vidPrompt_EN, you MUST append the exact ASMR audio tag based on the SFX. Format: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
 
 JSON FORMAT:
 {
-  "frames_prompts": [ { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Cinematic slow zoom-in on..., clear ASMR audio of heavy stone grinding, isolated sound, zero background noise." } ],
+  "frames_prompts": [ { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Inside a dimly lit 15th-century apothecary, an old man with a white beard is intensively grinding a bone. Cinematic slow zoom-in, clear ASMR audio of heavy stone grinding, isolated sound, zero background noise, no ambient hum." } ],
   "b_rolls": [ "X-ray view of...", "Extreme macro shot of..." ],
   "thumbnail_prompt_EN": "Shocking cinematic macro shot of a decaying jar. On the jar, a text string 'АПТЕКА МУМИЙ' written in bold cinematic script. Dramatic lighting, 8k."
 }`;
@@ -210,7 +213,6 @@ function CopyBtn({ text, label="Копировать", small=false }) {
   );
 }
 
-// Компонент попапа информации
 const InfoModal = ({ isOpen, onClose, title, content }) => {
   if (!isOpen) return null;
   return (
@@ -241,6 +243,9 @@ export default function Page() {
   const [customStyle, setCustomStyle] = useState(""); 
   const [lang, setLang] = useState("RU"); 
   
+  // Character Forge State
+  const [chars, setChars] = useState([]);
+  
   const [settingsOpen, setSettingsOpen] = useState(true); 
   const [showTTS, setShowTTS] = useState(false);
   const [hooksList, setHooksList] = useState([]); 
@@ -248,7 +253,6 @@ export default function Page() {
   const [loadingMsg, setLoadingMsg] = useState("");
   const [tab, setTab] = useState("storyboard");
   
-  // Информация и Гайды
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: "", content: "" });
   const [showGuide, setShowGuide] = useState(false);
   
@@ -257,7 +261,7 @@ export default function Page() {
   const [thumb, setThumb] = useState(null);
   const [music, setMusic] = useState("");
   const [seoVariants, setSeoVariants] = useState([]);
-  const [charRef, setCharRef] = useState("");
+  const [generatedChars, setGeneratedChars] = useState([]);
   const [locRef, setLocRef] = useState("");
   const [styleRef, setStyleRef] = useState("");
   
@@ -312,6 +316,7 @@ export default function Page() {
            if (d.script) setScript(d.script); 
            if (d.genre) setGenre(d.genre); 
            if (d.finalTwist) setFinalTwist(d.finalTwist);
+           if (d.chars) setChars(d.chars);
          } catch(e){}
       }
       setDraftLoaded(true);
@@ -329,7 +334,7 @@ export default function Page() {
   }, []);
 
   useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
-  useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist})); }, [topic, script, genre, finalTwist, draftLoaded]);
+  useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars})); }, [topic, script, genre, finalTwist, chars, draftLoaded]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view]);
 
   const handleGodMode = () => {
@@ -366,10 +371,15 @@ export default function Page() {
     const infos = {
       engine: { title: "Визуальный движок", content: "<b>Кино-реализм:</b> Идеально для фактов и тайн.<br/><b>Dark History:</b> Рваный, мрачный стиль с шумом пленки.<br/><b>2.5D Анимация:</b> Мягкий стиль Pixar/Ghibli для сторителлинга.<br/><b>X-Ray:</b> Схемы и рентген для науки." },
       format: { title: "Формат и Длительность", content: "Для Shorts/TikTok всегда используйте <b>9:16</b>.<br/>Длительность определяет объем сценария. Для удержания ритма (смена кадра каждые 3 секунды), система жестко контролирует количество слов." },
-      seo: { title: "Вирусное SEO", content: "Матрица SEO создает 3 варианта: <b>Кликбейт</b> (эмоции/шок), <b>Тайна</b> (интрига/загадка) и <b>Поиск</b> (алгоритмы YouTube). Вы можете сгенерировать дополнительные варианты." }
+      seo: { title: "Вирусное SEO", content: "Матрица SEO создает 3 варианта: <b>Кликбейт</b> (эмоции/шок), <b>Тайна</b> (интрига/загадка) и <b>Поиск</b> (алгоритмы YouTube). Вы можете сгенерировать дополнительные варианты." },
+      forge: { title: "Кузница Персонажей", content: "Добавьте описание главных героев, чтобы ИИ сгенерировал для них <b>Identity Keys</b>. Это заставит видео-генератор удерживать их лица и одежду стабильными в каждом кадре!" }
     };
     setInfoModal({ isOpen: true, ...infos[type] });
   };
+
+  const addChar = () => setChars([...chars, { id: `CHAR_${Date.now()}`, name: `Персонаж ${chars.length + 1}`, desc: "" }]);
+  const removeChar = (id) => setChars(chars.filter(c => c.id !== id));
+  const updateChar = (id, field, value) => setChars(chars.map(c => c.id === id ? { ...c, [field]: value } : c));
 
   async function handleGenerateHooks() {
     if (!topic.trim()) return alert("Сначала введите Тему!");
@@ -392,12 +402,12 @@ export default function Page() {
       else if (sec <= 90) wordLimitRule = "СТРОГО от 180 до 200 слов";
       else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов`;
 
-      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Без слова "Диктор:". Жанр: ${genre}. 
-ОГРАНИЧЕНИЕ: Напиши текст объемом ${wordLimitRule}. Это критически важно для удержания тайминга! Если текст будет коротким, ритм сломается. Расширяй историю деталями, чтобы попасть в точное количество слов.
-ПРАВИЛО ЭКВАТОРА: Ровно в середине текста (экватор видео) ты ОБЯЗАН вставить фразу-триггер, которая ломает ритм и заново захватывает внимание (например: "Но самое страшное в этой истории...", "И тут происходит необъяснимое...").
+      const sysTxt = `You are 'Director-X'. Напиши ТОЛЬКО текст диктора на РУССКОМ ЯЗЫКЕ. Без слова "Диктор:". Жанр: ${genre}. ЗАПРЕЩЕНО использовать markdown (**).
+ОГРАНИЧЕНИЕ: Напиши текст объемом ${wordLimitRule}. Это критически важно для удержания тайминга!
+ПРАВИЛО ЭКВАТОРА: Ровно в середине текста (экватор видео) ты ОБЯЗАН вставить фразу-триггер, которая ломает ритм и заново захватывает внимание.
 Последнее предложение - байт на комментарий. ${finalTwist ? `Интрига: ${finalTwist}` : ""}`;
       
-      const text = await callAPI(`Тема: ${topic}`, 3000, sysTxt);
+      const text = await callAPI(`Тема: ${topic}\nПерсонажи: ${chars.map(c => c.desc).join(", ")}`, 3000, sysTxt);
       setScript(text.replace(/Диктор:\s*/gi, "").trim()); setHooksList([]);
     } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
   }
@@ -423,7 +433,7 @@ export default function Page() {
     if (!topic.trim() && !script.trim()) return alert("Заполните тему или скрипт!");
     if (!checkTokens()) return;
     
-    setBusy(true); setLoadingMsg("Шаг 1: Создаем раскадровку и режиссуру..."); setView("loading");
+    setBusy(true); setLoadingMsg("Шаг 1: Создаем раскадровку и базу Персонажей..."); setView("loading");
     
     try {
       let currentScript = script.trim();
@@ -431,12 +441,12 @@ export default function Page() {
       
       if (!currentScript) {
         const maxWords = Math.floor(sec * 2.2);
-        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. MUST be under ${maxWords} words. DO NOT WRITE "Narrator:".`);
+        currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. NO MARKDOWN. MUST be under ${maxWords} words. DO NOT WRITE "Narrator:".`);
         setScript(currentScript.trim());
       }
       
       const targetFrames = Math.floor(sec / 3);
-      const req = `LANGUAGE FOR SCENARIO/SEO: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}. ТВИСТ В ФИНАЛЕ: ${finalTwist}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ.`;
+      const req = `LANGUAGE FOR SCENARIO/SEO: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}. ПЕРСОНАЖИ ВВОДНЫЕ: ${JSON.stringify(chars)}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ.`;
 
       const text = await callAPI(req, 8000, SYS_STEP_1);
       const data = cleanJSON(text);
@@ -447,7 +457,7 @@ export default function Page() {
       setMusic(data.music_EN || ""); 
       setSeoVariants(data.seo_variants || []);
       
-      setCharRef(data.character_ref_EN || ""); 
+      setGeneratedChars(data.characters_EN || []);
       setLocRef(data.location_ref_EN || ""); 
       setStyleRef(data.style_ref_EN || ""); 
       
@@ -467,7 +477,7 @@ export default function Page() {
       setTab("storyboard"); 
       setView("result");
       
-      const stateData = { frames: data.frames, charRef: data.character_ref_EN, locRef: data.location_ref_EN, styleRef: data.style_ref_EN, retention: data.retention, thumb: data.thumbnail, seoVariants: data.seo_variants, music: data.music_EN, step2Done: false };
+      const stateData = { frames: data.frames, generatedChars: data.characters_EN, locRef: data.location_ref_EN, styleRef: data.style_ref_EN, retention: data.retention, thumb: data.thumbnail, seoVariants: data.seo_variants, music: data.music_EN, step2Done: false };
       const newHistory = [{ id: Date.now(), topic: topic || "Генерация", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData), format: vidFormat }, ...history].slice(0, 10);
       setHistory(newHistory); localStorage.setItem("ds_history", JSON.stringify(newHistory));
       
@@ -476,12 +486,13 @@ export default function Page() {
 
   async function handleStep2() {
     if (!checkTokens()) return;
-    setBusy(true); setLoadingMsg("Шаг 2: Генерируем 8k PRO-промпты..."); setView("loading");
+    setBusy(true); setLoadingMsg("Шаг 2: Компилируем Global Anchors и PRO-промпты..."); setView("loading");
     
     try {
-      const storyboardLite = frames.map((f, i) => `Frame ${i+1}: Visual: ${f.visual} | SFX: ${f.sfx}`).join("\n");
+      const storyboardLite = frames.map((f, i) => `Frame ${i+1}: Visual: ${f.visual} | SFX: ${f.sfx} | Chars: ${(f.characters_in_frame || []).join(",")}`).join("\n");
+      const charsDict = generatedChars.map(c => `${c.id}: ${c.ref_sheet_prompt}`).join("\n");
       const textToRender = thumb?.text_for_rendering ? `\n\nNATIVE CYRILLIC REQUIRED: text_for_rendering = "${thumb.text_for_rendering}"` : "";
-      const req = `STORYBOARD:\n${storyboardLite}${textToRender}\n\nGenerate exactly ${frames.length} English visual prompts. ONLY use Veo, Whisk and Grok Super rules. MACRO HORROR ONLY for thumbnail. INCLUDE ASMR TAGS at end of vidPrompt.`;
+      const req = `STORYBOARD:\n${storyboardLite}\n\nCHARACTERS:\n${charsDict}\n\nLOCATION:\n${locRef}${textToRender}\n\nGenerate exactly ${frames.length} English visual prompts. RIGIDLY COMPILE 'vidPrompt_EN' using the global anchors. INCLUDE ASMR TAGS at end of vidPrompt.`;
       
       const text = await callAPI(req, 8000, SYS_STEP_2);
       const data = cleanJSON(text);
@@ -510,7 +521,7 @@ export default function Page() {
       setHistory(prev => {
          const next = [...prev];
          if(next.length > 0) { 
-           const stateData = { frames: updatedFrames, charRef, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: data.thumbnail_prompt_EN}, seoVariants, music, bRolls: data.b_rolls, step2Done: true };
+           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: data.thumbnail_prompt_EN}, seoVariants, music, bRolls: data.b_rolls, step2Done: true };
            next[0].text = JSON.stringify(stateData); 
            localStorage.setItem("ds_history", JSON.stringify(next)); 
          }
@@ -634,7 +645,7 @@ export default function Page() {
                     <button onClick={() => {
                       const d = JSON.parse(item.text);
                       setFrames(d.frames || []); setRetention(d.retention || null); setThumb(d.thumb || null); setSeoVariants(d.seoVariants || []); setMusic(d.music || "");
-                      setCharRef(d.charRef || ""); setLocRef(d.locRef || ""); setStyleRef(d.styleRef || ""); setBRolls(d.bRolls || []); setStep2Done(d.step2Done || false);
+                      setGeneratedChars(d.generatedChars || []); setLocRef(d.locRef || ""); setStyleRef(d.styleRef || ""); setBRolls(d.bRolls || []); setStep2Done(d.step2Done || false);
                       if(d.thumb) { setCovTitle(d.thumb.title || ""); setCovHook(d.thumb.hook || ""); setCovCta(d.thumb.cta || "СМОТРЕТЬ"); applyPreset("netflix"); }
                       rebuildRawText(d.frames || [], d.step2Done); setShowHistory(false); setView("result");
                     }} style={{background:"#10b981", border:"none", borderRadius:8, padding:"8px 12px", color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer"}}>ОТКРЫТЬ</button>
@@ -665,7 +676,6 @@ export default function Page() {
       {view === "form" && (
         <div style={{maxWidth:600, margin:"0 auto", padding:"20px 20px 30px"}}>
           
-          {/* Умная кнопка возврата */}
           {frames.length > 0 && (
             <button onClick={() => setView("result")} style={{width:"100%", padding:"14px", background:"linear-gradient(135deg, #10b981, #059669)", border:"none", borderRadius:16, color:"#fff", fontWeight:900, marginBottom:20, cursor:"pointer", boxShadow:"0 4px 15px rgba(16, 185, 129, 0.4)", textTransform:"uppercase"}}>
               ➔ ВЕРНУТЬСЯ К РЕЗУЛЬТАТУ
@@ -689,7 +699,32 @@ export default function Page() {
             </div>
           </div>
 
-          {/* ТЕХНИЧЕСКИЕ НАСТРОЙКИ (С ПОДСКАЗКАМИ) */}
+          {/* CHARACTER FORGE */}
+          <div style={{marginBottom: 24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(236,72,153,0.3)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
+             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+               <div style={{display:"flex", alignItems:"center"}}>
+                  <label style={{fontSize:11, fontWeight:900, letterSpacing:2, color:"#f472b6", display:"block", margin:0, textTransform:"uppercase"}}>👤 КУЗНИЦА ПЕРСОНАЖЕЙ</label>
+                  <button onClick={() => openInfo('forge')} style={{background:"none", border:"none", color:"#f472b6", cursor:"pointer", marginLeft:6, fontSize:12}}>ℹ️</button>
+               </div>
+               <button onClick={addChar} style={{background:"rgba(236,72,153,0.15)", border:"1px solid rgba(236,72,153,0.4)", borderRadius:8, color:"#fbcfe8", padding:"4px 10px", fontSize:10, fontWeight:800, cursor:"pointer"}}>➕ ДОБАВИТЬ</button>
+             </div>
+             
+             {chars.length === 0 && <div style={{fontSize:12, color:"#94a3b8", fontStyle:"italic", textAlign:"center"}}>Персонажи не заданы. ИИ будет генерировать случайные лица.</div>}
+             
+             <div style={{display:"flex", flexDirection:"column", gap:12}}>
+               {chars.map((c, idx) => (
+                 <div key={c.id} style={{background:"rgba(0,0,0,0.4)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12, padding:12}}>
+                   <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
+                     <input type="text" value={c.name} onChange={e => updateChar(c.id, 'name', e.target.value)} style={{background:"none", border:"none", color:"#fbcfe8", fontWeight:800, fontSize:12, width:"100%"}} placeholder="Имя персонажа" />
+                     <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer"}}>×</button>
+                   </div>
+                   <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Описание (например: старик, белая борода, кожаный фартук...)" style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
+                 </div>
+               ))}
+             </div>
+          </div>
+
+          {/* ТЕХНИЧЕСКИЕ НАСТРОЙКИ */}
           <div style={{marginBottom: 24}}>
              <button onClick={() => setSettingsOpen(!settingsOpen)} style={{width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.1)", padding:"16px 24px", borderRadius:settingsOpen ? "24px 24px 0 0" : 24, color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", textTransform:"uppercase"}}>
                <span>⚙️ Технические настройки</span><span>{settingsOpen ? "▲" : "▼"}</span>
@@ -910,12 +945,21 @@ export default function Page() {
           {/* Вкладка 1: Раскадровка */}
           {tab === "storyboard" && (
             <div>
-              {charRef && (
-                <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(236,72,153,0.3)", borderRadius:24, padding:24}}>
-                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}><span style={{fontSize:12, fontWeight:900, color:"#f472b6", textTransform:"uppercase"}}>👤 CHARACTER REF</span><CopyBtn text={charRef} small/></div>
-                  <div style={{fontSize:13, fontFamily:"monospace", color:"#fff", lineHeight:1.5}}>{charRef}</div>
+              {generatedChars && generatedChars.length > 0 && (
+                <div style={{marginBottom:24, background:"rgba(236,72,153,0.05)", border:"1px solid rgba(236,72,153,0.3)", borderRadius:24, padding:24}}>
+                  <div style={{fontSize:12, fontWeight:900, color:"#f472b6", marginBottom:16, textTransform:"uppercase"}}>👤 СГЕНЕРИРОВАННЫЕ ПЕРСОНАЖИ</div>
+                  {generatedChars.map((c, i) => (
+                    <div key={i} style={{marginBottom: i !== generatedChars.length - 1 ? 16 : 0, paddingBottom: i !== generatedChars.length - 1 ? 16 : 0, borderBottom: i !== generatedChars.length - 1 ? "1px solid rgba(236,72,153,0.1)" : "none"}}>
+                      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
+                        <span style={{fontSize:13, fontWeight:800, color:"#fbcfe8"}}>{c.name} ({c.id})</span>
+                        <CopyBtn text={c.ref_sheet_prompt} small/>
+                      </div>
+                      <div style={{fontSize:12, fontFamily:"monospace", color:"#f9a8d4", lineHeight:1.4}}>{c.ref_sheet_prompt}</div>
+                    </div>
+                  ))}
                 </div>
               )}
+
               {locRef && (
                 <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:24, padding:24}}>
                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}><span style={{fontSize:12, fontWeight:900, color:"#38bdf8", textTransform:"uppercase"}}>🌍 LOCATION REF</span><CopyBtn text={locRef} small/></div>
@@ -1002,11 +1046,14 @@ export default function Page() {
                    {seoVariants && seoVariants.length > 0 ? (
                      <div style={{display:"flex", flexDirection:"column", gap:16}}>
                        {seoVariants.map((seoVar, i) => (
-                         <div key={i} style={{background:"rgba(59,130,246,.05)", border:"1px solid rgba(59,130,246,.2)", padding:16, borderRadius:16}}>
-                            <div style={{fontSize:11, color:"#93c5fd", fontWeight:800, marginBottom:8}}>ВАРИАНТ {i+1}</div>
-                            <div style={{fontSize:14, color:"#fff", fontWeight:900, marginBottom:8}}>{seoVar.title}</div>
-                            <div style={{color:"#bfdbfe", fontSize:13, marginBottom:12, lineHeight:1.5}}>{seoVar.desc}</div>
-                            <div style={{color:"#60a5fa", fontSize:12, fontWeight:700}}>{seoVar.tags?.join(" ")}</div>
+                         <div key={i} style={{background: SEO_COLORS[i%3].bg, border:`1px solid ${SEO_COLORS[i%3].border}`, padding:16, borderRadius:16}}>
+                            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
+                              <div style={{fontSize:11, color:SEO_COLORS[i%3].title, fontWeight:900, letterSpacing:1}}>ВАРИАНТ {i+1}</div>
+                              <CopyBtn text={`${seoVar.title}\n${seoVar.desc}\n${seoVar.tags?.join(" ")}`} small/>
+                            </div>
+                            <div style={{fontSize:14, color:"#fff", fontWeight:900, marginBottom:8}}>📌 ЗАГОЛОВОК:<br/><span style={{fontWeight:800}}>{seoVar.title}</span></div>
+                            <div style={{color:SEO_COLORS[i%3].text, fontSize:13, marginBottom:12, lineHeight:1.5}}>📝 ОПИСАНИЕ:<br/>{seoVar.desc}</div>
+                            <div style={{color:SEO_COLORS[i%3].title, fontSize:12, fontWeight:700}}>🏷 ТЕГИ:<br/>{seoVar.tags?.join(" ")}</div>
                          </div>
                        ))}
                        <button onClick={handleAddSEOVariant} disabled={generatingSEO} style={{width:"100%", padding:"12px", background:"rgba(59,130,246,0.1)", border:"1px dashed rgba(59,130,246,0.5)", borderRadius:12, color:"#60a5fa", fontWeight:800, cursor: generatingSEO ? "not-allowed" : "pointer"}}>
@@ -1022,10 +1069,11 @@ export default function Page() {
         </div>
       )}
 
-      {view === "result" && frames.length > 0 && (
+      {/* КНОПКА СКАЧИВАНИЯ PDF - ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ ШАГА 2 */}
+      {view === "result" && step2Done && frames.length > 0 && (
          <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 50%, transparent)", zIndex:100}}>
-           <button onClick={downloadPDF} disabled={pdfDownloading} style={{width:"100%", height:56, background:"#fff", border:"none", borderRadius:16, color:"#000", fontWeight:900, fontSize:14, cursor: pdfDownloading ? "not-allowed" : "pointer", boxShadow:"0 4px 20px rgba(255,255,255,0.2)"}}>
-             {pdfDownloading ? "ГЕНЕРАЦИЯ PDF..." : "📄 СКАЧАТЬ PDF БРИФ"}
+           <button onClick={downloadPDF} disabled={pdfDownloading} style={{width:"100%", height:56, background:"#111827", border:"1px solid #a855f7", borderRadius:16, color:"#d8b4fe", fontWeight:900, fontSize:14, cursor: pdfDownloading ? "not-allowed" : "pointer", boxShadow:"0 4px 20px rgba(168,85,247,0.3)"}}>
+             {pdfDownloading ? "ГЕНЕРАЦИЯ PDF..." : "📄 СКАЧАТЬ ФИНАЛЬНЫЙ PDF БРИФ"}
            </button>
          </div>
       )}
