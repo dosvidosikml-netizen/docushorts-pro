@@ -1,37 +1,40 @@
-// Увеличиваем лимит времени выполнения для Vercel (Хобби-тариф дает максимум 60 секунд)
+// Даем серверу 60 секунд на ответ (Фикс для Vercel Timeout)
 export const maxDuration = 60;
 
 export async function POST(req) {
   try {
     const body = await req.json();
 
-    // Получаем данные, которые отправляет наша функция callAPI с фронтенда
     const messages = body.messages || [];
     const maxTokens = body.max_tokens || 4000;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Стучимся в OpenRouter, так как ключ для него есть в твоем Vercel
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://docushorts.vercel.app", // Обязательный заголовок для OpenRouter
+        "X-Title": "DocuShorts Pro", // Обязательный заголовок для OpenRouter
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        // Можешь поменять модель на ту, которую предпочитаешь в OpenRouter
+        model: "meta-llama/llama-3-70b-instruct", 
         messages: messages,
         max_tokens: maxTokens,
-        temperature: 0.2 // Понизил температуру, чтобы ИИ меньше "фантазировал" и строже держал JSON формат
+        temperature: 0.2 // Низкая температура для строгого JSON
       })
     });
 
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.error?.message || "Ошибка API Groq");
+      throw new Error(data.error?.message || "Ошибка API OpenRouter");
     }
 
+    // Извлекаем ответ из стандартной структуры OpenRouter
     const text = data.choices[0].message.content;
     
-    // Возвращаем ответ в том формате, который ждет наш интерфейс { text: "..." }
     return new Response(JSON.stringify({ text }), { 
       headers: { "Content-Type": "application/json" } 
     });
