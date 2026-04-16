@@ -1,6 +1,3 @@
-// Переводим сервер на Edge Runtime (обход 10-секундного лимита Vercel Hobby)
-export const runtime = 'edge';
-
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -8,17 +5,18 @@ export async function POST(req) {
     const messages = body.messages || [];
     const maxTokens = body.max_tokens || 4000;
 
-    // Стучимся в OpenRouter
+    // Стучимся в твой платный OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://docushorts.vercel.app", 
-        "X-Title": "DocuShorts Pro", 
+        "HTTP-Referer": "https://docushorts.render.com", // Можно указать любой твой домен
+        "X-Title": "DocuShorts Pro",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3-70b-instruct", 
+        // Твоя мощная и умная модель
+        model: "meta-llama/llama-3.3-70b-instruct", 
         messages: messages,
         max_tokens: maxTokens,
         temperature: 0.2
