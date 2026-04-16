@@ -132,19 +132,16 @@ const SEO_COLORS = [
   { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" }  
 ];
 
-// --- СИСТЕМНЫЕ ПРОМПТЫ (V6.3 - VISION, CONTINUITY & FINAL FIXES) ---
-const SYS_STEP_1 = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
-### SYSTEM ROLE & VIRAL ALGORITHMS (STRICT ADHERENCE REQUIRED)
-1. РИТМ (RETENTION ENGINE): Смена кадра СТРОГО каждые 3 секунды.
+// --- СИСТЕМНЫЕ ПРОМПТЫ (V6.4 - CASCADING GENERATION) ---
+// ЭТАП 1А: Только Раскадровка и ДНК персонажей (Основная нагрузка)
+const SYS_STEP_1A = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
+### VIRAL LAWS
+1. РИТМ: Смена кадра СТРОГО каждые 3 секунды.
 2. СЛОВАРНЫЙ ЛИМИТ: 5-8 слов на сцену. Без слова "Диктор:".
-3. ВИЗУАЛЬНЫЙ ЯКОРЬ (ANTI-MARKDOWN): Выдели 1-2 главных слова в сцене КАПСОМ. ЗАПРЕЩЕНО использовать markdown-разметку (звездочки **). Только чистый текст в верхнем регистре (например: ТАЙНА).
+3. ВИЗУАЛЬНЫЙ ЯКОРЬ: Выдели 1-2 главных слова в сцене КАПСОМ. ЗАПРЕЩЕНО использовать markdown-разметку (звездочки **).
 4. ПРАВИЛО ФИНАЛА: Сценарий должен быть логически завершен. Всегда дописывай мысль и ставь точку в последнем предложении. Не обрывай текст на полуслове!
-5. TEXT ON SCREEN: Каждое слово КАПСОМ дублируется в поле "text_on_screen" (без звездочек).
-6. RE-ENGAGEMENT: На 15-18 секунде обязателен резкий триггер смены интонации.
-7. SEAMLESS LOOP: Финальная фраза грамматически соединяется с первой.
-8. МУЗЫКА (SUNO): Сгенерируй УНИКАЛЬНЫЕ теги под конкретную атмосферу. Не копируй шаблоны! Формат: "[Genre: <твой жанр>], [Mood: <твое настроение>], [Instruments: <твои инструменты>]".
-9. SEO МАТРИЦА: Сгенерируй 3 РАЗНЫХ варианта (1: Агрессивный Шок, 2: Тайна/Интрига, 3: Поиск/SEO).
-10. ПЕРСОНАЖИ (CHARACTER FORGE): Для переданных персонажей создай профессиональный 'ref_sheet_prompt' (Technical model turnaround, front/profile/back, neutral background). Если передано поле 'dna', обязательно включи эти черты в промпт. Привязывай персонажей к кадрам массива 'frames'.
+5. TEXT ON SCREEN: Каждое слово КАПСОМ дублируется в поле "text_on_screen".
+6. ПЕРСОНАЖИ: Для переданных персонажей создай 'ref_sheet_prompt' (Technical model turnaround). Если передано 'dna', обязательно включи в промпт. Привязывай персонажей к кадрам.
 
 JSON FORMAT:
 {
@@ -152,7 +149,17 @@ JSON FORMAT:
   "location_ref_EN": "A wide architectural establishing shot...",
   "style_ref_EN": "[Era/Atmosphere tags...]",
   "retention": { "score": 95, "feedback": "Критическая оценка удержания на русском." },
-  "frames": [ { "timecode": "0-3 сек", "camera": "Macro Close-up", "visual": "Крупный план детали", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "Текст диктора с АКЦЕНТ словом..." } ],
+  "frames": [ { "timecode": "0-3 сек", "camera": "Macro Close-up", "visual": "Крупный план детали", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "Текст диктора с АКЦЕНТ словом..." } ]
+}`;
+
+// ЭТАП 1Б: Упаковка (SEO, Музыка, Обложка). Работает молниеносно.
+const SYS_STEP_1B = `You are 'Marketing-X', Elite Viral Packager. Analyze the provided STORYBOARD and output ONLY valid JSON.
+1. МУЗЫКА (SUNO): Уникальные теги [Genre], [Mood], [Instruments] под атмосферу сценария.
+2. ОБЛОЖКА: Сочный кликбейт.
+3. SEO МАТРИЦА: Сгенерируй 3 РАЗНЫХ варианта (1: Шок, 2: Интрига, 3: Поиск).
+
+JSON FORMAT:
+{
   "thumbnail": { "title": "ЗАГОЛОВОК", "hook": "ХУК", "cta": "СМОТРЕТЬ", "text_for_rendering": "КОРОТКИЙ ТЕКСТ" },
   "music_EN": "[Genre: Dark Folk], [Mood: Eerie], [Instruments: Lute, deep drone]",
   "seo_variants": [ { "title": "Вариант 1", "desc": "...", "tags": ["#тег"] } ]
@@ -163,8 +170,7 @@ const SYS_STEP_2 = `You are an Elite AI Prompter. Output ONLY valid JSON.
 1. PLATFORM BANNED: NO Midjourney or Leonardo parameters.
 2. PIPELINE DIRECTIVE: Pay close attention to the provided PIPELINE_MODE. It changes everything.
 3. IMAGE PROMPTS (Whisk/Veo): 'imgPrompt_EN' - STRICTLY RETENTIONAL HORROR for thumbnail. NO wide shots.
-4. NATIVE CYRILLIC: If 'text_for_rendering' is provided, MUST include exact phrase in 'thumbnail_prompt_EN': \`a text string "[TEXT_FOR_RENDERING]" written in bold cinematic script\`. Do not translate!
-5. AUDIO ANCHOR: At END of every vidPrompt_EN, append ASMR audio tag. Format: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
+4. AUDIO ANCHOR: At END of every vidPrompt_EN, append ASMR audio tag. Format: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
 
 JSON FORMAT:
 {
@@ -240,14 +246,12 @@ export default function Page() {
   const [engine, setEngine] = useState("CINEMATIC");
   const [customStyle, setCustomStyle] = useState(""); 
   const [lang, setLang] = useState("RU"); 
-  const [pipelineMode, setPipelineMode] = useState("T2V"); // T2V or I2V
+  const [pipelineMode, setPipelineMode] = useState("T2V");
   
-  // Character Forge State
   const [chars, setChars] = useState([]);
-  
   const [settingsOpen, setSettingsOpen] = useState(true); 
   const [showTTS, setShowTTS] = useState(false);
-  const [ttsVoice, setTtsVoice] = useState("Male_Deep"); // Выбор голоса
+  const [ttsVoice, setTtsVoice] = useState("Male_Deep"); 
 
   const [hooksList, setHooksList] = useState([]); 
   const [view, setView] = useState("form");
@@ -433,55 +437,67 @@ export default function Page() {
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
   }
 
+  // ОБНОВЛЕННЫЙ ШАГ 1: КАСКАДНАЯ ГЕНЕРАЦИЯ (ОБХОД ТАЙМАУТА VERCEL)
   async function handleStep1() {
     if (!topic.trim() && !script.trim()) return alert("Заполните тему или скрипт!");
     if (!checkTokens()) return;
     
-    setBusy(true); setLoadingMsg("Шаг 1: Создаем раскадровку и ДНК Персонажей..."); setView("loading");
+    setBusy(true); setView("loading");
     
     try {
       let currentScript = script.trim();
       const sec = DURATION_SECONDS[dur] || 60;
       
       if (!currentScript) {
+        setLoadingMsg("Генерируем текст диктора...");
         const maxWords = Math.floor(sec * 2.2);
         currentScript = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. NO MARKDOWN (**). MUST be under ${maxWords} words. Logical ending required. DO NOT WRITE "Narrator:".`);
         setScript(currentScript.trim());
       }
       
+      // ЭТАП 1А: Раскадровка и ДНК
+      setLoadingMsg("Шаг 1/2: Пишем раскадровку и ДНК...");
       const targetFrames = Math.floor(sec / 3);
-      const req = `LANGUAGE FOR SCENARIO/SEO: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}. ПЕРСОНАЖИ ВВОДНЫЕ: ${JSON.stringify(chars)}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!`;
+      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}. ПЕРСОНАЖИ ВВОДНЫЕ: ${JSON.stringify(chars)}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!`;
+      
+      const text1A = await callAPI(req1A, 6000, SYS_STEP_1A);
+      const data1A = cleanJSON(text1A);
+      
+      // ЭТАП 1Б: Упаковка (SEO, Музыка, Обложка)
+      setLoadingMsg("Шаг 2/2: Генерируем SEO и обложку...");
+      const req1B = `STORYBOARD:\n${JSON.stringify(data1A.frames)}\n\nGenerate SEO, Music tags, and Thumbnail concept.`;
+      
+      const text1B = await callAPI(req1B, 3000, SYS_STEP_1B);
+      const data1B = cleanJSON(text1B);
 
-      const text = await callAPI(req, 8000, SYS_STEP_1);
-      const data = cleanJSON(text);
+      // Объединяем данные
+      setFrames(data1A.frames || []); 
+      setRetention(data1A.retention || null); 
+      setGeneratedChars(data1A.characters_EN || []);
+      setLocRef(data1A.location_ref_EN || ""); 
+      setStyleRef(data1A.style_ref_EN || ""); 
       
-      setFrames(data.frames || []); 
-      setRetention(data.retention || null); 
-      setThumb(data.thumbnail || null); 
-      setMusic(data.music_EN || ""); 
-      setSeoVariants(data.seo_variants || []);
-      
-      setGeneratedChars(data.characters_EN || []);
-      setLocRef(data.location_ref_EN || ""); 
-      setStyleRef(data.style_ref_EN || ""); 
+      setThumb(data1B.thumbnail || null); 
+      setMusic(data1B.music_EN || ""); 
+      setSeoVariants(data1B.seo_variants || []);
       
       setBRolls([]); 
       setStep2Done(false);
       
-      if (data.thumbnail) { 
-        setCovTitle(data.thumbnail.title || ""); 
-        setCovHook(data.thumbnail.hook || ""); 
-        setCovCta(data.thumbnail.cta || "СМОТРЕТЬ"); 
+      if (data1B.thumbnail) { 
+        setCovTitle(data1B.thumbnail.title || ""); 
+        setCovHook(data1B.thumbnail.hook || ""); 
+        setCovCta(data1B.thumbnail.cta || "СМОТРЕТЬ"); 
         applyPreset("netflix"); 
       }
       
-      rebuildRawText(data.frames || [], false);
+      rebuildRawText(data1A.frames || [], false);
       deductToken(); 
       setBgImage(null); 
       setTab("storyboard"); 
       setView("result");
       
-      const stateData = { frames: data.frames, generatedChars: data.characters_EN, locRef: data.location_ref_EN, styleRef: data.style_ref_EN, retention: data.retention, thumb: data.thumbnail, seoVariants: data.seo_variants, music: data.music_EN, step2Done: false };
+      const stateData = { frames: data1A.frames, generatedChars: data1A.characters_EN, locRef: data1A.location_ref_EN, styleRef: data1A.style_ref_EN, retention: data1A.retention, thumb: data1B.thumbnail, seoVariants: data1B.seo_variants, music: data1B.music_EN, step2Done: false };
       const newHistory = [{ id: Date.now(), topic: topic || "Генерация", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData), format: vidFormat }, ...history].slice(0, 10);
       setHistory(newHistory); localStorage.setItem("ds_history", JSON.stringify(newHistory));
       
@@ -761,13 +777,13 @@ export default function Page() {
              {/* TTS ОЖИВЛЕНИЕ (V6.3) */}
              {showTTS && (
                <div style={{marginTop:16, padding:16, background:"rgba(0,0,0,0.3)", borderRadius:16, border:"1px solid rgba(14,165,233,0.4)"}}>
-                 <label style={{fontSize:10, color:"#7dd3fc", display:"block", marginBottom:8, fontWeight:800, textTransform:"uppercase"}}>ВЫБОР ДИКТОРА (ElevenLabs API Stub)</label>
+                 <label style={{fontSize:10, color:"#7dd3fc", display:"block", marginBottom:8, fontWeight:800, textTransform:"uppercase"}}>ВЫБОР ДИКТОРА</label>
                  <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{width:"100%", background:"#111", color:"#fff", border:"1px solid #333", padding:10, borderRadius:10, fontSize:13, marginBottom:12, cursor:"pointer"}}>
                    <option value="Male_Deep">Мужской: Глубокий бас (Детектив)</option>
                    <option value="Female_Mystic">Женский: Мистический шепот (Тайны)</option>
                    <option value="Doc_Narrator">Универсальный Документальный</option>
                  </select>
-                 <button style={{width:"100%", background:"rgba(14,165,233,0.2)", border:"1px solid #0ea5e9", color:"#bae6fd", padding:10, borderRadius:10, fontSize:12, fontWeight:800, cursor:"not-allowed"}}>🔊 СГЕНЕРИРОВАТЬ АУДИО (В разработке)</button>
+                 <button style={{width:"100%", background:"rgba(14,165,233,0.2)", border:"1px solid #0ea5e9", color:"#bae6fd", padding:10, borderRadius:10, fontSize:12, fontWeight:800, cursor:"not-allowed"}}>🔊 СГЕНЕРИРОВАТЬ АУДИО (Скоро)</button>
                </div>
              )}
           </div>
