@@ -185,11 +185,15 @@ JSON FORMAT:
   "thumbnail_prompt_EN": "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, [Identity Key] Render as an intense dynamic cinematic cover portrait..."
 }`;
 
-// --- ФУНКЦИИ АПИ ---
+// --- ФУНКЦИИ АПИ (ДОБАВЛЕН СЕКРЕТНЫЙ ТОКЕН) ---
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
   try {
     const res = await fetch("/api/chat", { 
-      method: "POST", headers: { "Content-Type": "application/json" }, 
+      method: "POST", 
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Access-Token": "proffi-core" // ТОТ САМЫЙ КЛЮЧ
+      }, 
       body: JSON.stringify({ model: model, messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], max_tokens: maxTokens }) 
     });
     const textRes = await res.text();
@@ -202,7 +206,11 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama
 async function callVisionAPI(base64Image, sysPrompt) {
   try {
     const res = await fetch("/api/chat", { 
-      method: "POST", headers: { "Content-Type": "application/json" }, 
+      method: "POST", 
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Access-Token": "proffi-core" // ТОТ САМЫЙ КЛЮЧ
+      }, 
       body: JSON.stringify({ 
         model: "openai/gpt-4o-mini",
         messages: [
@@ -236,7 +244,8 @@ function CopyBtn({ text, label="[ COPY ]", fullWidth=false }) {
   );
 }
 
-export default function Page() {
+// ОСНОВНОЙ КОМПОНЕНТ РЕЖИССЕРА
+function DirectorDashboard() {
   const [tokens, setTokens] = useState(3);
   const [showPaywall, setShowPaywall] = useState(false);
   const [clicks, setClicks] = useState(0); 
@@ -336,7 +345,6 @@ export default function Page() {
     } 
   }, []);
 
-  useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
   useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, chars, pipelineMode, studioLoc, engine, finalTwist, customStyle})); }, [topic, script, genre, chars, pipelineMode, studioLoc, engine, finalTwist, customStyle, draftLoaded]);
 
   const handleGodMode = () => {
@@ -978,7 +986,6 @@ export default function Page() {
               {/* TAB: COVER STUDIO */}
               {tab === "cover" && (
                 <div>
-                  {/* PROMPT ОБЛОЖКИ (Если сгенерирован) */}
                   {step2Done && thumb?.prompt_EN && (
                     <div className="data-block" style={{borderColor:"var(--cyber-pink)"}}>
                       <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
@@ -1110,4 +1117,43 @@ export default function Page() {
       </div>
     </div>
   );
+}
+
+// === ОБЕРТКА БЕЗОПАСНОСТИ (STEALTH MODE) ===
+export default function SecureWrapper() {
+  const [unlocked, setUnlocked] = useState(false);
+  const [keyBuffer, setKeyBuffer] = useState("");
+
+  useEffect(() => {
+    // Проверяем, не разблокировали ли мы уже пульт в этой сессии
+    if (typeof window !== "undefined" && sessionStorage.getItem("ds_unlocked") === "true") {
+      setUnlocked(true);
+      return;
+    }
+
+    const handleKeyDown = (e) => {
+      setKeyBuffer(prev => {
+        const newBuffer = (prev + e.key).slice(-10).toLowerCase();
+        if (newBuffer.includes("proffi")) {
+          sessionStorage.setItem("ds_unlocked", "true");
+          setUnlocked(true);
+        }
+        return newBuffer;
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  if (!unlocked) {
+    return (
+      <div style={{background:"#000", height:"100vh", width:"100vw", display:"flex", alignItems:"center", justifyContent:"center", color:"#111", fontFamily:"monospace", fontSize:14}}>
+        <div style={{animation:"blink 1s step-end infinite"}}>_</div>
+        <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
+      </div>
+    );
+  }
+
+  return <Page />;
 }
