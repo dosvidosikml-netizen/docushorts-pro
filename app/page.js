@@ -789,7 +789,57 @@ export default function Page() {
             </div>
           </div>
 
-          {/* STUDIO SETUP: Ручная локация и стиль */}
+          {/* СЦЕНАРИЙ (Перемещен выше) */}
+          <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
+             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
+               <label style={{fontSize:11, fontWeight:800, letterSpacing:2, color:"#94a3b8", display:"block", marginBottom:0, textTransform:"uppercase"}}>📝 Сценарий</label>
+               <div style={{display:"flex", gap:8}}>
+                 <CopyBtn text={script} small />
+                 <button onClick={handleGenerateHooks} disabled={busy || !topic.trim()} style={{background:"rgba(249,115,22,0.15)", color:"#fbbf24", border:"1px solid rgba(249,115,22,0.3)", borderRadius:8, padding:"4px 10px", fontSize:10, fontWeight:900, cursor:"pointer"}}>🔥 3 ХУКА</button>
+               </div>
+             </div>
+             
+             {hooksList.length > 0 && (
+               <div style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(249,115,22,0.3)", borderRadius:12, padding:12, marginBottom:16}}>
+                 <div style={{display:"flex", flexDirection:"column", gap:6}}>
+                   {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{background:"rgba(255,255,255,0.05)", padding:10, borderRadius:8, fontSize:13, color:"#fcd34d", cursor:"pointer", borderLeft:"3px solid #f59e0b"}}>{h}</div> ))}
+                 </div>
+               </div>
+             )}
+             
+             <textarea rows={5} value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте текст или нажмите 'Написать'..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:16, padding:16, fontSize:14, color:"#cbd5e1", marginBottom:16, resize:"none"}}/>
+             
+             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать текст</button>
+               <button onClick={() => setShowTTS(!showTTS)} style={{background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Голос (TTS)</button>
+             </div>
+
+             {/* PRO-НАСТРОЙКИ ДИКТОРА (Удален тупой селект эмоций) */}
+             {showTTS && (
+               <div style={{marginTop:16, padding:20, background:"rgba(0,0,0,0.4)", borderRadius:16, border:"1px solid rgba(14,165,233,0.4)"}}>
+                 <div style={{display:"flex", alignItems:"center", marginBottom:12}}>
+                   <span style={{fontSize:11, color:"#7dd3fc", fontWeight:900, textTransform:"uppercase"}}>🎙 PRO-НАСТРОЙКИ ДИКТОРА</span>
+                 </div>
+                 <div style={{display:"flex", flexDirection:"column", gap:12}}>
+                   <div>
+                     <label style={{fontSize:10, color:"#bae6fd", display:"block", marginBottom:4}}>Голос</label>
+                     <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{width:"100%", background:"#111", color:"#fff", border:"1px solid #333", padding:10, borderRadius:10, fontSize:12}}>
+                       <option value="Male_Deep">Мужской: Глубокий бас (Детектив)</option>
+                       <option value="Female_Mystic">Женский: Мистический шепот (Тайны)</option>
+                       <option value="Doc_Narrator">Универсальный Документальный</option>
+                     </select>
+                   </div>
+                   <div>
+                     <label style={{fontSize:10, color:"#bae6fd", display:"block", marginBottom:4}}>Скорость (Speed: {ttsSpeed}x)</label>
+                     <input type="range" min="0.8" max="1.5" step="0.05" value={ttsSpeed} onChange={e => setTtsSpeed(e.target.value)} style={{width:"100%"}}/>
+                   </div>
+                 </div>
+                 <div style={{marginTop:12, fontSize:10, color:"#38bdf8", fontStyle:"italic", textAlign:"center"}}>Эмоции и интонации ИИ-режиссер расставит сам с помощью тегов [shock], [whisper] и т.д.</div>
+               </div>
+             )}
+          </div>
+
+          {/* STUDIO SETUP */}
           <div style={{marginBottom: 24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
                <div style={{display:"flex", alignItems:"center"}}>
@@ -812,6 +862,7 @@ export default function Page() {
              )}
           </div>
 
+          {/* КУЗНИЦА ПЕРСОНАЖЕЙ */}
           <div style={{marginBottom: 24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(236,72,153,0.3)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
                <div style={{display:"flex", alignItems:"center"}}>
@@ -837,55 +888,6 @@ export default function Page() {
              
              <button onClick={handleGenerateCasting} disabled={busy || (!topic.trim() && !script.trim() && chars.length === 0)} style={{width:"100%", background:"linear-gradient(135deg, rgba(236,72,153,0.2), rgba(168,85,247,0.2))", border:"1px dashed rgba(236,72,153,0.5)", borderRadius:12, padding:12, color:"#fbcfe8", fontSize:11, fontWeight:800, cursor: busy ? "not-allowed" : "pointer"}}>🧬 СГЕНЕРИРОВАТЬ КАСТИНГ (ДО РАСКАДРОВКИ)</button>
              {generatedChars.length > 0 && <div style={{textAlign:"center", marginTop:10, fontSize:11, color:"#34d399", fontWeight:800}}>✅ Кастинг готов ({generatedChars.length} персонажей)</div>}
-          </div>
-
-          <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, backdropFilter:"blur(20px)"}}>
-             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
-               <label style={{fontSize:11, fontWeight:800, letterSpacing:2, color:"#94a3b8", display:"block", marginBottom:0, textTransform:"uppercase"}}>📝 Сценарий</label>
-               <div style={{display:"flex", gap:8}}>
-                 <CopyBtn text={script} small />
-                 <button onClick={handleGenerateHooks} disabled={busy || !topic.trim()} style={{background:"rgba(249,115,22,0.15)", color:"#fbbf24", border:"1px solid rgba(249,115,22,0.3)", borderRadius:8, padding:"4px 10px", fontSize:10, fontWeight:900, cursor:"pointer"}}>🔥 3 ХУКА</button>
-               </div>
-             </div>
-             
-             {hooksList.length > 0 && (
-               <div style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(249,115,22,0.3)", borderRadius:12, padding:12, marginBottom:16}}>
-                 <div style={{display:"flex", flexDirection:"column", gap:6}}>
-                   {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{background:"rgba(255,255,255,0.05)", padding:10, borderRadius:8, fontSize:13, color:"#fcd34d", cursor:"pointer", borderLeft:"3px solid #f59e0b"}}>{h}</div> ))}
-                 </div>
-               </div>
-             )}
-             
-             <textarea rows={5} value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте текст или нажмите 'Написать'..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:16, padding:16, fontSize:14, color:"#cbd5e1", marginBottom:16, resize:"none"}}/>
-             
-             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
-               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", color:"#fff", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>✍️ Написать текст</button>
-               <button onClick={() => setShowTTS(!showTTS)} style={{background:"rgba(14,165,233,0.1)", border:"1px dashed rgba(14,165,233,0.3)", color:"#7dd3fc", padding:12, borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer"}}>⚙️ Голос (TTS)</button>
-             </div>
-
-             {/* PRO-НАСТРОЙКИ ДИКТОРА */}
-             {showTTS && (
-               <div style={{marginTop:16, padding:20, background:"rgba(0,0,0,0.4)", borderRadius:16, border:"1px solid rgba(14,165,233,0.4)"}}>
-                 <div style={{display:"flex", alignItems:"center", marginBottom:12}}>
-                   <span style={{fontSize:11, color:"#7dd3fc", fontWeight:900, textTransform:"uppercase"}}>🎙 PRO-НАСТРОЙКИ ДИКТОРА</span>
-                 </div>
-                 <div style={{display:"flex", flexDirection:"column", gap:12}}>
-                   <div>
-                     <label style={{fontSize:10, color:"#bae6fd", display:"block", marginBottom:4}}>Голос</label>
-                     <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{width:"100%", background:"#111", color:"#fff", border:"1px solid #333", padding:10, borderRadius:10, fontSize:12}}>
-                       <option value="Male_Deep">Мужской: Глубокий бас (Детектив)</option>
-                       <option value="Female_Mystic">Женский: Мистический шепот (Тайны)</option>
-                       <option value="Doc_Narrator">Универсальный Документальный</option>
-                     </select>
-                   </div>
-                   <div>
-                     <label style={{fontSize:10, color:"#bae6fd", display:"block", marginBottom:4}}>Скорость (Speed: {ttsSpeed}x)</label>
-                     <input type="range" min="0.8" max="1.5" step="0.05" value={ttsSpeed} onChange={e => setTtsSpeed(e.target.value)} style={{width:"100%"}}/>
-                   </div>
-                 </div>
-                 <div style={{marginTop:12, fontSize:10, color:"#38bdf8", fontStyle:"italic", textAlign:"center"}}>Эмоции и интонации ИИ-режиссер расставит сам с помощью тегов [shock], [whisper] и т.д.</div>
-               </div>
-             )}
           </div>
 
           <div style={{marginBottom: 24}}>
