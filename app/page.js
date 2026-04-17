@@ -4,53 +4,50 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// --- КИБЕР-ФОН (КВАНТОВОЕ ЯДРО) ---
-const NeuralBackground = () => {
+// --- МАГИЧЕСКИЙ ФОН (ГЛУБОКИЙ КОСМОС И СФЕРЫ) ---
+const MagicBackground = () => {
   const canvasRef = useRef(null);
   
   useEffect(() => {
-    if (typeof window === "undefined" || window.innerWidth < 768) return;
+    if (typeof window === "undefined") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     let animationFrameId;
-    let particles = [];
+    let orbs = [];
     
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     window.addEventListener("resize", resize); resize();
 
-    for (let i = 0; i < 60; i++) {
-      particles.push({ 
+    // Создаем мягкие сферы
+    for (let i = 0; i < 30; i++) {
+      orbs.push({ 
         x: Math.random() * canvas.width, 
         y: Math.random() * canvas.height, 
-        vx: (Math.random() - 0.5) * 0.8, 
-        vy: (Math.random() - 0.5) * 0.8,
-        size: Math.random() * 1.5 + 0.5
+        vx: (Math.random() - 0.5) * 0.3, 
+        vy: (Math.random() - 0.5) * 0.3,
+        radius: Math.random() * 80 + 20,
+        hue: Math.random() > 0.5 ? 270 : 200 // Аметистовый или глубокий синий
       });
     }
 
     const render = () => {
-      ctx.fillStyle = "#030308"; 
+      ctx.fillStyle = "#05050A"; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "rgba(0, 243, 255, 0.6)"; 
-      ctx.strokeStyle = "rgba(0, 243, 255, 0.15)"; 
-      ctx.lineWidth = 1;
       
-      particles.forEach((p, i) => {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1; 
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+      orbs.forEach((orb) => {
+        orb.x += orb.vx; orb.y += orb.vy;
+        if (orb.x < -100 || orb.x > canvas.width + 100) orb.vx *= -1; 
+        if (orb.y < -100 || orb.y > canvas.height + 100) orb.vy *= -1;
         
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j]; 
-          const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-          if (dist < 120) { 
-            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); 
-            ctx.strokeStyle = `rgba(0, 243, 255, ${0.2 - dist/600})`;
-            ctx.stroke(); 
-          }
-        }
+        const gradient = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.radius);
+        gradient.addColorStop(0, `rgba(${orb.hue === 270 ? '168, 85, 247' : '14, 165, 233'}, 0.15)`);
+        gradient.addColorStop(1, "rgba(5, 5, 10, 0)");
+        
+        ctx.beginPath(); 
+        ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2); 
+        ctx.fillStyle = gradient;
+        ctx.fill();
       });
       animationFrameId = requestAnimationFrame(render);
     };
@@ -58,41 +55,32 @@ const NeuralBackground = () => {
     return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
-  return <canvas ref={canvasRef} style={{position:"fixed", top:0, left:0, zIndex:-2, width:"100vw", height:"100vh", background: "#030308"}} />;
+  return <canvas ref={canvasRef} style={{position:"fixed", top:0, left:0, zIndex:-2, width:"100vw", height:"100vh", background: "#05050A", pointerEvents: "none"}} />;
 };
 
-// --- ТЕРМИНАЛЬНЫЙ ЛОАДЕР ---
-const TerminalLoader = ({ msg }) => {
-  const [dots, setDots] = useState("");
-  useEffect(() => {
-    const id = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 400);
-    return () => clearInterval(id);
-  }, []);
+// --- МАГИЧЕСКИЙ ЛОАДЕР ---
+const MagicLoader = ({ msg }) => {
   return (
-    <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", padding:"40px", fontFamily:"'JetBrains Mono', monospace", color:"var(--cyber-blue)", textShadow:"0 0 10px var(--cyber-blue)", textAlign:"center"}}>
-       <div style={{fontSize:40, marginBottom:20, animation:"pulse 1.5s infinite"}} className="glitch-icon">⚡</div>
-       <div style={{fontSize:14, letterSpacing:2, opacity:0.7, marginBottom:8}}>&gt; SYS.CORE.PROCESSING</div>
-       <div style={{fontSize:18, fontWeight:700, letterSpacing:1}}>&gt; {msg}{dots}</div>
-       <div style={{marginTop:20, width:200, height:2, background:"rgba(0, 243, 255, 0.2)", position:"relative", overflow:"hidden"}}>
-         <div style={{position:"absolute", left:0, top:0, height:"100%", width:"50%", background:"var(--cyber-blue)", animation:"scanline 1.5s infinite linear"}}/>
-       </div>
+    <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", padding:"40px", color:"#e9d5ff", textAlign:"center"}}>
+       <div className="magic-spinner"></div>
+       <div style={{fontSize:16, fontWeight:300, letterSpacing:4, textTransform:"uppercase", marginTop:30, textShadow:"0 0 15px rgba(168,85,247,0.8)"}}>{msg}</div>
     </div>
   );
 };
 
 // --- КОНСТАНТЫ И ПРЕСЕТЫ ---
 const GENRE_PRESETS = {
-  "КРИМИНАЛ":      { icon:"[CRIM]", col:"#ef4444", font: "'Creepster', cursive", color: "#ef4444" }, 
-  "ТАЙНА":         { icon:"[MYST]", col:"#a855f7", font: "'Creepster', cursive", color: "#a855f7" },
-  "ИСТОРИЯ":       { icon:"[HIST]", col:"#f97316", font: "'Cinzel', serif", color: "#fbbf24" }, 
-  "НАУКА":         { icon:"[SCIE]", col:"#06b6d4", font: "'Montserrat', sans-serif", color: "#0ea5e9" },
-  "ВОЙНА":         { icon:"[WAR]",  col:"#dc2626", font: "'Bebas Neue', sans-serif", color: "#ffffff" }, 
-  "ПРИРОДА":       { icon:"[NATU]", col:"#22c55e", font: "'Montserrat', sans-serif", color: "#22c55e" },
-  "ПСИХОЛОГИЯ":    { icon:"[PSYC]", col:"#ec4899", font: "'Playfair Display', serif", color: "#ffffff" }, 
-  "ЗАГАДКИ":       { icon:"[ENIG]", col:"#fbbf24", font: "Impact, sans-serif", color: "#ffdd00" },
+  "КРИМИНАЛ":      { icon:"◈", col:"#ef4444", font: "'Creepster', cursive", color: "#ef4444" }, 
+  "ТАЙНА":         { icon:"✧", col:"#a855f7", font: "'Creepster', cursive", color: "#a855f7" },
+  "ИСТОРИЯ":       { icon:"◬", col:"#f97316", font: "'Cinzel', serif", color: "#fbbf24" }, 
+  "НАУКА":         { icon:"⚗", col:"#0ea5e9", font: "'Montserrat', sans-serif", color: "#0ea5e9" },
+  "ВОЙНА":         { icon:"⚔", col:"#dc2626", font: "'Bebas Neue', sans-serif", color: "#ffffff" }, 
+  "ПРИРОДА":       { icon:"✤", col:"#22c55e", font: "'Montserrat', sans-serif", color: "#22c55e" },
+  "ПСИХОЛОГИЯ":    { icon:"⎔", col:"#ec4899", font: "'Playfair Display', serif", color: "#ffffff" }, 
+  "ЗАГАДКИ":       { icon:"◉", col:"#fbbf24", font: "Impact, sans-serif", color: "#ffdd00" },
 };
 
-const FORMATS = [ { id:"9:16", label:"VERT", ratio:"9/16" }, { id:"16:9", label:"HORZ", ratio:"16/9" }, { id:"1:1", label:"SQRE", ratio:"1/1" } ];
+const FORMATS = [ { id:"9:16", label:"VERTICAL", ratio:"9/16" }, { id:"16:9", label:"HORIZONTAL", ratio:"16/9" }, { id:"1:1", label:"SQUARE", ratio:"1/1" } ];
 
 const VISUAL_ENGINES = {
   "CINEMATIC": { label: "CINE-REALISM", prompt: "extreme photorealistic, gritty skin texture, visible skin pores, sweat, micro-details, imperfections, raw documentary photography, harsh directional lighting, volumetric fog, shot on 35mm lens, cinematic rim light" },
@@ -121,8 +109,7 @@ const FONTS = [
   { id: "'Cinzel', serif", label: "CINZEL" },
   { id: "'Oswald', sans-serif", label: "OSWALD" },
   { id: "'Montserrat', sans-serif", label: "CLEAN" },
-  { id: "'Permanent Marker', cursive", label: "MARKER" },
-  { id: "'JetBrains Mono', monospace", label: "CYBER" }
+  { id: "'Permanent Marker', cursive", label: "MARKER" }
 ];
 
 const COLORS = ["#ffffff", "#ffdd00", "#facc15", "#ef4444", "#ec4899", "#00f3ff", "#a855f7", "#00ff66", "#f97316", "#000000"];
@@ -185,14 +172,14 @@ JSON FORMAT:
   "thumbnail_prompt_EN": "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, [Identity Key] Render as an intense dynamic cinematic cover portrait..."
 }`;
 
-// --- ФУНКЦИИ АПИ (ДОБАВЛЕН СЕКРЕТНЫЙ ТОКЕН) ---
+// --- ФУНКЦИИ АПИ (СЕКРЕТНЫЙ ТОКЕН ВШИТ) ---
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
   try {
     const res = await fetch("/api/chat", { 
       method: "POST", 
       headers: { 
         "Content-Type": "application/json",
-        "X-Access-Token": "proffi-core" // ТОТ САМЫЙ КЛЮЧ
+        "X-Access-Token": "proffi-core" 
       }, 
       body: JSON.stringify({ model: model, messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], max_tokens: maxTokens }) 
     });
@@ -209,7 +196,7 @@ async function callVisionAPI(base64Image, sysPrompt) {
       method: "POST", 
       headers: { 
         "Content-Type": "application/json",
-        "X-Access-Token": "proffi-core" // ТОТ САМЫЙ КЛЮЧ
+        "X-Access-Token": "proffi-core" 
       }, 
       body: JSON.stringify({ 
         model: "openai/gpt-4o-mini",
@@ -234,12 +221,12 @@ function cleanJSON(rawText) {
   return JSON.parse(cleanText);
 }
 
-function CopyBtn({ text, label="[ COPY ]", fullWidth=false }) {
+function CopyBtn({ text, label="COPY", fullWidth=false }) {
   const [ok, setOk] = useState(false);
   return (
     <button onClick={e => { e.stopPropagation(); try { navigator.clipboard?.writeText(text); } catch{} setOk(true); setTimeout(() => setOk(false), 2000); }}
-      className="cyber-btn-small" style={{ width: fullWidth ? "100%" : "auto" }}>
-      {ok ? "[ DONE ]" : label}
+      className={`magic-btn-small ${ok ? 'ok-glow' : ''}`} style={{ width: fullWidth ? "100%" : "auto" }}>
+      {ok ? "✓ DONE" : label}
     </button>
   );
 }
@@ -250,8 +237,8 @@ function DirectorDashboard() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [clicks, setClicks] = useState(0); 
   
-  // УПРАВЛЕНИЕ: НОВЫЙ ИНТЕРФЕЙС WHISK
-  const [chars, setChars] = useState([{ id: `CHAR_MAIN`, name: "SUBJECT_01", desc: "" }]);
+  // УПРАВЛЕНИЕ: НОВЫЙ ИНТЕРФЕЙС
+  const [chars, setChars] = useState([{ id: `CHAR_MAIN`, name: "Герой 01", desc: "" }]);
   const [studioLoc, setStudioLoc] = useState("");
   const [engine, setEngine] = useState("CINEMATIC");
   const [vidFormat, setVidFormat] = useState("9:16");
@@ -261,7 +248,7 @@ function DirectorDashboard() {
   const [script, setScript] = useState("");
   const [genre, setGenre] = useState("ТАЙНА");
   
-  // ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ (СКРЫТЫЕ ИЛИ ВСТРОЕННЫЕ)
+  // ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ
   const [finalTwist, setFinalTwist] = useState(""); 
   const [customStyle, setCustomStyle] = useState(""); 
   const [ttsVoice, setTtsVoice] = useState("Male_Deep"); 
@@ -288,7 +275,7 @@ function DirectorDashboard() {
   const [rawImg, setRawImg] = useState("");
   const [rawVid, setRawVid] = useState("");
 
-  // СТУДИЯ ОБЛОЖЕК (ПОЛНОСТЬЮ ВОССТАНОВЛЕНА)
+  // СТУДИЯ ОБЛОЖЕК 
   const [bgImage, setBgImage] = useState(null);
   const [logoImage, setLogoImage] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -349,16 +336,16 @@ function DirectorDashboard() {
 
   const handleGodMode = () => {
     setClicks(c => c + 1);
-    if (clicks + 1 >= 5) { setTokens(999); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() })); alert("SYSTEM OVERRIDE. TOKENS = 999"); setClicks(0); }
+    if (clicks + 1 >= 5) { setTokens(999); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() })); alert("🔮 MAGIC UNLOCKED: 999 TOKENS"); setClicks(0); }
     setTimeout(() => setClicks(0), 1500);
   };
 
   const deductToken = () => { setTokens(prev => { const next = prev - 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
   const checkTokens = () => { if (tokens <= 0) { setShowPaywall(true); return false; } return true; };
   const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); localStorage.setItem("ds_history", JSON.stringify(next)); return next; }); };
-  const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
+  const clearHistory = () => { if(confirm("Очистить магический архив?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
 
-  const addChar = () => setChars([...chars, { id: `CHAR_${Date.now()}`, name: `SUBJECT_${String(chars.length+1).padStart(2,'0')}`, desc: "" }]);
+  const addChar = () => setChars([...chars, { id: `CHAR_${Date.now()}`, name: `Герой 0${chars.length+1}`, desc: "" }]);
   const removeChar = (id) => setChars(chars.filter(c => c.id !== id));
   const updateChar = (id, field, value) => setChars(chars.map(c => c.id === id ? { ...c, [field]: value } : c));
 
@@ -368,11 +355,11 @@ function DirectorDashboard() {
     const p = COVER_PRESETS.find(x => x.id === presetId);
     if (p) { setCovX(p.defX); setCovY(p.defY); setSizeHook(p.style.hook.fontSize || 12); setSizeTitle(p.style.title.fontSize || 32); setSizeCta(p.style.cta?.fontSize || 10); }
   };
-  const saveCustomPreset = () => { const p = { covX, covY, covFont, covColor, sizeHook, sizeTitle, sizeCta, covDark, logoX, logoY, logoSize }; localStorage.setItem("ds_custom_preset", JSON.stringify(p)); alert("STYLE SAVED TO LOCAL STORAGE"); };
+  const saveCustomPreset = () => { const p = { covX, covY, covFont, covColor, sizeHook, sizeTitle, sizeCta, covDark, logoX, logoY, logoSize }; localStorage.setItem("ds_custom_preset", JSON.stringify(p)); alert("✧ СТИЛЬ УСПЕШНО СОХРАНЕН"); };
   const loadCustomPreset = () => {
     const p = JSON.parse(localStorage.getItem("ds_custom_preset"));
     if (p) { setCovX(p.covX); setCovY(p.covY); setCovFont(p.covFont); setCovColor(p.covColor); setSizeHook(p.sizeHook); setSizeTitle(p.sizeTitle); setSizeCta(p.sizeCta); setCovDark(p.covDark); if(p.logoX) setLogoX(p.logoX); if(p.logoY) setLogoY(p.logoY); if(p.logoSize) setLogoSize(p.logoSize); setActivePreset("custom"); } 
-    else { alert("NO CUSTOM PRESET FOUND"); }
+    else { alert("У вас еще нет сохраненного стиля."); }
   };
 
   async function handleCharImageUpload(e, id) {
@@ -381,30 +368,30 @@ function DirectorDashboard() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const base64 = ev.target.result;
-      setBusy(true); setLoadingMsg("SCANNING VISUAL DATA..."); 
+      setBusy(true); setLoadingMsg("СКАНИРУЮ ВНЕШНОСТЬ..."); 
       try {
         const sys = `You are an elite Character Designer. Describe the person's physical appearance in the image in English. Focus ONLY on physical traits: age, jawline, facial hair, scars, eye color, specific clothing style. DO NOT describe the background or lighting. Return ONLY a valid JSON object: { "desc": "Detailed english prompt..." }`;
         const rawText = await callVisionAPI(base64, sys);
         const parsed = cleanJSON(rawText);
         if (parsed && parsed.desc) updateChar(id, 'desc', `[${parsed.desc}]`);
-      } catch (err) { alert("🚨 VISION_ERROR: " + err.message); } finally { setBusy(false); }
+      } catch (err) { alert("🚨 ОШИБКА ЗРЕНИЯ: " + err.message); } finally { setBusy(false); }
     };
     reader.readAsDataURL(file);
   }
 
   async function handleGenerateHooks() {
-    if (!topic.trim()) return alert("ENTER PROMPT TOPIC FIRST");
-    setBusy(true); setLoadingMsg("CALCULATING HOOK METRICS..."); 
+    if (!topic.trim()) return alert("Напиши идею видео сначала!");
+    setBusy(true); setLoadingMsg("ПРИЗЫВАЮ ИДЕИ..."); 
     try {
       const text = await callAPI(`Topic: ${topic}`, 2000, `You are a viral TikTok producer. Write 3 powerful hooks (1 sentence each) in RUSSIAN. Genre: ${genre}. Provide valid JSON object ONLY. Format: { "hooks": ["Хук 1", "Хук 2", "Хук 3"] }`);
       const data = cleanJSON(text);
       if(data && Array.isArray(data.hooks)) setHooksList(data.hooks);
-    } catch(e) { alert("🚨 SYS_ERROR: " + e.message); } finally { setBusy(false); }
+    } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); }
   }
 
   async function handleDraftText() {
-    if (!topic.trim()) return alert("ENTER PROMPT TOPIC FIRST");
-    setBusy(true); setLoadingMsg("GENERATING SCRIPT SEQUENCE..."); 
+    if (!topic.trim()) return alert("Напиши идею видео сначала!");
+    setBusy(true); setLoadingMsg("ГЕНЕРИРУЮ ИСТОРИЮ..."); 
     try {
       const sec = DURATION_SECONDS[dur] || 60; 
       let wordLimitRule = sec <= 15 ? "СТРОГО 30-40 слов" : (sec <= 40 ? "СТРОГО 70-90 слов" : `СТРОГО около ${Math.floor(sec * 2.2)} слов`);
@@ -415,7 +402,7 @@ function DirectorDashboard() {
       const data = cleanJSON(text);
       
       if (data && data.script) { setScript(data.script.replace(/Диктор:\s*/gi, "").trim()); setHooksList([]); }
-    } catch(e) { alert("🚨 SYS_ERROR: " + e.message); } finally { setBusy(false); }
+    } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); }
   }
 
   async function handleAddSEOVariant() {
@@ -429,17 +416,17 @@ function DirectorDashboard() {
   }
 
   function rebuildRawText(frms, s2done) {
-    let scriptTxt = frms.map((f, i) => `[REC_${String(i+1).padStart(2,'0')}] ${f.timecode || ''}\nVISUAL: ${f.visual}\nVOICE: «${f.voice}»`).join("\n\n");
+    let scriptTxt = frms.map((f, i) => `[СЦЕНА ${String(i+1).padStart(2,'0')}] ${f.timecode || ''}\n👁 ${f.visual}\n🎙 «${f.voice}»`).join("\n\n");
     let imgTxt = s2done ? frms.map(f => f.imgPrompt_EN).filter(Boolean).join("\n\n") : "";
     let vidTxt = s2done ? frms.map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n") : "";
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
   }
 
   async function handleStep1() {
-    if (!script.trim()) return alert("SCRIPT DATABANK EMPTY!");
+    if (!script.trim()) return alert("Сценарий пуст!");
     if (!checkTokens()) return;
     
-    setBusy(true); setLoadingMsg("COMPILE_STORYBOARD.EXE..."); 
+    setBusy(true); setLoadingMsg("РАЗРЕЗАЮ ПРОСТРАНСТВО..."); 
     
     try {
       const sec = DURATION_SECONDS[dur] || 60;
@@ -451,7 +438,7 @@ function DirectorDashboard() {
       const text1A = await callAPI(req1A, 6000, SYS_STEP_1A);
       const data1A = cleanJSON(text1A);
       
-      setLoadingMsg("EXTRACTING_METADATA.EXE...");
+      setLoadingMsg("СОЗДАЮ МЕТА-ДАННЫЕ...");
       const req1B = `STORYBOARD:\n${JSON.stringify(data1A.frames)}\n\nGenerate SEO, Music tags, and Thumbnail concept.`;
       
       const text1B = await callAPI(req1B, 3000, SYS_STEP_1B);
@@ -473,17 +460,17 @@ function DirectorDashboard() {
       deductToken(); 
       
       const stateData = { frames: data1A.frames, generatedChars: data1A.characters_EN, locRef: data1A.location_ref_EN, styleRef: data1A.style_ref_EN, retention: data1A.retention, thumb: data1B.thumbnail, seoVariants: data1B.seo_variants, music: data1B.music_EN, step2Done: false };
-      const newHistory = [{ id: Date.now(), topic: topic || "SYS_GEN_001", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData) }, ...history].slice(0, 10);
+      const newHistory = [{ id: Date.now(), topic: topic || "Магический проект", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData) }, ...history].slice(0, 10);
       setHistory(newHistory); localStorage.setItem("ds_history", JSON.stringify(newHistory));
       
       if (window.innerWidth < 1024 && rightPanelRef.current) { setTimeout(() => rightPanelRef.current.scrollIntoView({ behavior: 'smooth' }), 500); }
       
-    } catch(e) { alert(`🚨 KERNEL PANIC: ${e.message}`); } finally { setBusy(false); }
+    } catch(e) { alert(`🚨 ОШИБКА: ${e.message}`); } finally { setBusy(false); }
   }
 
   async function handleStep2() {
     if (!checkTokens()) return;
-    setBusy(true); setLoadingMsg(`INITIATING_PROMPT_ENGINE [MODE:${pipelineMode}]...`); 
+    setBusy(true); setLoadingMsg(`СИНТЕЗИРУЮ PRO-ЗАКЛИНАНИЯ...`); 
     
     try {
       const storyboardLite = frames.map((f, i) => `Frame ${i+1}: Visual: ${f.visual} | Voice: ${f.voice} | Chars: ${(f.characters_in_frame || []).join(",")}`).join("\n");
@@ -529,7 +516,7 @@ function DirectorDashboard() {
          }
          return next;
       });
-    } catch(e) { alert(`🚨 KERNEL PANIC: ${e.message}`); } finally { setBusy(false); }
+    } catch(e) { alert(`🚨 ОШИБКА: ${e.message}`); } finally { setBusy(false); }
   }
 
   // ЭКСПОРТ И ЗАГРУЗКА
@@ -558,24 +545,24 @@ function DirectorDashboard() {
     setPdfDownloading(true);
     const element = document.createElement('div');
     element.innerHTML = `
-      <div style="font-family: Arial, sans-serif; padding: 40px; color: #111;">
-        <h1 style="color: #a855f7;">🎬 DOCUSHORTS PRODUCER BRIEF</h1>
+      <div style="font-family: sans-serif; padding: 40px; color: #111;">
+        <h1 style="color: #a855f7;">✨ БРИФ РЕЖИССЕРА</h1>
         <h2>Тема: ${topic || "Без темы"}</h2><p><strong>Жанр:</strong> ${genre}</p><hr style="margin: 20px 0;" />
-        <h3>🎵 Музыка (Suno AI Prompt):</h3>
+        <h3>🎵 Музыка (Suno AI):</h3>
         <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px;">${music || "Не сгенерировано"}</div>
         <hr style="margin: 20px 0;" />
-        <h3>🎙 Настройки Диктора:</h3>
-        <p><strong>Голос:</strong> ${ttsVoice} | <strong>Скорость:</strong> ${ttsSpeed}x | <strong>Эмоция:</strong> Авто (теги в тексте)</p>
+        <h3>🎙 Диктор:</h3>
+        <p><strong>Голос:</strong> ${ttsVoice} | <strong>Скорость:</strong> ${ttsSpeed}x</p>
         <hr style="margin: 20px 0;" />
         <h3>📝 Раскадровка:</h3>
         ${frames.map((f, i) => `
           <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <strong style="color: #ef4444; font-size: 16px;">Кадр ${i+1} [${f.timecode}]</strong><br/>
+            <strong style="color: #a855f7; font-size: 16px;">Сцена ${i+1} [${f.timecode}]</strong><br/>
             <div style="margin-top: 8px; font-size: 14px;"><b>👁 Визуал:</b> ${f.visual}</div>
-            <div style="margin-top: 6px; color: #d97706; font-size: 14px;"><b>🔊 SFX:</b> ${f.sfx || "-"}</div>
+            <div style="margin-top: 6px; color: #d97706; font-size: 14px;"><b>🔊 Звук:</b> ${f.sfx || "-"}</div>
             ${f.text_on_screen ? `<div style="margin-top: 6px; color: #ec4899; font-size: 14px;"><b>🔤 Титр:</b> ${f.text_on_screen}</div>` : ''}
-            <div style="margin-top: 6px; color: #7c3aed; font-style: italic; font-size: 15px;"><b>🎙 Диктор:</b> «${f.voice}»</div>
-            ${step2Done ? `<div style="margin-top: 10px; padding: 10px; background: #f8fafc; font-size: 12px; color: #475569; font-family: monospace;"><b>Video Prompt (Grok Super):</b> ${f.vidPrompt_EN}</div>` : ''}
+            <div style="margin-top: 6px; font-style: italic; font-size: 15px;"><b>🎙 Голос:</b> «${f.voice}»</div>
+            ${step2Done ? `<div style="margin-top: 10px; padding: 10px; background: #f8fafc; font-size: 12px; color: #475569; font-family: monospace;"><b>Видео Промпт:</b> ${f.vidPrompt_EN}</div>` : ''}
           </div>
         `).join('')}
       </div>`;
@@ -587,342 +574,344 @@ function DirectorDashboard() {
     } else { window.html2pdf().set(opt).from(element).save().then(() => setPdfDownloading(false)); }
   }
 
-  // ПЕРЕМЕННЫЕ ИНТЕРФЕЙСА
   const currFormat = FORMATS.find(f => f.id === vidFormat) || FORMATS[0]; 
   const activeStyle = activePreset === "custom" ? COVER_PRESETS[0].style : COVER_PRESETS.find(p => p.id === activePreset).style;
-  const liveCharsCount = chars.filter(c => c.desc).length;
-  const wordCount = script.split(' ').filter(x=>x).length;
-  const livePrompt = `[SYS] ${pipelineMode} | SUBJ:${liveCharsCount} | LOC:${studioLoc ? "DEF" : "AUTO"} | EST:${VISUAL_ENGINES[engine].label} | TXT:${wordCount}W`;
 
   return (
-    <div style={{minHeight:"100vh", color:"#e2e8f0", overflowX:"hidden"}}>
-      <NeuralBackground />
+    <div style={{minHeight:"100vh", color:"#e9d5ff", overflowX:"hidden", fontFamily:"system-ui, -apple-system, sans-serif"}}>
+      <MagicBackground />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&family=JetBrains+Mono:wght@400;700;800&family=Bebas+Neue&family=Cinzel:wght@700;900&family=Creepster&family=Montserrat:wght@800;900&family=Oswald:wght@700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;900&family=Creepster&family=Montserrat:wght@500;800;900&family=Oswald:wght@700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
         
-        :root { --cyber-blue: #00f3ff; --cyber-pink: #ff00ea; --cyber-dark: #05050a; --cyber-green: #00ff66; --cyber-yellow: #fbbf24; }
-        body { font-family: 'Rajdhani', sans-serif; background: var(--cyber-dark); overflow: hidden; }
+        body { background: #05050A; overflow: hidden; font-family: 'Montserrat', sans-serif; }
         
-        /* 2-COLUMN LAYOUT SYSTEM */
-        .cyber-layout { display: flex; flex-direction: column; gap: 24px; padding: 20px; max-width: 1800px; margin: 0 auto; height: calc(100vh - 60px); }
-        .cyber-left { flex: none; width: 100%; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-bottom: 120px; }
-        .cyber-right { flex: 1; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-bottom: 60px; }
+        /* 2-COLUMN LAYOUT */
+        .magic-layout { display: flex; flex-direction: column; gap: 30px; padding: 20px; max-width: 1800px; margin: 0 auto; height: calc(100vh - 70px); }
+        .magic-left { flex: none; width: 100%; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; padding-bottom: 120px; }
+        .magic-right { flex: 1; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; padding-bottom: 60px; }
         
         @media (min-width: 1024px) {
-          .cyber-layout { flex-direction: row; align-items: flex-start; }
-          .cyber-left { width: 480px; height: 100%; padding-right: 15px; }
-          .cyber-right { height: 100%; padding-left: 15px; border-left: 1px solid rgba(0,243,255,0.1); }
+          .magic-layout { flex-direction: row; align-items: flex-start; }
+          .magic-left { width: 500px; height: 100%; padding-right: 20px; }
+          .magic-right { height: 100%; padding-left: 20px; border-left: 1px solid rgba(255,255,255,0.05); }
         }
 
         /* CUSTOM SCROLLBARS */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
-        ::-webkit-scrollbar-thumb { background: rgba(0,243,255,0.3); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--cyber-blue); }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.2); border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.5); }
         
-        /* HUD ELEMENTS */
-        .hud-panel { background: rgba(5, 8, 15, 0.7); border: 1px solid rgba(0, 243, 255, 0.15); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.02); backdrop-filter: blur(12px); border-radius: 4px; position: relative; padding: 20px; overflow: hidden; }
-        .hud-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--cyber-blue), transparent); }
+        /* MAGIC PANELS (Glassmorphism + Glow) */
+        .magic-panel { background: rgba(10, 10, 20, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.04); border-radius: 20px; padding: 24px; transition: all 0.4s ease; position: relative; z-index: 1; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .magic-panel:hover { border-color: rgba(168, 85, 247, 0.3); box-shadow: 0 15px 50px rgba(168, 85, 247, 0.1); transform: translateY(-2px); }
         
-        .hud-panel-pink { border-color: rgba(255, 0, 234, 0.2); box-shadow: inset 0 0 20px rgba(255, 0, 234, 0.02); }
-        .hud-panel-pink::before { background: linear-gradient(90deg, transparent, var(--cyber-pink), transparent); }
-
-        .hud-title { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+        .magic-title { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; color: #e9d5ff; opacity: 0.8; }
         
-        /* INPUTS (TERMINAL STYLE) */
-        .term-input { background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1); color: var(--cyber-blue); font-family: 'JetBrains Mono', monospace; padding: 12px; border-radius: 2px; transition: all 0.3s; width: 100%; font-size: 12px; }
-        .term-input:focus { border-color: var(--cyber-pink); box-shadow: 0 0 15px rgba(255, 0, 234, 0.1); outline: none; color: var(--cyber-pink); }
-        .term-input::placeholder { color: rgba(0,243,255,0.3); }
+        /* INPUTS (Liquid / Glass) */
+        .magic-input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); color: #fff; font-family: inherit; padding: 14px 18px; border-radius: 12px; transition: all 0.3s ease; width: 100%; font-size: 13px; font-weight: 500; }
+        .magic-input:focus { border-color: rgba(216, 180, 254, 0.6); box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); outline: none; background: rgba(15,15,25,0.6); }
+        .magic-input::placeholder { color: rgba(233, 213, 255, 0.3); font-weight: 400; }
 
         /* BUTTONS */
-        .cyber-btn { background: rgba(0, 243, 255, 0.05); border: 1px solid var(--cyber-blue); color: var(--cyber-blue); text-transform: uppercase; font-family: 'Orbitron', sans-serif; font-weight: 900; padding: 14px 24px; border-radius: 2px; cursor: pointer; transition: all 0.2s; position: relative; text-shadow: 0 0 8px rgba(0,243,255,0.5); letter-spacing: 1px; font-size: 14px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; }
-        .cyber-btn:hover:not(:disabled) { background: var(--cyber-blue); color: #000; box-shadow: 0 0 20px rgba(0,243,255,0.4); text-shadow: none; }
-        .cyber-btn:disabled { opacity: 0.5; border-style: dashed; cursor: not-allowed; }
+        .core-btn { background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(14, 165, 233, 0.2)); border: 1px solid rgba(216, 180, 254, 0.4); color: #fff; text-transform: uppercase; font-weight: 800; padding: 18px 30px; border-radius: 100px; cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; letter-spacing: 2px; font-size: 13px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; overflow: hidden; box-shadow: 0 0 30px rgba(168, 85, 247, 0.1); }
+        .core-btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(168,85,247,0.8), rgba(14,165,233,0.8)); opacity: 0; transition: opacity 0.4s ease; z-index: -1; }
+        .core-btn:hover:not(:disabled) { box-shadow: 0 0 40px rgba(168, 85, 247, 0.4); transform: scale(1.02); border-color: transparent; }
+        .core-btn:hover:not(:disabled)::after { opacity: 1; }
+        .core-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
         
-        .cyber-btn-pink { border-color: var(--cyber-pink); color: var(--cyber-pink); background: rgba(255,0,234,0.05); text-shadow: 0 0 8px rgba(255,0,234,0.5); }
-        .cyber-btn-pink:hover:not(:disabled) { background: var(--cyber-pink); color: #000; box-shadow: 0 0 20px rgba(255,0,234,0.4); text-shadow: none; }
+        .magic-btn-small { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #d8b4fe; font-weight: 600; font-size: 11px; padding: 10px 16px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .magic-btn-small:hover { border-color: rgba(216, 180, 254, 0.5); background: rgba(168, 85, 247, 0.1); color: #fff; box-shadow: 0 5px 15px rgba(168,85,247,0.1); }
+        .magic-btn-small.active { background: rgba(168, 85, 247, 0.2); border-color: rgba(216, 180, 254, 0.6); color: #fff; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
+        .magic-btn-small.ok-glow { background: rgba(34, 197, 94, 0.2); border-color: #4ade80; color: #fff; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
 
-        .cyber-btn-small { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 6px 12px; border-radius: 2px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
-        .cyber-btn-small:hover { border-color: var(--cyber-blue); color: var(--cyber-blue); }
-        .cyber-btn-small.active { background: rgba(0,243,255,0.1); border-color: var(--cyber-blue); color: var(--cyber-blue); text-shadow: 0 0 5px rgba(0,243,255,0.5); }
+        /* TABS */
+        .magic-tabs { display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 16px; margin-bottom: 24px; overflow-x: auto; }
+        .magic-tab { font-size: 12px; font-weight: 700; padding: 12px 20px; border: none; border-radius: 100px; color: #94a3b8; background: transparent; cursor: pointer; text-transform: uppercase; white-space: nowrap; letter-spacing: 1px; transition: all 0.3s ease; }
+        .magic-tab:hover { color: #e9d5ff; background: rgba(255,255,255,0.03); }
+        .magic-tab.active { color: #fff; background: rgba(168, 85, 247, 0.2); box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
 
-        /* TAB BAR */
-        .cyber-tabs { display: flex; gap: 4px; border-bottom: 1px solid rgba(0,243,255,0.2); padding-bottom: 0; margin-bottom: 20px; overflow-x: auto; }
-        .cyber-tab { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; padding: 10px 16px; border: 1px solid transparent; border-bottom: none; color: #64748b; background: transparent; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
-        .cyber-tab.active { color: var(--cyber-blue); border-color: rgba(0,243,255,0.2); background: rgba(0,243,255,0.05); text-shadow: 0 0 8px rgba(0,243,255,0.4); }
-
-        /* DATA BLOCKS (RESULTS) */
-        .data-block { background: rgba(0,0,0,0.5); border-left: 2px solid var(--cyber-blue); padding: 16px; margin-bottom: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5; color: #cbd5e1; position: relative; }
-        .data-label { font-size: 10px; color: var(--cyber-blue); margin-bottom: 6px; font-weight: 700; display: block; opacity: 0.8; }
+        /* DATA BLOCKS */
+        .data-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.03); border-radius: 16px; padding: 20px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; color: #f8fafc; transition: 0.3s; }
+        .data-block:hover { background: rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.08); }
+        .data-label { font-size: 10px; color: #a855f7; margin-bottom: 8px; font-weight: 800; display: block; letter-spacing: 1px; text-transform: uppercase; opacity: 0.8; }
         
         /* RANGE INPUTS */
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--cyber-blue); cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px var(--cyber-blue); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #d8b4fe; cursor: pointer; margin-top: -6px; box-shadow: 0 0 15px #d8b4fe; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
         
         .hide-scroll::-webkit-scrollbar { display: none; }
-        @keyframes scanline { 0% { top: -100%; } 100% { top: 200%; } }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        
+        /* MAGIC SPINNER */
+        .magic-spinner { width: 80px; height: 80px; border-radius: 50%; border: 2px solid transparent; border-top-color: #a855f7; border-bottom-color: #0ea5e9; animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite; position: relative; }
+        .magic-spinner::before { content: ''; position: absolute; inset: 10px; border-radius: 50%; border: 2px solid transparent; border-left-color: #f472b6; border-right-color: #fbbf24; animation: spin 2s linear infinite reverse; }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
       `}</style>
 
-      {/* OVERLAYS (PAYWALL & LOADING & HISTORY) */}
+      {/* OVERLAYS */}
       {showPaywall && (
-        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.9)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center"}}>
-          <div className="hud-panel hud-panel-pink" style={{maxWidth:400, textAlign:"center"}}>
-            <div style={{fontFamily:"'Orbitron', sans-serif", fontSize:24, color:"var(--cyber-pink)", marginBottom:16, textShadow:"0 0 10px var(--cyber-pink)"}}>SYSTEM LOCKED</div>
-            <p style={{fontFamily:"'JetBrains Mono', monospace", fontSize:12, color:"#cbd5e1", marginBottom:24}}>Insufficient tokens. Recharge required to continue neural rendering.</p>
-            <button onClick={() => setShowPaywall(false)} className="cyber-btn cyber-btn-pink">[ ACKNOWLEDGE ]</button>
+        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(5,5,10,0.9)", backdropFilter:"blur(15px)", display:"flex", alignItems:"center", justifyContent:"center"}}>
+          <div className="magic-panel" style={{maxWidth:400, textAlign:"center", borderColor:"rgba(239,68,68,0.4)"}}>
+            <div style={{fontSize:40, marginBottom:16}}>✨</div>
+            <div style={{fontSize:20, fontWeight:800, color:"#fff", marginBottom:16, letterSpacing:2}}>МАГИЯ ИССЯКЛА</div>
+            <p style={{fontSize:14, color:"#cbd5e1", marginBottom:30}}>У вас закончились токены. Возвращайтесь завтра или пополните запас маны.</p>
+            <button onClick={() => setShowPaywall(false)} className="core-btn">ОТЛИЧНО</button>
           </div>
         </div>
       )}
       
       {busy && (
-        <div style={{position:"fixed", inset:0, zIndex:9998, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(5px)"}}>
-          <TerminalLoader msg={loadingMsg} />
+        <div style={{position:"fixed", inset:0, zIndex:9998, background:"rgba(5,5,10,0.8)", backdropFilter:"blur(8px)"}}>
+          <MagicLoader msg={loadingMsg} />
         </div>
       )}
 
       {showHistory && (
-        <div style={{position:"fixed", inset:0, zIndex:999, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
-          <div className="hud-panel" style={{width:"100%", maxWidth:600, maxHeight:"80vh", display:"flex", flexDirection:"column", padding:0, border:"1px solid var(--cyber-blue)"}}>
-            <div style={{padding:"20px 24px", borderBottom:"1px solid rgba(0,243,255,0.2)", display:"flex", justifyContent:"space-between", alignItems:"center", background:"rgba(0,243,255,0.05)"}}>
-               <h2 style={{fontSize:16, fontFamily:"'Orbitron', sans-serif", fontWeight:900, color:"var(--cyber-blue)"}}>[ LOCAL_ARCHIVE ]</h2>
-               <button onClick={() => setShowHistory(false)} style={{background:"none", border:"none", color:"var(--cyber-blue)", fontSize:20, cursor:"pointer", fontFamily:"monospace"}}>[X]</button>
+        <div style={{position:"fixed", inset:0, zIndex:999, background:"rgba(5,5,10,0.8)", backdropFilter:"blur(12px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+          <div className="magic-panel" style={{width:"100%", maxWidth:600, maxHeight:"80vh", display:"flex", flexDirection:"column", padding:0}}>
+            <div style={{padding:"24px", borderBottom:"1px solid rgba(255,255,255,0.05)", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+               <h2 style={{fontSize:16, fontWeight:800, letterSpacing:2}}>✦ АРХИВ МАГИИ</h2>
+               <button onClick={() => setShowHistory(false)} style={{background:"none", border:"none", color:"#94a3b8", fontSize:24, cursor:"pointer"}}>×</button>
             </div>
-            <div style={{padding:20, overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:12}}>
+            <div style={{padding:24, overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:16}}>
               {history.map(item => (
-                <div key={item.id} style={{background:"rgba(0,0,0,0.5)", borderLeft:"2px solid var(--cyber-blue)", padding:16, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <div key={item.id} style={{background:"rgba(0,0,0,0.4)", borderRadius:16, padding:20, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
                   <div>
-                    <div style={{fontSize:14, fontWeight:700, color:"#fff", fontFamily:"'Orbitron', sans-serif", marginBottom:4}}>{item.topic || "SYS_GEN"}</div>
-                    <div style={{fontSize:11, color:"#64748b", fontFamily:"'JetBrains Mono', monospace"}}>{item.time}</div>
+                    <div style={{fontSize:14, fontWeight:700, color:"#fff", marginBottom:6}}>{item.topic || "Без названия"}</div>
+                    <div style={{fontSize:11, color:"#94a3b8"}}>{item.time}</div>
                   </div>
-                  <div style={{display:"flex", gap:8}}>
+                  <div style={{display:"flex", gap:10}}>
                     <button onClick={() => {
                       const d = JSON.parse(item.text);
                       setFrames(d.frames || []); setRetention(d.retention || null); setThumb(d.thumb || null); setSeoVariants(d.seoVariants || []); setMusic(d.music || "");
                       setGeneratedChars(d.generatedChars || []); setLocRef(d.locRef || ""); setStyleRef(d.styleRef || ""); setBRolls(d.bRolls || []); setStep2Done(d.step2Done || false);
-                      if(d.thumb) { setCovTitle(d.thumb.title || ""); setCovHook(d.thumb.hook || ""); setCovCta(d.thumb.cta || "WATCH NOW"); applyPreset("netflix"); }
+                      if(d.thumb) { setCovTitle(d.thumb.title || ""); setCovHook(d.thumb.hook || ""); setCovCta(d.thumb.cta || "СМОТРЕТЬ"); applyPreset("netflix"); }
                       rebuildRawText(d.frames || [], d.step2Done); setShowHistory(false); setTab("storyboard");
-                    }} className="cyber-btn-small active">[ LOAD ]</button>
-                    <button onClick={() => deleteFromHistory(item.id)} className="cyber-btn-small" style={{color:"var(--cyber-pink)", borderColor:"var(--cyber-pink)"}}>[ DEL ]</button>
+                    }} className="magic-btn-small active">ОТКРЫТЬ</button>
+                    <button onClick={() => deleteFromHistory(item.id)} className="magic-btn-small" style={{color:"#ef4444", borderColor:"rgba(239,68,68,0.3)"}}>УДАЛИТЬ</button>
                   </div>
                 </div>
               ))}
             </div>
-            {history.length > 0 && <div style={{padding:"16px 20px", borderTop:"1px solid rgba(0,243,255,0.2)"}}><button onClick={clearHistory} className="cyber-btn-small" style={{width:"100%", color:"var(--cyber-pink)", borderColor:"var(--cyber-pink)"}}>[ FORMAT_ARCHIVE ]</button></div>}
+            {history.length > 0 && <div style={{padding:"20px", borderTop:"1px solid rgba(255,255,255,0.05)"}}><button onClick={clearHistory} className="magic-btn-small" style={{width:"100%", color:"#ef4444", borderColor:"rgba(239,68,68,0.3)"}}>ОЧИСТИТЬ АРХИВ</button></div>}
           </div>
         </div>
       )}
 
       {/* TOP NAVIGATION */}
-      <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.8)", backdropFilter:"blur(10px)", borderBottom:"1px solid rgba(0,243,255,.15)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}>
+      <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,0.5)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,0.03)", height:70, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 30px"}}>
         <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <span onClick={handleGodMode} style={{fontFamily:"'Orbitron', sans-serif", fontSize:18, fontWeight:900, color:"#fff", cursor:"pointer", textShadow:"0 0 10px rgba(255,255,255,0.5)"}}>
-            DOCU<span style={{color:"var(--cyber-blue)"}}>SHORTS</span>
+          <span onClick={handleGodMode} style={{fontSize:20, fontWeight:900, color:"#fff", cursor:"pointer", letterSpacing:1}}>
+            DOCU<span style={{color:"#d8b4fe"}}>SHORTS</span>
           </span>
-          <span style={{fontFamily:"'JetBrains Mono', monospace", fontSize:10, color:"#64748b", border:"1px solid #333", padding:"2px 6px", borderRadius:2}}>v7.1_FULL_HUD</span>
         </div>
-        <div style={{display:"flex",gap:12, alignItems:"center"}}>
-          <button onClick={() => setShowHistory(true)} className="cyber-btn-small" style={{color:"#94a3b8", borderColor:"rgba(255,255,255,0.2)"}}>[ ARCHIVE ]</button>
-          <div style={{fontFamily:"'JetBrains Mono', monospace", fontSize:11, fontWeight:700, color:tokens > 0 ? "var(--cyber-green)" : "var(--cyber-pink)", border:`1px solid ${tokens > 0 ? "var(--cyber-green)" : "var(--cyber-pink)"}`, padding:"4px 10px", borderRadius:2, textShadow:`0 0 5px ${tokens > 0 ? "var(--cyber-green)" : "var(--cyber-pink)"}`}}>
-            TOKENS: {String(tokens).padStart(3, '0')}
+        <div style={{display:"flex",gap:16, alignItems:"center"}}>
+          <button onClick={() => setShowHistory(true)} className="magic-btn-small" style={{border:"none", background:"transparent"}}>✦ АРХИВ</button>
+          <div style={{fontSize:12, fontWeight:800, color:tokens > 0 ? "#a855f7" : "#ef4444", background:"rgba(168,85,247,0.1)", padding:"8px 16px", borderRadius:100, border:"1px solid rgba(168,85,247,0.3)", boxShadow:"0 0 15px rgba(168,85,247,0.1)"}}>
+            ✨ МАГИЯ: {tokens}
           </div>
         </div>
       </nav>
 
       {/* MAIN 2-COLUMN LAYOUT */}
-      <div className="cyber-layout">
+      <div className="magic-layout">
         
         {/* === LEFT PANEL: CONTROL CONSOLE === */}
-        <div className="cyber-left hide-scroll">
+        <div className="magic-left hide-scroll">
           
-          {/* BLOCK 1: SUBJECT (CHARACTERS) */}
-          <div className="hud-panel hud-panel-pink">
-             <div className="hud-title"><span style={{color:"var(--cyber-pink)"}}>01. SUBJECT (HERO)</span> <button onClick={addChar} style={{background:"none", border:"none", color:"var(--cyber-pink)", cursor:"pointer", fontSize:16, fontFamily:"monospace"}}>[+]</button></div>
-             <div style={{display:"flex", flexDirection:"column", gap:12}}>
+          {/* BLOCK 1: SUBJECT */}
+          <div className="magic-panel">
+             <div className="magic-title"><span>01. КУЗНИЦА ГЕРОЕВ</span> <button onClick={addChar} style={{background:"none", border:"none", color:"#d8b4fe", cursor:"pointer", fontSize:20}}>+</button></div>
+             <div style={{display:"flex", flexDirection:"column", gap:16}}>
                {chars.map((c) => (
-                 <div key={c.id} style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(255,0,234,0.3)", padding:12}}>
-                   <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
-                     <input type="text" className="term-input" value={c.name} onChange={e => updateChar(c.id, 'name', e.target.value)} style={{background:"none", border:"none", padding:0, color:"var(--cyber-pink)", fontWeight:700, fontSize:12, width:"100%"}} placeholder="ID (e.g. King Henry)" />
-                     <div style={{display:"flex", gap:8, alignItems:"center"}}>
-                       <label className="cyber-btn-small" style={{color:"var(--cyber-pink)", borderColor:"var(--cyber-pink)"}}>
-                         [ SCAN_PHOTO ] <input type="file" accept="image/*" hidden onChange={(e) => handleCharImageUpload(e, c.id)} />
+                 <div key={c.id} style={{background:"rgba(0,0,0,0.2)", borderRadius:16, padding:16}}>
+                   <div style={{display:"flex", justifyContent:"space-between", marginBottom:12}}>
+                     <input type="text" className="magic-input" value={c.name} onChange={e => updateChar(c.id, 'name', e.target.value)} style={{background:"transparent", border:"none", padding:0, color:"#d8b4fe", fontSize:14, width:"100%"}} placeholder="Имя (напр. Рыцарь)" />
+                     <div style={{display:"flex", gap:12, alignItems:"center"}}>
+                       <label className="magic-btn-small" style={{color:"#a855f7", borderColor:"rgba(168,85,247,0.4)"}}>
+                         📸 ФОТО <input type="file" accept="image/*" hidden onChange={(e) => handleCharImageUpload(e, c.id)} />
                        </label>
-                       {chars.length > 1 && <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:14, cursor:"pointer", fontFamily:"monospace"}}>[X]</button>}
+                       {chars.length > 1 && <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:20, cursor:"pointer"}}>×</button>}
                      </div>
                    </div>
-                   <textarea rows={2} className="term-input" value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Awaiting visual parameters or manual text input..." style={{border:"none", background:"rgba(0,0,0,0.5)", color:"#94a3b8", resize:"none", marginTop:4}} />
+                   <textarea rows={2} className="magic-input" value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Внешность словами или загрузите фото для магии..." style={{border:"none", background:"rgba(0,0,0,0.3)", resize:"none"}} />
                  </div>
                ))}
              </div>
           </div>
 
           {/* BLOCK 2: ENVIRONMENT */}
-          <div className="hud-panel">
-             <div className="hud-title"><span style={{color:"var(--cyber-blue)"}}>02. ENVIRONMENT</span></div>
-             <input type="text" className="term-input" value={studioLoc} onChange={e => setStudioLoc(e.target.value)} placeholder="Location parameters (e.g. Foggy battlefield, mud, morning)..."/>
+          <div className="magic-panel">
+             <div className="magic-title"><span>02. ПРОСТРАНСТВО</span></div>
+             <input type="text" className="magic-input" value={studioLoc} onChange={e => setStudioLoc(e.target.value)} placeholder="Где всё происходит? (Напр: Туманный замок, ночь)..."/>
           </div>
 
           {/* BLOCK 3: AESTHETICS */}
-          <div className="hud-panel">
-             <div className="hud-title"><span style={{color:"var(--cyber-blue)"}}>03. AESTHETICS & RENDER</span></div>
+          <div className="magic-panel">
+             <div className="magic-title"><span>03. СТИЛЬ И ФОРМАТ</span></div>
              
-             <div style={{display:"flex", gap:6, marginBottom:16}}>
-               <button onClick={() => setPipelineMode("T2V")} className={`cyber-btn-small ${pipelineMode === "T2V" ? "active" : ""}`} style={{flex:1}}>[ MODE: T2V (DIRECT) ]</button>
-               <button onClick={() => setPipelineMode("I2V")} className={`cyber-btn-small ${pipelineMode === "I2V" ? "active" : ""}`} style={{flex:1, color:"var(--cyber-pink)", borderColor: pipelineMode==="I2V"?"var(--cyber-pink)":"rgba(255,255,255,0.1)"}}>[ MODE: I2V (STUDIO) ]</button>
+             <div style={{display:"flex", gap:10, marginBottom:20}}>
+               <button onClick={() => setPipelineMode("T2V")} className={`magic-btn-small ${pipelineMode === "T2V" ? "active" : ""}`} style={{flex:1}}>ТВОРИТЬ С НУЛЯ (T2V)</button>
+               <button onClick={() => setPipelineMode("I2V")} className={`magic-btn-small ${pipelineMode === "I2V" ? "active" : ""}`} style={{flex:1}}>ПО ЖИВЫМ ФОТО (I2V)</button>
              </div>
              
-             <span className="data-label" style={{marginBottom:4}}>VISUAL_ENGINE</span>
-             <div className="hide-scroll" style={{display:"flex", gap:6, overflowX:"auto", paddingBottom:12, marginBottom:4}}>
-                {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} className={`cyber-btn-small ${engine === eId ? "active" : ""}`} style={{flexShrink:0}}>{e.label}</button>))}
+             <span className="data-label">АТМОСФЕРА</span>
+             <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12, marginBottom:8}}>
+                {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} className={`magic-btn-small ${engine === eId ? "active" : ""}`} style={{flexShrink:0}}>{e.label}</button>))}
              </div>
              
-             <span className="data-label" style={{marginBottom:4}}>GENRE</span>
-             <div className="hide-scroll" style={{display:"flex", gap:6, overflowX:"auto", paddingBottom:12, marginBottom:4}}>
+             <span className="data-label">ЖАНР</span>
+             <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12, marginBottom:8}}>
               {Object.entries(GENRE_PRESETS).map(([g, p]) => (
-                <button key={g} onClick={() => setGenre(g)} className={`cyber-btn-small`} style={{flexShrink:0, borderColor: genre === g ? p.col : "rgba(255,255,255,0.1)", color: genre === g ? p.col : "rgba(255,255,255,0.5)", background: genre === g ? `rgba(255,255,255,0.05)` : "transparent", textShadow: genre===g ? `0 0 8px ${p.col}` : "none"}}>{p.icon} {g}</button>
+                <button key={g} onClick={() => setGenre(g)} className={`magic-btn-small`} style={{flexShrink:0, borderColor: genre === g ? p.col : "rgba(255,255,255,0.05)", color: genre === g ? p.col : "rgba(255,255,255,0.4)", background: genre === g ? `rgba(255,255,255,0.03)` : "transparent", boxShadow: genre===g ? `0 0 15px ${p.col}40` : "none"}}>{p.icon} {g}</button>
               ))}
              </div>
              
-             <div style={{display:"flex", gap:8, marginTop:8}}>
+             <div style={{display:"flex", gap:12, marginTop:12}}>
                 <div style={{flex:1}}>
-                  <span className="data-label">ASPECT_RATIO</span>
-                  <select value={vidFormat} onChange={e => setVidFormat(e.target.value)} className="term-input" style={{padding:8}}>
-                    {FORMATS.map(f => <option key={f.id} value={f.id}>{f.label} ({f.id})</option>)}
+                  <span className="data-label">ФОРМАТ</span>
+                  <select value={vidFormat} onChange={e => setVidFormat(e.target.value)} className="magic-input">
+                    {FORMATS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
                   </select>
                 </div>
                 <div style={{flex:1}}>
-                  <span className="data-label">DURATION</span>
-                  <select value={dur} onChange={e => setDur(e.target.value)} className="term-input" style={{padding:8}}>
+                  <span className="data-label">ОБЪЕМ</span>
+                  <select value={dur} onChange={e => setDur(e.target.value)} className="magic-input">
                     {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
              </div>
              
-             <div style={{marginTop:12}}>
-               <input type="text" className="term-input" value={customStyle} onChange={e => setCustomStyle(e.target.value)} placeholder="Custom Style Override (e.g. Cyberpunk, VHS)..." />
+             <div style={{marginTop:16}}>
+               <input type="text" className="magic-input" value={customStyle} onChange={e => setCustomStyle(e.target.value)} placeholder="Доп. стиль (Cyberpunk, VHS, Зерно)..." />
              </div>
           </div>
 
           {/* BLOCK 4: SCRIPT */}
-          <div className="hud-panel" style={{borderLeft:"3px solid var(--cyber-yellow)"}}>
-             <div className="hud-title"><span style={{color:"var(--cyber-yellow)"}}>04. STORY_SEQUENCE</span></div>
+          <div className="magic-panel">
+             <div className="magic-title"><span>04. ЗАКЛИНАНИЕ (СЦЕНАРИЙ)</span></div>
              
-             <div style={{display:"flex", gap:8, marginBottom:12}}>
-               <input type="text" className="term-input" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Topic (e.g. Battle of Agincourt)..." style={{flex:1, borderColor:"rgba(251,191,36,0.3)", color:"var(--cyber-yellow)"}}/>
-               <button onClick={handleDraftText} disabled={!topic.trim()} className="cyber-btn-small" style={{borderColor:"var(--cyber-yellow)", color:"var(--cyber-yellow)", padding:"0 16px"}}>[ AUTO_GEN ]</button>
+             <div style={{display:"flex", gap:10, marginBottom:16}}>
+               <input type="text" className="magic-input" value={topic} onChange={e => setTopic(e.target.value)} placeholder="О чем видео? (Напр: Перевал Дятлова)" style={{flex:1}}/>
+               <button onClick={handleDraftText} disabled={!topic.trim()} className="magic-btn-small" style={{padding:"0 20px", color:"#fbbf24", borderColor:"rgba(251,191,36,0.3)"}}>МАГИЯ ТЕКСТА</button>
              </div>
              
-             <div style={{display:"flex", gap:8, marginBottom:12}}>
-               <input type="text" className="term-input" value={finalTwist} onChange={e => setFinalTwist(e.target.value)} placeholder="Plot Twist Override..." style={{flex:1, borderColor:"rgba(251,191,36,0.3)", color:"var(--cyber-yellow)"}}/>
-               <button onClick={handleGenerateHooks} disabled={!topic.trim()} className="cyber-btn-small" style={{borderColor:"var(--cyber-yellow)", color:"var(--cyber-yellow)", padding:"0 16px"}}>[ HOOKS ]</button>
+             <div style={{display:"flex", gap:10, marginBottom:16}}>
+               <input type="text" className="magic-input" value={finalTwist} onChange={e => setFinalTwist(e.target.value)} placeholder="Тайный поворот в конце..." style={{flex:1}}/>
+               <button onClick={handleGenerateHooks} disabled={!topic.trim()} className="magic-btn-small" style={{padding:"0 20px", color:"#38bdf8", borderColor:"rgba(56,189,248,0.3)"}}>3 ХУКА</button>
              </div>
 
              {hooksList.length > 0 && (
-               <div style={{background:"rgba(251,191,36,0.05)", border:"1px dashed rgba(251,191,36,0.3)", padding:12, marginBottom:12}}>
-                 {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{padding:8, borderBottom:"1px solid rgba(251,191,36,0.1)", fontSize:12, color:"#fde68a", cursor:"pointer", fontFamily:"'JetBrains Mono', monospace"}}>&gt; {h}</div> ))}
+               <div style={{background:"rgba(56,189,248,0.05)", border:"1px dashed rgba(56,189,248,0.2)", padding:16, marginBottom:16, borderRadius:12}}>
+                 {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{padding:10, borderBottom:"1px solid rgba(56,189,248,0.1)", fontSize:13, color:"#bae6fd", cursor:"pointer"}}>&gt; {h}</div> ))}
                </div>
              )}
              
-             <textarea rows={6} className="term-input" value={script} onChange={e => setScript(e.target.value)} placeholder="Paste full narrator script here..." style={{resize:"none", marginBottom:12}}/>
+             <textarea rows={7} className="magic-input" value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте полный текст диктора..." style={{resize:"none", marginBottom:16}}/>
              
-             <div style={{display:"flex", gap:8}}>
+             <div style={{display:"flex", gap:12}}>
                <div style={{flex:2}}>
-                 <span className="data-label">VOICE_MODULE (TTS)</span>
-                 <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} className="term-input" style={{padding:8}}>
-                   <option value="Male_Deep">MALE: DEEP_BASS</option>
-                   <option value="Female_Mystic">FEMALE: MYSTIC</option>
-                   <option value="Doc_Narrator">NEUTRAL: DOCU</option>
+                 <span className="data-label">ГОЛОС ДУХА (TTS)</span>
+                 <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} className="magic-input">
+                   <option value="Male_Deep">Мужской: Глубокий Бас</option>
+                   <option value="Female_Mystic">Женский: Мистический</option>
+                   <option value="Doc_Narrator">Универсальный</option>
                  </select>
                </div>
                <div style={{flex:1}}>
-                 <span className="data-label">SPD</span>
-                 <input type="number" step="0.05" value={ttsSpeed} onChange={e => setTtsSpeed(e.target.value)} className="term-input" style={{padding:8}}/>
+                 <span className="data-label">СКОРОСТЬ</span>
+                 <input type="number" step="0.05" value={ttsSpeed} onChange={e => setTtsSpeed(e.target.value)} className="magic-input"/>
                </div>
              </div>
           </div>
 
-          {/* LIVE PREVIEW & RUN BUTTON (FIXED BOTTOM LEFT) */}
-          <div style={{position:"sticky", bottom:0, background:"var(--cyber-dark)", paddingTop:10, paddingBottom:20, zIndex:10, borderTop:"1px solid rgba(0,243,255,0.1)"}}>
-            <div style={{fontSize:10, color:"#64748b", fontFamily:"'JetBrains Mono', monospace", marginBottom:10, textAlign:"center", display:"flex", justifyContent:"space-between"}}>
-              <span>{livePrompt}</span>
+          {/* LIVE PREVIEW & RUN BUTTON */}
+          <div style={{position:"sticky", bottom:0, background:"var(--cyber-dark)", paddingTop:10, paddingBottom:20, zIndex:10, borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+            <div style={{fontSize:11, color:"#94a3b8", marginBottom:16, textAlign:"center", opacity:0.6, letterSpacing:1}}>
+              ✧ {livePrompt} ✧
             </div>
-            <button className="cyber-btn" onClick={handleStep1} disabled={!script.trim()}>
-              <span>[ INITIATE_SEQUENCE ]</span>
-              <span style={{fontSize:10, background:"rgba(0,0,0,0.5)", padding:"2px 6px", borderRadius:2}}>1 TOK</span>
+            <button className="core-btn" onClick={handleStep1} disabled={!script.trim()}>
+              <span>СОЗДАТЬ МАГИЮ ВИДЕО</span>
             </button>
           </div>
 
         </div>
 
         {/* === RIGHT PANEL: MONITOR (RESULTS) === */}
-        <div className="cyber-right hide-scroll" ref={rightPanelRef}>
+        <div className="magic-right hide-scroll" ref={rightPanelRef}>
           
           {frames.length === 0 ? (
-             <div style={{height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", opacity:0.3, fontFamily:"'JetBrains Mono', monospace", color:"var(--cyber-blue)", textAlign:"center"}}>
-                <div style={{fontSize:48, marginBottom:16}}>◬</div>
-                <div style={{fontSize:14, letterSpacing:4}}>MONITOR STANDBY</div>
-                <div style={{fontSize:10, marginTop:8}}>AWAITING DIRECTIVES FROM CONSOLE...</div>
+             <div style={{height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", opacity:0.3, color:"#a855f7", textAlign:"center"}}>
+                <div style={{fontSize:60, marginBottom:20, filter:"drop-shadow(0 0 20px #a855f7)"}}>✧</div>
+                <div style={{fontSize:16, letterSpacing:4, fontWeight:300}}>ХОЛСТ ЧИСТ</div>
+                <div style={{fontSize:12, marginTop:10, opacity:0.7}}>ЗАПОЛНИТЕ ДАННЫЕ СЛЕВА</div>
              </div>
           ) : (
             <>
               {/* TABS */}
-              <div className="cyber-tabs hide-scroll">
-                {["storyboard", "prompts", "seo", "cover"].map(t => (
-                  <button key={t} onClick={() => setTab(t)} className={`cyber-tab ${tab === t ? "active" : ""}`}>
-                    [{t}]
+              <div className="magic-tabs hide-scroll">
+                {[
+                  {id:"storyboard", label:"ИСТОРИЯ"},
+                  {id:"prompts", label:"ПРОМПТЫ"},
+                  {id:"seo", label:"ЗВУК И SEO"},
+                  {id:"cover", label:"ОБЛОЖКА"}
+                ].map(t => (
+                  <button key={t.id} onClick={() => setTab(t.id)} className={`magic-tab ${tab === t.id ? "active" : ""}`}>
+                    {t.label}
                   </button>
                 ))}
               </div>
 
               {/* TAB: STORYBOARD */}
               {tab === "storyboard" && (
-                <div>
-                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
-                    <span style={{fontFamily:"'Orbitron', sans-serif", fontSize:14, color:"#fff", letterSpacing:1}}>TIMELINE_DATA</span>
+                <div className="magic-panel" style={{padding:"30px" }}>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24}}>
+                    <span style={{fontSize:16, fontWeight:800, letterSpacing:2}}>РАСКАДРОВКА</span>
                     {!step2Done && (
-                      <button onClick={handleStep2} className="cyber-btn cyber-btn-pink" style={{padding:"8px 16px", fontSize:12, width:"auto"}}>
-                        [ COMPILE_PROMPTS ]
+                      <button onClick={handleStep2} className="core-btn" style={{padding:"12px 24px", fontSize:11, width:"auto", background:"linear-gradient(135deg, rgba(236,72,153,0.2), rgba(168,85,247,0.2))"}}>
+                        СИНТЕЗИРОВАТЬ ПРОМПТЫ
                       </button>
                     )}
                   </div>
 
                   {frames.map((f, i) => (
-                    <div key={i} className="data-block">
-                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:12, borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:8}}>
-                        <span style={{color:"#ef4444", fontWeight:700, fontFamily:"'Orbitron', sans-serif"}}>FRAME_{String(i+1).padStart(2,"0")}</span>
-                        <span style={{color:"#64748b"}}>TC: {f.timecode}</span>
+                    <div key={i} className="data-block" style={{background:"rgba(0,0,0,0.2)", border:"1px solid rgba(255,255,255,0.05)"}}>
+                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:16, borderBottom:"1px solid rgba(255,255,255,0.05)", paddingBottom:12}}>
+                        <span style={{color:"#f472b6", fontWeight:800, letterSpacing:1}}>СЦЕНА {String(i+1).padStart(2,"0")}</span>
+                        <span style={{color:"#64748b", fontSize:12}}>{f.timecode}</span>
                       </div>
-                      <span className="data-label">VISUAL_FEED</span>
-                      <div style={{color:"#f8fafc", marginBottom:12}}>{f.visual}</div>
+                      <span className="data-label">ВИДЕНИЕ</span>
+                      <div style={{color:"#f8fafc", marginBottom:16, fontSize:15}}>{f.visual}</div>
                       
-                      <span className="data-label">AUDIO_FEED</span>
-                      <div style={{color:"var(--cyber-pink)", fontStyle:"italic", marginBottom:12}}>«{f.voice}»</div>
+                      <span className="data-label">СЛОВА</span>
+                      <div style={{color:"#d8b4fe", fontStyle:"italic", marginBottom:16, fontSize:15}}>«{f.voice}»</div>
                       
                       {(f.sfx || f.text_on_screen) && (
-                        <div style={{display:"flex", gap:10, marginBottom: step2Done ? 12 : 0}}>
-                          {f.sfx && <div style={{background:"rgba(251,191,36,0.1)", color:"#fbbf24", padding:"4px 8px", borderRadius:2, fontSize:11}}>[SFX] {f.sfx}</div>}
-                          {f.text_on_screen && <div style={{background:"rgba(0,243,255,0.1)", color:"var(--cyber-blue)", padding:"4px 8px", borderRadius:2, fontSize:11}}>[TXT] {f.text_on_screen}</div>}
+                        <div style={{display:"flex", gap:12, marginBottom: step2Done ? 16 : 0}}>
+                          {f.sfx && <div style={{background:"rgba(251,191,36,0.1)", color:"#fbbf24", padding:"6px 12px", borderRadius:6, fontSize:12}}>SFX: {f.sfx}</div>}
+                          {f.text_on_screen && <div style={{background:"rgba(14,165,233,0.1)", color:"#38bdf8", padding:"6px 12px", borderRadius:6, fontSize:12}}>ТИТР: {f.text_on_screen}</div>}
                         </div>
                       )}
                       
                       {step2Done && f.vidPrompt_EN && (
-                        <div style={{background:"rgba(0,0,0,0.6)", border:"1px dashed var(--cyber-blue)", padding:12, marginTop:12}}>
-                          <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
-                            <span className="data-label" style={{margin:0}}>COMPILED_VIDEO_PROMPT</span>
+                        <div style={{background:"rgba(0,0,0,0.4)", padding:16, marginTop:16, borderRadius:12}}>
+                          <div style={{display:"flex", justifyContent:"space-between", marginBottom:12}}>
+                            <span className="data-label" style={{margin:0, color:"#a855f7"}}>ВИДЕО-ЗАКЛИНАНИЕ</span>
                             <CopyBtn text={f.vidPrompt_EN} />
                           </div>
-                          <div style={{color:"#bae6fd"}}>{f.vidPrompt_EN}</div>
+                          <div style={{color:"#e9d5ff", fontSize:13, lineHeight:1.5}}>{f.vidPrompt_EN}</div>
                         </div>
                       )}
                     </div>
                   ))}
                   
                   {step2Done && bRolls.length > 0 && (
-                    <div className="data-block" style={{borderColor:"var(--cyber-yellow)"}}>
-                      <span className="data-label" style={{color:"var(--cyber-yellow)"}}>B_ROLL_INJECTS</span>
-                      {bRolls.map((b, i) => <div key={i} style={{color:"#fde68a", marginBottom:8, paddingBottom:8, borderBottom:"1px solid rgba(251,191,36,0.1)"}}>&gt; {b}</div>)}
+                    <div className="data-block" style={{borderColor:"rgba(251,191,36,0.3)"}}>
+                      <span className="data-label" style={{color:"#fbbf24"}}>МИКРО-ВСТАВКИ (B-ROLLS)</span>
+                      {bRolls.map((b, i) => <div key={i} style={{color:"#fde68a", marginBottom:10, paddingBottom:10, borderBottom:"1px solid rgba(251,191,36,0.1)"}}>✧ {b}</div>)}
                     </div>
                   )}
                 </div>
@@ -930,26 +919,26 @@ function DirectorDashboard() {
 
               {/* TAB: PROMPTS (RAW) */}
               {tab === "prompts" && (
-                <div>
-                  <div className="data-block" style={{borderColor:"#fff"}}>
-                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"#fff", fontFamily:"'Orbitron', sans-serif"}}>RAW_SCRIPT_DATA</span><CopyBtn text={rawScript}/></div>
-                     <pre style={{whiteSpace:"pre-wrap"}}>{rawScript}</pre>
+                <div className="magic-panel">
+                  <div className="data-block" style={{background:"rgba(0,0,0,0.2)"}}>
+                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}><span style={{fontWeight:800, color:"#fff", letterSpacing:1}}>ПОЛНЫЙ СЦЕНАРИЙ</span><CopyBtn text={rawScript}/></div>
+                     <pre style={{whiteSpace:"pre-wrap", fontFamily:"inherit", fontSize:13}}>{rawScript}</pre>
                   </div>
                   
                   {step2Done ? (
                     <>
-                      <div className="data-block" style={{borderColor:"var(--cyber-green)"}}>
-                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"var(--cyber-green)", fontFamily:"'Orbitron', sans-serif"}}>IMAGE_PROMPTS (STUDIO)</span><CopyBtn text={rawImg}/></div>
-                         <pre style={{whiteSpace:"pre-wrap", color:"#86efac"}}>{rawImg}</pre>
+                      <div className="data-block" style={{background:"rgba(34,197,94,0.05)", borderColor:"rgba(34,197,94,0.2)"}}>
+                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}><span style={{fontWeight:800, color:"#4ade80", letterSpacing:1}}>ФОТО-ПРОМПТЫ</span><CopyBtn text={rawImg}/></div>
+                         <pre style={{whiteSpace:"pre-wrap", color:"#bbf7d0", fontFamily:"inherit", fontSize:13}}>{rawImg}</pre>
                       </div>
-                      <div className="data-block" style={{borderColor:"var(--cyber-blue)"}}>
-                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"var(--cyber-blue)", fontFamily:"'Orbitron', sans-serif"}}>BATCH_VIDEO_PROMPTS</span><CopyBtn text={rawVid}/></div>
-                         <pre style={{whiteSpace:"pre-wrap", color:"#bae6fd"}}>{rawVid}</pre>
+                      <div className="data-block" style={{background:"rgba(168,85,247,0.05)", borderColor:"rgba(168,85,247,0.2)"}}>
+                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}><span style={{fontWeight:800, color:"#d8b4fe", letterSpacing:1}}>ВИДЕО-ПРОМПТЫ</span><CopyBtn text={rawVid}/></div>
+                         <pre style={{whiteSpace:"pre-wrap", color:"#e9d5ff", fontFamily:"inherit", fontSize:13}}>{rawVid}</pre>
                       </div>
                     </>
                   ) : (
-                    <div style={{padding:20, textAlign:"center", border:"1px dashed rgba(255,255,255,0.2)", color:"#64748b", fontFamily:"'JetBrains Mono', monospace", fontSize:12}}>
-                      PROMPTS NOT COMPILED YET.<br/>EXECUTE STEP 2 FROM TIMELINE.
+                    <div style={{padding:40, textAlign:"center", color:"#64748b", fontSize:13}}>
+                      Промпты еще не созданы.<br/>Запустите синтез во вкладке "История".
                     </div>
                   )}
                 </div>
@@ -957,27 +946,27 @@ function DirectorDashboard() {
 
               {/* TAB: SEO & AUDIO */}
               {tab === "seo" && (
-                <div>
-                  <div className="data-block" style={{borderColor:"#fbbf24"}}>
-                     <span className="data-label" style={{color:"#fbbf24"}}>SUNO_AUDIO_PROMPT</span>
-                     <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start"}}>
-                       <div style={{color:"#fde68a", paddingRight:20}}>{music || "No audio data generated."}</div>
+                <div className="magic-panel">
+                  <div className="data-block" style={{background:"rgba(251,191,36,0.05)", borderColor:"rgba(251,191,36,0.2)"}}>
+                     <span className="data-label" style={{color:"#fbbf24"}}>МУЗЫКА ДЛЯ SUNO AI</span>
+                     <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginTop:12}}>
+                       <div style={{color:"#fde68a", paddingRight:20, fontSize:15}}>{music || "Музыка не найдена."}</div>
                        <CopyBtn text={music} />
                      </div>
                   </div>
 
-                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, marginTop:24}}>
-                    <span style={{fontFamily:"'Orbitron', sans-serif", fontSize:14, color:"#fff", letterSpacing:1}}>SEO_MATRIX</span>
-                    <button onClick={handleAddSEOVariant} disabled={generatingSEO} className="cyber-btn-small active">[ GEN_VARIANT ]</button>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, marginTop:30}}>
+                    <span style={{fontSize:16, fontWeight:800, color:"#fff", letterSpacing:1}}>МАТРИЦА SEO</span>
+                    <button onClick={handleAddSEOVariant} disabled={generatingSEO} className="magic-btn-small active">СОЗДАТЬ ЕЩЕ</button>
                   </div>
                   
                   {seoVariants.map((seo, i) => (
-                    <div key={i} className="data-block" style={{borderColor: i%2===0 ? "var(--cyber-pink)" : "var(--cyber-green)"}}>
-                       <span className="data-label" style={{color: i%2===0 ? "var(--cyber-pink)" : "var(--cyber-green)"}}>VARIANT_0{i+1}</span>
-                       <div style={{color:"#fff", fontWeight:700, marginBottom:8}}>{seo.title}</div>
-                       <div style={{color:"#cbd5e1", marginBottom:12}}>{seo.desc}</div>
-                       <div style={{color: i%2===0 ? "var(--cyber-pink)" : "var(--cyber-green)", marginBottom:16}}>{seo.tags?.join(" ")}</div>
-                       <CopyBtn text={`${seo.title}\n\n${seo.desc}\n\n${seo.tags?.join(" ")}`} label="[ COPY BUNDLE ]" fullWidth />
+                    <div key={i} className="data-block" style={{background:"rgba(0,0,0,0.2)", borderColor: i%2===0 ? "rgba(236,72,153,0.3)" : "rgba(14,165,233,0.3)"}}>
+                       <span className="data-label" style={{color: i%2===0 ? "#f472b6" : "#38bdf8"}}>ВАРИАНТ 0{i+1}</span>
+                       <div style={{color:"#fff", fontWeight:800, fontSize:16, marginBottom:12}}>{seo.title}</div>
+                       <div style={{color:"#cbd5e1", marginBottom:16, fontSize:14}}>{seo.desc}</div>
+                       <div style={{color: i%2===0 ? "#f472b6" : "#38bdf8", marginBottom:20, fontSize:13}}>{seo.tags?.join(" ")}</div>
+                       <CopyBtn text={`${seo.title}\n\n${seo.desc}\n\n${seo.tags?.join(" ")}`} label="СКОПИРОВАТЬ ВАРИАНТ" fullWidth />
                     </div>
                   ))}
                 </div>
@@ -985,34 +974,35 @@ function DirectorDashboard() {
 
               {/* TAB: COVER STUDIO */}
               {tab === "cover" && (
-                <div>
-                  {step2Done && thumb?.prompt_EN && (
-                    <div className="data-block" style={{borderColor:"var(--cyber-pink)"}}>
-                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
-                        <span className="data-label" style={{color:"var(--cyber-pink)", margin:0}}>COVER_BG_PROMPT</span>
-                        <CopyBtn text={thumb.prompt_EN} />
-                      </div>
-                      <div style={{color:"#fbcfe8"}}>{thumb.prompt_EN}</div>
-                    </div>
-                  )}
+                <div className="magic-panel" style={{padding:0, overflow:"hidden"}}>
+                  
+                  <div style={{padding:"24px", background:"rgba(0,0,0,0.2)", borderBottom:"1px solid rgba(255,255,255,0.05)", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                     <span style={{fontSize:16, fontWeight:800, letterSpacing:1}}>СТУДИЯ ОБЛОЖЕК</span>
+                     <button onClick={loadCustomPreset} className="magic-btn-small active">МОЙ СТИЛЬ</button>
+                  </div>
 
-                  <div className="hud-panel">
-                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
-                      <span className="hud-title" style={{margin:0}}>VISUAL_COMPOSER</span>
-                      <button onClick={loadCustomPreset} className="cyber-btn-small active">[ MY_STYLE ]</button>
-                    </div>
+                  <div style={{padding:"24px"}}>
+                    {step2Done && thumb?.prompt_EN && (
+                      <div className="data-block" style={{background:"rgba(236,72,153,0.05)", borderColor:"rgba(236,72,153,0.3)"}}>
+                        <div style={{display:"flex", justifyContent:"space-between", marginBottom:12}}>
+                          <span className="data-label" style={{color:"#f472b6", margin:0}}>ПРОМПТ ДЛЯ ФОНА ОБЛОЖКИ</span>
+                          <CopyBtn text={thumb.prompt_EN} />
+                        </div>
+                        <div style={{color:"#fbcfe8", fontSize:13}}>{thumb.prompt_EN}</div>
+                      </div>
+                    )}
                     
-                    <div className="hide-scroll" style={{display:"flex", gap:6, overflowX:"auto", paddingBottom:16, marginBottom:10}}>
+                    <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:16, marginBottom:16}}>
                       {COVER_PRESETS.map(p => (
-                        <button key={p.id} onClick={() => applyPreset(p.id)} className={`cyber-btn-small ${activePreset === p.id ? "active" : ""}`} style={{flexShrink:0}}>
+                        <button key={p.id} onClick={() => applyPreset(p.id)} className={`magic-btn-small ${activePreset === p.id ? "active" : ""}`} style={{flexShrink:0}}>
                           {p.label}
                         </button>
                       ))}
                     </div>
 
                     {/* ХОЛСТ РЕНДЕРА */}
-                    <div style={{display:"flex", justifyContent:"center", marginBottom:20}}>
-                      <div id="thumbnail-export" style={{width:320, aspectRatio:currFormat.ratio, position:"relative", background: bgImage ? `url(${bgImage}) center/cover no-repeat` : "#111", overflow:"hidden", borderRadius: 4, border:"1px solid rgba(255,255,255,0.1)"}}>
+                    <div style={{display:"flex", justifyContent:"center", marginBottom:24}}>
+                      <div id="thumbnail-export" style={{width:340, aspectRatio:currFormat.ratio, position:"relative", background: bgImage ? `url(${bgImage}) center/cover no-repeat` : "#111", overflow:"hidden", borderRadius: 12, border:"1px solid rgba(255,255,255,0.1)", boxShadow:"0 10px 30px rgba(0,0,0,0.5)"}}>
                         <div style={{position:"absolute", inset:0, background:`linear-gradient(to top, rgba(0,0,0,${covDark/100}) 0%, rgba(0,0,0,${covDark/200}) 50%, transparent 100%)`, zIndex:1}} />
                         {logoImage && <img src={logoImage} style={{position:"absolute", left:`${logoX}%`, top:`${logoY}%`, transform:"translate(-50%,-50%)", width:`${logoSize}%`, zIndex:3, pointerEvents:"none"}} alt="Logo" />}
 
@@ -1031,73 +1021,73 @@ function DirectorDashboard() {
                       </div>
                     </div>
                     
-                    <div style={{display:"flex", justifyContent:"center", marginBottom:24}}>
-                       <label style={{display:"flex", alignItems:"center", gap:8, fontSize:11, color:"#94a3b8", cursor:"pointer", fontFamily:"'JetBrains Mono', monospace"}}>
-                         <input type="checkbox" checked={showSafeZone} onChange={e => setShowSafeZone(e.target.checked)} /> SHOW_SAFE_ZONES
+                    <div style={{display:"flex", justifyContent:"center", marginBottom:30}}>
+                       <label style={{display:"flex", alignItems:"center", gap:8, fontSize:12, color:"#94a3b8", cursor:"pointer"}}>
+                         <input type="checkbox" checked={showSafeZone} onChange={e => setShowSafeZone(e.target.checked)} /> Показать Сейф-зоны
                        </label>
                     </div>
 
                     {/* НАСТРОЙКИ ТЕКСТА */}
-                    <div style={{background:"rgba(0,0,0,0.5)", border:"1px solid rgba(0,243,255,0.1)", padding:16, marginBottom:20}}>
-                       <span className="data-label">TEXT_MODULE</span>
-                       <div style={{display:"flex", flexDirection:"column", gap:12, marginBottom:16}}>
+                    <div style={{background:"rgba(0,0,0,0.2)", borderRadius:16, padding:20, marginBottom:20}}>
+                       <span className="data-label">ТЕКСТ И РАЗМЕРЫ</span>
+                       <div style={{display:"flex", flexDirection:"column", gap:16, marginBottom:20, marginTop:16}}>
                          <div>
-                           <input type="text" className="term-input" value={covHook} onChange={e => setCovHook(e.target.value)} placeholder="Hook Text" style={{marginBottom:4}} />
-                           <div style={{display:"flex", alignItems:"center", gap:10}}><span style={{fontSize:10, color:"#94a3b8", width:30, fontFamily:"monospace"}}>SIZE</span><input type="range" min="8" max="40" value={sizeHook} onChange={e => setSizeHook(e.target.value)} style={{flex:1}}/></div>
+                           <input type="text" className="magic-input" value={covHook} onChange={e => setCovHook(e.target.value)} placeholder="Верхний текст" style={{marginBottom:8}} />
+                           <div style={{display:"flex", alignItems:"center", gap:12}}><span style={{fontSize:10, color:"#94a3b8", width:30}}>РАЗМЕР</span><input type="range" min="8" max="40" value={sizeHook} onChange={e => setSizeHook(e.target.value)} style={{flex:1}}/></div>
                          </div>
                          <div>
-                           <input type="text" className="term-input" value={covTitle} onChange={e => setCovTitle(e.target.value)} placeholder="Main Title" style={{marginBottom:4, borderColor:"var(--cyber-blue)"}} />
-                           <div style={{display:"flex", alignItems:"center", gap:10}}><span style={{fontSize:10, color:"#94a3b8", width:30, fontFamily:"monospace"}}>SIZE</span><input type="range" min="16" max="80" value={sizeTitle} onChange={e => setSizeTitle(e.target.value)} style={{flex:1}}/></div>
+                           <input type="text" className="magic-input" value={covTitle} onChange={e => setCovTitle(e.target.value)} placeholder="Заголовок" style={{marginBottom:8, borderColor:"rgba(168,85,247,0.5)"}} />
+                           <div style={{display:"flex", alignItems:"center", gap:12}}><span style={{fontSize:10, color:"#94a3b8", width:30}}>РАЗМЕР</span><input type="range" min="16" max="80" value={sizeTitle} onChange={e => setSizeTitle(e.target.value)} style={{flex:1}}/></div>
                          </div>
                          <div>
-                           <input type="text" className="term-input" value={covCta} onChange={e => setCovCta(e.target.value)} placeholder="CTA Text" style={{marginBottom:4}} />
-                           <div style={{display:"flex", alignItems:"center", gap:10}}><span style={{fontSize:10, color:"#94a3b8", width:30, fontFamily:"monospace"}}>SIZE</span><input type="range" min="8" max="30" value={sizeCta} onChange={e => setSizeCta(e.target.value)} style={{flex:1}}/></div>
+                           <input type="text" className="magic-input" value={covCta} onChange={e => setCovCta(e.target.value)} placeholder="Нижний текст" style={{marginBottom:8}} />
+                           <div style={{display:"flex", alignItems:"center", gap:12}}><span style={{fontSize:10, color:"#94a3b8", width:30}}>РАЗМЕР</span><input type="range" min="8" max="30" value={sizeCta} onChange={e => setSizeCta(e.target.value)} style={{flex:1}}/></div>
                          </div>
                        </div>
                        
-                       <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16}}>
-                         <div><span className="data-label">POS_X</span><input type="range" min="0" max="100" value={covX} onChange={e => setCovX(e.target.value)}/></div>
-                         <div><span className="data-label">POS_Y</span><input type="range" min="0" max="100" value={covY} onChange={e => setCovY(e.target.value)}/></div>
+                       <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:20}}>
+                         <div><span className="data-label">ПОЗИЦИЯ X</span><input type="range" min="0" max="100" value={covX} onChange={e => setCovX(e.target.value)}/></div>
+                         <div><span className="data-label">ПОЗИЦИЯ Y</span><input type="range" min="0" max="100" value={covY} onChange={e => setCovY(e.target.value)}/></div>
                        </div>
 
-                       <span className="data-label">TYPOGRAPHY</span>
-                       <div style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:8, marginBottom:12}} className="hide-scroll">
-                         {FONTS.map(f => ( <button key={f.id} onClick={() => setCovFont(f.id)} className={`cyber-btn-small ${covFont === f.id ? "active" : ""}`} style={{fontFamily:f.id}}>{f.label}</button> ))}
+                       <span className="data-label">ШРИФТЫ</span>
+                       <div style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12, marginBottom:16}} className="hide-scroll">
+                         {FONTS.map(f => ( <button key={f.id} onClick={() => setCovFont(f.id)} className={`magic-btn-small ${covFont === f.id ? "active" : ""}`} style={{fontFamily:f.id}}>{f.label}</button> ))}
                        </div>
                        
-                       <span className="data-label">COLOR_MATRIX</span>
-                       <div className="hide-scroll" style={{display:"flex", gap:10, alignItems:"center", overflowX:"auto", paddingBottom:16}}>
-                         {COLORS.map(c => ( <div key={c} onClick={() => setCovColor(c)} style={{flexShrink:0, width:24, height:24, borderRadius:"50%", background:c, cursor:"pointer", border: covColor === c ? "2px solid var(--cyber-blue)" : "1px solid rgba(255,255,255,0.2)", boxShadow: covColor === c ? `0 0 10px ${c}` : "none"}}/> ))}
-                         <input type="color" value={covColor} onChange={e => setCovColor(e.target.value)} style={{flexShrink:0, width:24, height:24, padding:0, border:"none", borderRadius:"50%", cursor:"pointer", background:"none"}}/>
+                       <span className="data-label">ПАЛИТРА</span>
+                       <div className="hide-scroll" style={{display:"flex", gap:12, alignItems:"center", overflowX:"auto", paddingBottom:20}}>
+                         {COLORS.map(c => ( <div key={c} onClick={() => setCovColor(c)} style={{flexShrink:0, width:28, height:28, borderRadius:"50%", background:c, cursor:"pointer", border: covColor === c ? "2px solid #a855f7" : "1px solid rgba(255,255,255,0.1)", boxShadow: covColor === c ? `0 0 15px ${c}` : "none"}}/> ))}
+                         <input type="color" value={covColor} onChange={e => setCovColor(e.target.value)} style={{flexShrink:0, width:28, height:28, padding:0, border:"none", borderRadius:"50%", cursor:"pointer", background:"none"}}/>
                        </div>
 
-                       <span className="data-label">BG_DARKEN</span>
-                       <input type="range" min="0" max="100" value={covDark} onChange={e => setCovDark(e.target.value)} style={{marginBottom:16}}/>
+                       <span className="data-label">ЗАТЕМНЕНИЕ ФОНА</span>
+                       <input type="range" min="0" max="100" value={covDark} onChange={e => setCovDark(e.target.value)} style={{marginBottom:20}}/>
                        
-                       <button onClick={saveCustomPreset} className="cyber-btn-small" style={{width:"100%"}}>[ SAVE_STYLE_PRESET ]</button>
+                       <button onClick={saveCustomPreset} className="magic-btn-small" style={{width:"100%", padding:12}}>СОХРАНИТЬ МОЙ СТИЛЬ</button>
                     </div>
                     
                     {/* НАСТРОЙКИ ЛОГОТИПА */}
-                    <div style={{background:"rgba(0,0,0,0.5)", border:"1px solid rgba(0,255,102,0.1)", padding:16, marginBottom:20}}>
-                       <span className="data-label" style={{color:"var(--cyber-green)"}}>LOGO_MODULE</span>
+                    <div style={{background:"rgba(34,197,94,0.05)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:16, padding:20, marginBottom:24}}>
+                       <span className="data-label" style={{color:"#4ade80"}}>ЛОГОТИП</span>
                        {logoImage ? (
-                         <>
-                           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:10}}>
-                             <div><span className="data-label" style={{color:"#86efac"}}>POS_X</span><input type="range" min="0" max="100" value={logoX} onChange={e => setLogoX(e.target.value)}/></div>
-                             <div><span className="data-label" style={{color:"#86efac"}}>POS_Y</span><input type="range" min="0" max="100" value={logoY} onChange={e => setLogoY(e.target.value)}/></div>
+                         <div style={{marginTop:16}}>
+                           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:16}}>
+                             <div><span className="data-label" style={{color:"#bbf7d0"}}>ПОЗИЦИЯ X</span><input type="range" min="0" max="100" value={logoX} onChange={e => setLogoX(e.target.value)}/></div>
+                             <div><span className="data-label" style={{color:"#bbf7d0"}}>ПОЗИЦИЯ Y</span><input type="range" min="0" max="100" value={logoY} onChange={e => setLogoY(e.target.value)}/></div>
                            </div>
-                           <div><span className="data-label" style={{color:"#86efac"}}>SCALE</span><input type="range" min="5" max="100" value={logoSize} onChange={e => setLogoSize(e.target.value)}/></div>
-                         </>
+                           <div><span className="data-label" style={{color:"#bbf7d0"}}>РАЗМЕР</span><input type="range" min="5" max="100" value={logoSize} onChange={e => setLogoSize(e.target.value)}/></div>
+                         </div>
                        ) : (
-                         <div style={{fontSize:11, color:"#64748b", fontFamily:"monospace"}}>NO LOGO DETECTED</div>
+                         <div style={{fontSize:12, color:"#94a3b8", marginTop:8}}>Логотип не загружен</div>
                        )}
                     </div>
 
                     {/* ЭКСПОРТ И ЗАГРУЗКА */}
-                    <div style={{display:"flex", gap:8}}>
-                      <label className="cyber-btn-small" style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:12}}>[ BG_IMAGE ]<input type="file" hidden onChange={handleImageUpload}/></label>
-                      <label className="cyber-btn-small" style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:12}}>[ LOGO_PNG ]<input type="file" accept="image/png" hidden onChange={handleLogoUpload}/></label>
-                      <button onClick={downloadThumbnail} disabled={downloading} className="cyber-btn" style={{flex:2, padding:12}}>{downloading ? "RENDERING..." : "[ EXPORT_COVER ]"}</button>
+                    <div style={{display:"flex", gap:10}}>
+                      <label className="magic-btn-small" style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:14, fontSize:12}}>ЗАГРУЗИТЬ ФОН<input type="file" hidden onChange={handleImageUpload}/></label>
+                      <label className="magic-btn-small" style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:14, fontSize:12}}>ЗАГРУЗИТЬ ЛОГО<input type="file" accept="image/png" hidden onChange={handleLogoUpload}/></label>
+                      <button onClick={downloadThumbnail} disabled={downloading} className="core-btn" style={{flex:2, padding:14, fontSize:12, borderRadius:12}}>{downloading ? "РЕНДЕР..." : "СКАЧАТЬ ОБЛОЖКУ"}</button>
                     </div>
                   </div>
                 </div>
@@ -1105,9 +1095,9 @@ function DirectorDashboard() {
 
               {/* БЛОК PDF (ПОЯВЛЯЕТСЯ ВНИЗУ ПОСЛЕ ГЕНЕРАЦИИ) */}
               {step2Done && (
-                 <div style={{marginTop:20, borderTop:"1px solid rgba(0,243,255,0.2)", paddingTop:20}}>
-                   <button onClick={downloadPDF} disabled={pdfDownloading} className="cyber-btn cyber-btn-pink">
-                     {pdfDownloading ? "GENERATING PDF..." : "[ EXPORT_PRODUCER_PDF_BRIEF ]"}
+                 <div style={{marginTop:30, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:30}}>
+                   <button onClick={downloadPDF} disabled={pdfDownloading} className="core-btn" style={{background:"linear-gradient(135deg, rgba(236,72,153,0.3), rgba(168,85,247,0.3))"}}>
+                     {pdfDownloading ? "СОЗДАНИЕ PDF..." : "СКАЧАТЬ PDF БРИФ"}
                    </button>
                  </div>
               )}
@@ -1125,7 +1115,6 @@ export default function SecureWrapper() {
   const [keyBuffer, setKeyBuffer] = useState("");
 
   useEffect(() => {
-    // Проверяем, не разблокировали ли мы уже пульт в этой сессии
     if (typeof window !== "undefined" && sessionStorage.getItem("ds_unlocked") === "true") {
       setUnlocked(true);
       return;
@@ -1148,12 +1137,12 @@ export default function SecureWrapper() {
 
   if (!unlocked) {
     return (
-      <div style={{background:"#000", height:"100vh", width:"100vw", display:"flex", alignItems:"center", justifyContent:"center", color:"#111", fontFamily:"monospace", fontSize:14}}>
+      <div style={{background:"#05050A", height:"100vh", width:"100vw", display:"flex", alignItems:"center", justifyContent:"center", color:"#111", fontFamily:"monospace", fontSize:14}}>
         <div style={{animation:"blink 1s step-end infinite"}}>_</div>
         <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
       </div>
     );
   }
 
-  return <Page />;
+  return <DirectorDashboard />;
 }
