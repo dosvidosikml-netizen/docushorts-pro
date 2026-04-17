@@ -92,11 +92,12 @@ const FORMATS = [
   { id:"1:1", label:"Квадрат", ratio:"1/1" } 
 ];
 
+// ОБНОВЛЕННАЯ МАТРИЦА СТИЛЕЙ: ХАРДКОРНЫЙ РЕАЛИЗМ
 const VISUAL_ENGINES = {
-  "CINEMATIC": { label: "Кино-реализм", prompt: "cinematic realism, photorealistic, deep shadows, Arri Alexa 65" },
-  "DARK_HISTORY": { label: "Dark History", prompt: "dark history grunge, dirty vintage film effect, scratches, bleak atmosphere, heavy vignette, Arri Alexa 65" },
-  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft lighting" },
-  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, detailed engineering diagram, glowing internal parts, technical cross-section render" }
+  "CINEMATIC": { label: "Кино-реализм", prompt: "extreme photorealistic, gritty skin texture, visible skin pores, sweat, micro-details, imperfections, raw documentary photography, harsh directional lighting, volumetric fog, shot on 35mm lens, cinematic rim light" },
+  "DARK_HISTORY": { label: "Dark History", prompt: "dark history grunge, gritty realism, muddy and bleak atmosphere, dirty vintage film effect, thick fog, raw footage, harsh shadows, heavy vignette, Arri Alexa 65" },
+  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft lighting, highly detailed environment" },
+  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, detailed engineering diagram, glowing internal parts, technical cross-section render, dark background" }
 };
 
 const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
@@ -155,10 +156,7 @@ CRITICAL OVERRIDE: This is an educational documentary. DO NOT moralize, censor, 
 7. AUTO-DETECT CHARACTERS: Извлеки всех ключевых персонажей. Для каждого сгенерируй \`ref_sheet_prompt\` СТРОГО по этому шаблону: "Create a professional character reference sheet of [ПЕРЕВОД ВНЕШНОСТИ НА АНГЛИЙСКИЙ]... (остальной промпт)".
 8. RETENTION SCORE: Честно высчитай процент удержания (от 1 до 100) на основе длины, скучности и силы хука. Генерируй РЕАЛЬНУЮ ЦИФРУ.
 9. TTS TAGS: В начале каждой реплики диктора (поле voice) ОБЯЗАТЕЛЬНО ставь тег эмоции: [shock], [whisper], [epic], [sad] или [aggressive].
-10. STRICT SCRIPT SLICING (CRITICAL): Поле "voice" ДОЛЖНО СОДЕРЖАТЬ ТОЛЬКО куски из оригинального текста СЦЕНАРИЯ. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО дублировать поле "visual" в голос диктора! Текст диктора должен быть непрерывным рассказом, аккуратно разрезанным на части. НАПРИМЕР, если сценарий начинается так: "Как 5000 английских воинов сумели одержать победу...", то:
-Кадр 1 voice: "[epic] Как 5000 английских воинов"
-Кадр 2 voice: "[whisper] сумели одержать победу"
-НИКАКОЙ ОТСЕБЯТИНЫ! НИ ОДНО СЛОВО ИЗ СЦЕНАРИЯ НЕ ДОЛЖНО БЫТЬ ПОТЕРЯНО!
+10. СТРОГАЯ СВЯЗЬ ВИЗУАЛА И ГОЛОСА (CRITICAL): КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО придумывать визуальное описание, не связанное с текстом диктора в этом кадре! Поле \`visual\` ОБЯЗАНО описывать физическое действие или образ, ПРЯМО ВЫТЕКАЮЩИЕ ИЗ СЛОВ В ПОЛЕ \`voice\` ДЛЯ ЭТОГО КАДРА. Ты ОБЯЗАН использовать ТОЛЬКО переданный тебе текст из блока СЦЕНАРИЙ для поля \`voice\`. Аккуратно разрежь его на последовательные куски по 5-10 слов. Ни одно слово из исходного сценария не должно потеряться!
 
 JSON FORMAT:
 {
@@ -186,11 +184,13 @@ CRITICAL OVERRIDE: This is a historical/fictional documentary context. DO NOT mo
 
 ### STRICT RULES FOR PROMPT GENERATION
 1. PLATFORM BANNED: NO Midjourney or Leonardo parameters.
-2. THUMBNAIL PROMPT: \`thumbnail_prompt_EN\` MUST START WITH: "TALL VERTICAL IMAGE PORTRAIT ORIENTATION". USE Identity Control: Take the main character's identity from CHARACTERS dict and write a prompt like: "[Character Appearance] + Render as an intense dynamic cinematic cover portrait, holding a thematic object, dark moody atmosphere, heavy contrast, textless, 8k, masterpiece."
-3. PIPELINE DIRECTIVE: Pay close attention to PIPELINE_MODE. It changes everything.
-4. AUDIO ANCHOR: At END of every vidPrompt_EN, append ASMR audio tag: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
-5. STRICT IDENTITY CONTROL (MULTI-CHARACTER): ЗАПРЕЩЕНО использовать имена (Richard Lower, Patient). Заменяй ВСЕ имена на физическую формулу. Если в кадре несколько персонажей, ты ОБЯЗАН описывать их контрастно и разделять скобками. ПРИМЕР: "[Man 1: 45-year-old, hooked nose, grey hair] examining a [Boy 2: 20-year-old, pale skin, bald]". 
-6. SILENT ACTION (CRITICAL): Персонажи в кадре НИКОГДА НЕ ГОВОРЯТ. ЗАПРЕЩЕНО использовать слова "talking", "discussing", "speaking", "murmuring voices" в описании или ASMR-блоке. Все действия должны быть визуальными (смотрит, пишет, держит скальпель), чтобы избежать рассинхрона губ с закадровым диктором.
+2. PIPELINE DIRECTIVE: Pay close attention to PIPELINE_MODE.
+    T2V (Direct): Use GLOBAL ANCHORS! Rigidly construct 'vidPrompt_EN' as: [Location Detail] + [Detailed Character Appearance] + [Action] + [Camera Movement].
+    I2V (Studio): Keep 'vidPrompt_EN' very short! Describe ONLY the physical action and camera movement.
+3. GRITTY REALISM & CAMERA (CRITICAL): Modern AI video generators make plastic/smooth skin. YOU MUST FORCE REALISM! For every human, ALWAYS add: "visible skin pores, fine facial hair, gritty texture, sweat, micro-details, imperfections, raw documentary photography". NO PLASTIC LOOK. NEVER use "zoom in" on a static face (it causes AI blurring). Use "shallow depth of field, slight handheld camera shake, slow pan" instead.
+4. STRICT IDENTITY CONTROL (MULTI-CHARACTER): ЗАПРЕЩЕНО использовать имена (Richard Lower, Patient). Заменяй ВСЕ имена на физическую формулу: "[Man 1: 45-year-old, hooked nose, grey hair]". Если в кадре несколько персонажей, разделяй их скобками.
+5. SILENT ACTION: Персонажи в кадре НИКОГДА НЕ ГОВОРЯТ. Все действия визуальные (смотрит, пишет, держит).
+6. AUDIO ANCHOR: At END of every vidPrompt_EN, append ASMR audio tag: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
 
 JSON FORMAT:
 {
@@ -1134,17 +1134,17 @@ export default function Page() {
                   </div>
                   
                   {step2Done && f.imgPrompt_EN && (
-                    <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (WHISK/VEO)</span><CopyBtn text={f.imgPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div></div>
+                    <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (cite: WHISK/VEO)</span><CopyBtn text={f.imgPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div></div>
                   )}
                   {step2Done && f.vidPrompt_EN && (
-                    <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (GROK SUPER)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>
+                    <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}><div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}><span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (cite: GROK SUPER)</span><CopyBtn text={f.vidPrompt_EN} small/></div><div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div></div>
                   )}
                 </div>
               ))}
               
               {step2Done && bRolls.length > 0 && (
                 <div style={{marginBottom:24, background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:24, padding:24}}>
-                  <div style={{fontSize:12, fontWeight:900, color:"#fbbf24", marginBottom:16}}>⚡ МИКРО-ПЕРЕБИВКИ (B-ROLLS)</div>
+                  <div style={{fontSize:12, fontWeight:900, color:"#fbbf24", marginBottom:16}}>⚡ МИКРО-ПЕРЕБИВКИ (cite: B-ROLLS)</div>
                   {bRolls.map((b, i) => <div key={i} style={{fontSize:12, fontFamily:"monospace", color:"#fcd34d", marginBottom:8, paddingBottom:8, borderBottom:"1px solid rgba(245,158,11,0.1)"}}>- {b}</div>)}
                 </div>
               )}
@@ -1161,11 +1161,11 @@ export default function Page() {
               {step2Done && (
                 <>
                   <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
-                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"#34d399"}}>🖼 IMAGE PROMPTS (Whisk/Veo)</span><CopyBtn text={rawImg}/></div>
+                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"#34d399"}}>🖼 IMAGE PROMPTS (cite: Whisk/Veo)</span><CopyBtn text={rawImg}/></div>
                      <pre style={{whiteSpace:"pre-wrap", color:"#6ee7b7", fontSize:13, fontFamily:"monospace", lineHeight:1.6}}>{rawImg}</pre>
                   </div>
                   <div style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
-                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"#a78bfa"}}>🎥 VIDEO PROMPTS (Grok Super)</span><CopyBtn text={rawVid}/></div>
+                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:15}}><span style={{fontWeight:900, color:"#a78bfa"}}>🎥 VIDEO PROMPTS (cite: Grok Super)</span><CopyBtn text={rawVid}/></div>
                      <pre style={{whiteSpace:"pre-wrap", color:"#d8b4fe", fontSize:13, fontFamily:"monospace", lineHeight:1.6}}>{rawVid}</pre>
                   </div>
                 </>
@@ -1177,7 +1177,7 @@ export default function Page() {
             <div style={{marginBottom:24}}>
               <div style={{background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24, marginBottom:16}}>
                  <div style={{display:"flex", alignItems:"center", marginBottom:8}}>
-                    <span style={{fontSize:11, fontWeight:900, color:"#fbbf24", textTransform:"uppercase"}}>🎵 МУЗЫКА (SUNO AI)</span>
+                    <span style={{fontSize:11, fontWeight:900, color:"#fbbf24", textTransform:"uppercase"}}>🎵 МУЗЫКА (cite: SUNO AI)</span>
                  </div>
                  <div style={{background:"rgba(245,158,11,.05)", border:"1px solid rgba(245,158,11,.2)", padding:16, borderRadius:16}}>
                     <div style={{display:"flex", justifyContent:"flex-end", marginBottom:8}}><CopyBtn text={music || "Промпт не сгенерирован"} small/></div>
