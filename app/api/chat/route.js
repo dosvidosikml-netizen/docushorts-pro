@@ -10,16 +10,17 @@ export async function POST(req) {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://docushorts.render.com", // Можно указать любой твой домен
+        "HTTP-Referer": "https://docushorts.render.com", 
         "X-Title": "DocuShorts Pro",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        // Твоя мощная и умная модель
         model: "meta-llama/llama-3.3-70b-instruct", 
         messages: messages,
         max_tokens: maxTokens,
-        temperature: 0.2
+        temperature: 0.2,
+        // ВОТ ЭТА СТРОКА РЕШАЕТ ВСЮ ПРОБЛЕМУ С ВЫДАЧЕЙ:
+        response_format: { type: "json_object" }
       })
     });
 
