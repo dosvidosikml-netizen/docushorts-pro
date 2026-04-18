@@ -280,27 +280,25 @@ const InfoModal = ({ isOpen, onClose, title, content }) => {
 };
 
 export default function Page() {
-  const [wizardStep, setWizardStep] = useState(1); // НОВЫЙ СТЕЙТ ДЛЯ УПРАВЛЕНИЯ ШАГАМИ
+  const [wizardStep, setWizardStep] = useState(1);
   const [tokens, setTokens] = useState(3);
   const [showPaywall, setShowPaywall] = useState(false);
   const [clicks, setClicks] = useState(0); 
   
-  // УПРАВЛЕНИЕ: НОВЫЙ ИНТЕРФЕЙС WHISK
+  // УПРАВЛЕНИЕ ПРОЕКТОМ
   const [chars, setChars] = useState([{ id: `CHAR_${Date.now()}`, name: "Главный Герой", desc: "" }]);
   const [studioLoc, setStudioLoc] = useState("");
   const [engine, setEngine] = useState("CINEMATIC");
   const [vidFormat, setVidFormat] = useState("9:16");
-  const [pipelineMode, setPipelineMode] = useState("T2V");
+  const [pipelineMode, setPipelineMode] = useState("T2V"); // Теперь переключается на экране результатов
   const [dur, setDur] = useState("До 60 сек");
   const [topic, setTopic] = useState("");
   const [script, setScript] = useState("");
   
-  // ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ИЗ СТАРОЙ ВЕРСИИ
   const [finalTwist, setFinalTwist] = useState(""); 
   const [genre, setGenre] = useState("ТАЙНА");
   const [customStyle, setCustomStyle] = useState(""); 
   const [lang, setLang] = useState("RU"); 
-  const [showTTS, setShowTTS] = useState(false);
   const [ttsVoice, setTtsVoice] = useState("Male_Deep"); 
   const [ttsSpeed, setTtsSpeed] = useState("1.15");
   const [hooksList, setHooksList] = useState([]); 
@@ -392,7 +390,7 @@ export default function Page() {
 
   useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
   useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioLoc, engine, ttsVoice, ttsSpeed})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioLoc, engine, ttsVoice, ttsSpeed, draftLoaded]);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view, wizardStep]); // Добавлен wizardStep для автоскролла вверх при переходе
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view, wizardStep]);
 
   const handleGodMode = () => {
     setClicks(c => c + 1);
@@ -439,7 +437,7 @@ export default function Page() {
   const removeChar = (id) => setChars(chars.filter(c => c.id !== id));
   const updateChar = (id, field, value) => setChars(chars.map(c => c.id === id ? { ...c, [field]: value } : c));
 
-  // VISION API: Загрузка картинки персонажа и авто-анализ
+  // VISION API
   async function handleCharImageUpload(e, id) {
     const file = e.target.files[0];
     if (!file) return;
@@ -524,6 +522,7 @@ export default function Page() {
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
   }
 
+  // --- ШАГ 1: ГЕНЕРАЦИЯ РАСКАДРОВКИ И БИБЛИИ (ВСЕГДА ГЕНЕРИМ REF_SHEETS) ---
   async function handleStep1() {
     if (!script.trim()) return alert("Сначала заполни сценарий!");
     if (!checkTokens()) return;
@@ -537,12 +536,7 @@ export default function Page() {
       
       const charsStr = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
       
-      // ИЗМЕНЕНИЕ: Динамическая директива для персонажей на основе режима
-      const charDirective = pipelineMode === "I2V"
-        ? "РЕЖИМ I2V: У пользователя УЖЕ ЕСТЬ фото героев. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО генерировать 'ref_sheet_prompt' для существующих персонажей. Оставь массив 'characters_EN' пустым."
-        : "РЕЖИМ T2V: Для каждого ключевого персонажа сгенерируй 'ref_sheet_prompt' СТРОГО по шаблону.";
-      
-      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\nЛОКАЦИЯ ВВОДНАЯ: ${studioLoc || "Авто"}.\nПЕРСОНАЖИ ВВОДНЫЕ: ${charsStr}.\nСЦЕНАРИЙ: ${script}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!\n${charDirective}`;
+      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\nЛОКАЦИЯ ВВОДНАЯ: ${studioLoc || "Авто"}.\nПЕРСОНАЖИ ВВОДНЫЕ: ${charsStr}.\nСЦЕНАРИЙ: ${script}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове! Для каждого ключевого персонажа сгенерируй 'ref_sheet_prompt' СТРОГО по шаблону.`;
       
       const text1A = await callAPI(req1A, 6000, SYS_STEP_1A);
       const data1A = cleanJSON(text1A);
@@ -586,6 +580,7 @@ export default function Page() {
     } catch(e) { alert(`🚨 ОШИБКА ШАГА 1: ${e.message}`); setView("form"); } finally { setBusy(false); }
   }
 
+  // --- ШАГ 2: ГЕНЕРАЦИЯ ФИНАЛЬНЫХ ПРОМПТОВ С УЧЕТОМ РЕЖИМА PIPELINE ---
   async function handleStep2() {
     if (!checkTokens()) return;
     setBusy(true); setLoadingMsg(`Шаг 2: Компилируем PRO-промпты (${pipelineMode} режим)...`); setView("loading");
@@ -694,7 +689,6 @@ export default function Page() {
   const currFormat = FORMATS.find(f => f.id === vidFormat) || FORMATS[0]; 
   const activeStyle = activePreset === "custom" ? COVER_PRESETS[0].style : COVER_PRESETS.find(p => p.id === activePreset).style;
 
-  // ДЛЯ ИНТЕРФЕЙСА: СТРОКА LIVE PREVIEW
   const liveChars = chars.filter(c => c.desc).map(c => c.name).join(", ");
   const livePrompt = `[${liveChars || "No Characters"}] in [${studioLoc || "Auto Location"}], Style: [${VISUAL_ENGINES[engine].label}]. Script: ${script.split(' ').filter(x=>x).length} words.`;
 
@@ -773,6 +767,7 @@ export default function Page() {
         </div>
       )}
 
+      {/* Верхний Навбар */}
       <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.6)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {view === "result" && <button onClick={() => setView("form")} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:24}}>‹</button>}
@@ -785,15 +780,54 @@ export default function Page() {
         </div>
       </nav>
 
+      {/* ГЛАВНАЯ СТРАНИЦА (ФОРМА) */}
       {view === "form" && (
         <div style={{maxWidth:600, margin:"0 auto", padding:"20px 20px 30px"}}>
           
-          {/* ШАГ 1: КУЗНИЦА */}
+          {/* ШАГ 1: КУЗНИЦА (МАКРО НАСТРОЙКИ) */}
           {wizardStep === 1 && (
             <div style={{animation: "fadeIn 0.3s ease-in"}}>
-              {/* БЛОК 1: ГЛАВНЫЙ ГЕРОЙ */}
-              <div className="block-card" style={{borderLeft:"3px solid #f472b6"}}>
-                 <div className="block-title"><span style={{color:"#f472b6"}}>1. ГЛАВНЫЕ ГЕРОИ (Subject)</span> <button onClick={addChar} style={{background:"none", border:"none", color:"#f472b6", cursor:"pointer", fontSize:18}}>+</button></div>
+              
+              {/* БЛОК 1: ФУНДАМЕНТ */}
+              <div className="block-card">
+                 <div className="block-title"><span style={{color:"#38bdf8"}}>1. ФУНДАМЕНТ ПРОЕКТА</span></div>
+                 
+                 <div style={{display:"flex", gap:8, marginBottom:16}}>
+                    <select value={vidFormat} onChange={e => setVidFormat(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
+                      {FORMATS.map(f => <option key={f.id} value={f.id}>{f.label} ({f.id})</option>)}
+                    </select>
+                    <select value={dur} onChange={e => setDur(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
+                      {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                 </div>
+                 
+                 <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Жанр и Настроение</label>
+                 <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:8}}>
+                  {Object.entries(GENRE_PRESETS).map(([g, p]) => (
+                    <button key={g} onClick={() => setGenre(g)} style={{flexShrink:0, display:"flex", alignItems:"center", gap:6, background: genre === g ? p.col : "rgba(0,0,0,0.4)", border: `1px solid ${genre === g ? p.col : "rgba(255,255,255,0.1)"}`, color: genre === g ? "#fff" : "rgba(255,255,255,0.6)", padding: "8px 12px", borderRadius: 10, fontWeight: 800, fontSize: 11, cursor: "pointer"}}>
+                      <span>{p.icon}</span> <span>{g}</span>
+                    </button>
+                  ))}
+                 </div>
+              </div>
+
+              {/* БЛОК 2: АРТ-ДИРЕКШН */}
+              <div className="block-card">
+                 <div className="block-title"><span style={{color:"#a855f7"}}>2. АРТ-ДИРЕКШН (Визуал)</span></div>
+                 <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:4}}>
+                    {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} style={{flexShrink:0, background: engine === eId ? "rgba(168,85,247,0.2)" : "rgba(0,0,0,.3)", border:`1px solid ${engine === eId ? "#a855f7" : "transparent"}`, borderRadius:10, padding:"8px 12px", fontSize:11, color: engine === eId ? "#fff" : "rgba(255,255,255,.5)", cursor:"pointer"}}>{e.label}</button>))}
+                 </div>
+              </div>
+
+              {/* БЛОК 3: ЛОКАЦИЯ */}
+              <div className="block-card">
+                 <div className="block-title"><span style={{color:"#10b981"}}>3. СРЕДА И ЛОКАЦИЯ</span></div>
+                 <input type="text" value={studioLoc} onChange={e => setStudioLoc(e.target.value)} placeholder="Напр: Туманное поле битвы при Азенкуре, грязь..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:14, fontSize:13, color:"#a7f3d0"}}/>
+              </div>
+
+              {/* БЛОК 4: ГЕРОИ (КАСТИНГ) */}
+              <div className="block-card">
+                 <div className="block-title"><span style={{color:"#f472b6"}}>4. КАСТИНГ (Актеры)</span> <button onClick={addChar} style={{background:"none", border:"none", color:"#f472b6", cursor:"pointer", fontSize:18}}>+</button></div>
                  <div style={{display:"flex", flexDirection:"column", gap:12}}>
                    {chars.map((c) => (
                      <div key={c.id} style={{background:"rgba(0,0,0,0.4)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12, padding:12}}>
@@ -806,54 +840,18 @@ export default function Page() {
                            {chars.length > 1 && <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer"}}>×</button>}
                          </div>
                        </div>
-                       <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Опишите внешность или загрузите ФОТО для авто-кода (Vision)." style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
+                       <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Опишите внешность или загрузите ФОТО для авто-кода." style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
                      </div>
                    ))}
                  </div>
               </div>
 
-              {/* БЛОК 2: ЛОКАЦИЯ */}
-              <div className="block-card" style={{borderLeft:"3px solid #38bdf8"}}>
-                 <div className="block-title"><span style={{color:"#38bdf8"}}>2. ЛОКАЦИЯ (Environment)</span></div>
-                 <input type="text" value={studioLoc} onChange={e => setStudioLoc(e.target.value)} placeholder="Напр: Туманное поле битвы при Азенкуре, грязь..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:14, fontSize:13, color:"#bae6fd"}}/>
-              </div>
-
-              {/* БЛОК 3: СТИЛЬ */}
-              <div className="block-card" style={{borderLeft:"3px solid #a855f7"}}>
-                 <div className="block-title"><span style={{color:"#d8b4fe"}}>3. СТИЛЬ И ФОРМАТ (Aesthetics)</span></div>
-                 <div style={{display:"flex", gap:8, marginBottom:16}}>
-                   <button onClick={() => setPipelineMode("T2V")} style={{flex:1, background: pipelineMode === "T2V" ? "rgba(168,85,247,0.2)" : "rgba(0,0,0,.4)", border:`1px solid ${pipelineMode === "T2V" ? "#a855f7" : "rgba(255,255,255,.05)"}`, borderRadius:10, padding:10, fontSize:11, fontWeight:800, color: pipelineMode === "T2V" ? "#d8b4fe" : "#94a3b8", cursor:"pointer"}}>T2V (С НУЛЯ)</button>
-                   <button onClick={() => setPipelineMode("I2V")} style={{flex:1, background: pipelineMode === "I2V" ? "rgba(56,189,248,0.2)" : "rgba(0,0,0,.4)", border:`1px solid ${pipelineMode === "I2V" ? "#38bdf8" : "rgba(255,255,255,.05)"}`, borderRadius:10, padding:10, fontSize:11, fontWeight:800, color: pipelineMode === "I2V" ? "#bae6fd" : "#94a3b8", cursor:"pointer"}}>I2V (ПО ФОТО)</button>
-                 </div>
-                 
-                 <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Визуальный движок</label>
-                 <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12, marginBottom:4}}>
-                    {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} style={{flexShrink:0, background: engine === eId ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.3)", border:`1px solid ${engine === eId ? "#fff" : "transparent"}`, borderRadius:10, padding:"8px 12px", fontSize:11, color: engine === eId ? "#fff" : "rgba(255,255,255,.5)", cursor:"pointer"}}>{e.label}</button>))}
-                 </div>
-                 
-                 <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Жанр и Длительность</label>
-                 <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12}}>
-                  {Object.entries(GENRE_PRESETS).map(([g, p]) => (
-                    <button key={g} onClick={() => setGenre(g)} style={{flexShrink:0, display:"flex", alignItems:"center", gap:6, background: genre === g ? p.col : "rgba(0,0,0,0.4)", border: `1px solid ${genre === g ? p.col : "rgba(255,255,255,0.1)"}`, color: genre === g ? "#fff" : "rgba(255,255,255,0.6)", padding: "8px 12px", borderRadius: 10, fontWeight: 800, fontSize: 11, cursor: "pointer"}}>
-                      <span>{p.icon}</span> <span>{g}</span>
-                    </button>
-                  ))}
-                 </div>
-                 
-                 <div style={{display:"flex", gap:8}}>
-                    <select value={vidFormat} onChange={e => setVidFormat(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
-                      {FORMATS.map(f => <option key={f.id} value={f.id}>{f.label} ({f.id})</option>)}
-                    </select>
-                    <select value={dur} onChange={e => setDur(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
-                      {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                 </div>
-              </div>
+              <div style={{height: 100}} /> {/* Spacer */}
 
               {/* FLOATING NEXT BUTTON */}
               <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 70%, transparent)", zIndex:100}}>
                 <div style={{fontSize:10, color:"#94a3b8", fontFamily:"monospace", marginBottom:10, textAlign:"center", opacity:0.8}}>
-                  ⚙️ {livePrompt}
+                  ⚙️ Конфигурация: {livePrompt}
                 </div>
                 <button className="gbtn" onClick={() => { setWizardStep(2); window.scrollTo(0,0); }} style={{background: "linear-gradient(135deg, #3b82f6, #8b5cf6)"}}>
                   ДАЛЕЕ: СЦЕНАРИЙ (Шаг 1 из 2) →
@@ -862,15 +860,15 @@ export default function Page() {
             </div>
           )}
 
-          {/* ШАГ 2: СТУДИЯ */}
+          {/* ШАГ 2: СТУДИЯ (СЦЕНАРИЙ И ТЕКСТ) */}
           {wizardStep === 2 && (
             <div style={{animation: "fadeIn 0.3s ease-in"}}>
               <button onClick={() => setWizardStep(1)} style={{background:"none", border:"none", color:"#94a3b8", fontWeight:800, fontSize:12, cursor:"pointer", marginBottom: 20}}>
-                ← НАЗАД В КУЗНИЦУ
+                ← НАЗАД В НАСТРОЙКИ
               </button>
 
-              <div className="block-card" style={{borderLeft:"3px solid #fbbf24"}}>
-                 <div className="block-title"><span style={{color:"#fbbf24"}}>4. СЦЕНАРИЙ И ХУКИ (Story)</span></div>
+              <div className="block-card">
+                 <div className="block-title"><span style={{color:"#fbbf24"}}>5. СЦЕНАРИЙ И ХУКИ (Story)</span></div>
                  
                  <div style={{display:"flex", gap:8, marginBottom:12}}>
                    <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Идея видео (напр: Перевал Дятлова)" style={{flex:1, background:"rgba(0,0,0,.5)", border:"1px dashed rgba(251,191,36,0.3)", borderRadius:10, padding:10, fontSize:12, color:"#fde68a"}}/>
@@ -910,6 +908,8 @@ export default function Page() {
                  </div>
               </div>
 
+              <div style={{height: 100}} /> {/* Spacer */}
+
               {/* FLOATING GENERATE BUTTON */}
               <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 70%, transparent)", zIndex:100}}>
                 <button className="gbtn" onClick={handleStep1} disabled={!script.trim() || busy}>
@@ -928,6 +928,7 @@ export default function Page() {
         </div>
       )}
 
+      {/* ЭКРАН РЕЗУЛЬТАТОВ */}
       {view === "result" && (
         <div style={{maxWidth:600, margin:"0 auto", padding:"20px 20px 120px"}}>
           <button onClick={() => setView("form")} style={{marginBottom:20, color:"#a855f7", background:"none", border:"none", fontWeight:800, cursor:"pointer", fontSize:12}}>← НАЗАД В ПУЛЬТ</button>
@@ -1050,8 +1051,20 @@ export default function Page() {
             </div>
           </div>
 
+          {/* НОВЫЙ БЛОК ГЕНЕРАЦИИ (С ВЫБОРОМ РЕЖИМА) */}
           {!step2Done && (
-            <div style={{background:"rgba(236,72,153,0.1)", border:"1px dashed rgba(236,72,153,0.4)", borderRadius:24, padding:24, textAlign:"center", marginBottom:24}}>
+            <div style={{background:"rgba(236,72,153,0.05)", border:"1px solid rgba(236,72,153,0.3)", borderRadius:24, padding:24, textAlign:"center", marginBottom:24}}>
+              <div style={{marginBottom: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "center"}}>
+                 <span style={{fontSize:12, fontWeight:900, color:"#d8b4fe", textTransform:"uppercase"}}>🎛 Режим генерации сцен:</span>
+                 <div style={{display:"flex", gap:8, background:"rgba(0,0,0,0.5)", padding:6, borderRadius:12, border:"1px solid rgba(255,255,255,0.1)"}}>
+                   <button onClick={() => setPipelineMode("T2V")} style={{background: pipelineMode === "T2V" ? "rgba(168,85,247,0.3)" : "transparent", border:`1px solid ${pipelineMode === "T2V" ? "#a855f7" : "transparent"}`, color: pipelineMode === "T2V" ? "#fff" : "#94a3b8", padding:"8px 16px", borderRadius:8, fontSize:11, fontWeight:800, cursor:"pointer", transition:"all 0.2s"}}>T2V (С НУЛЯ)</button>
+                   <button onClick={() => setPipelineMode("I2V")} style={{background: pipelineMode === "I2V" ? "rgba(56,189,248,0.3)" : "transparent", border:`1px solid ${pipelineMode === "I2V" ? "#38bdf8" : "transparent"}`, color: pipelineMode === "I2V" ? "#fff" : "#94a3b8", padding:"8px 16px", borderRadius:8, fontSize:11, fontWeight:800, cursor:"pointer", transition:"all 0.2s"}}>I2V (ЕСТЬ ФОТО)</button>
+                 </div>
+                 <div style={{fontSize:10, color:"#94a3b8", maxWidth: 400}}>
+                   {pipelineMode === "T2V" ? "ИИ напишет длинные промпты (описание среды, внешности и действия) для генерации сразу в видео." : "ИИ напишет экстремально короткие промпты (только действие) для оживления готовых картинок в Luma/Kling."}
+                 </div>
+              </div>
+              
               <button onClick={handleStep2} disabled={busy || !checkTokens()} style={{width:"100%", padding:"16px", background:"linear-gradient(135deg, #db2777, #9333ea)", borderRadius:16, color:"#fff", fontWeight:900, border:"none", cursor:"pointer", boxShadow:"0 5px 20px rgba(219,39,119,0.4)"}}>🪄 ШАГ 2: СГЕНЕРИРОВАТЬ PRO-ПРОМПТЫ СЦЕН (💎 1)</button>
             </div>
           )}
