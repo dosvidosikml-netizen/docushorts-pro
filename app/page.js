@@ -92,7 +92,6 @@ const FORMATS = [
   { id:"1:1", label:"Квадрат", ratio:"1/1" } 
 ];
 
-// ОБНОВЛЕННАЯ МАТРИЦА СТИЛЕЙ: ХАРДКОРНЫЙ РЕАЛИЗМ
 const VISUAL_ENGINES = {
   "CINEMATIC": { label: "Кино-реализм", prompt: "extreme photorealistic, gritty skin texture, visible skin pores, sweat, micro-details, imperfections, raw documentary photography, harsh directional lighting, volumetric fog, shot on 35mm lens, cinematic rim light" },
   "DARK_HISTORY": { label: "Dark History", prompt: "dark history grunge, gritty realism, muddy and bleak atmosphere, dirty vintage film effect, thick fog, raw footage, harsh shadows, heavy vignette, Arri Alexa 65" },
@@ -281,6 +280,7 @@ const InfoModal = ({ isOpen, onClose, title, content }) => {
 };
 
 export default function Page() {
+  const [wizardStep, setWizardStep] = useState(1); // НОВЫЙ СТЕЙТ ДЛЯ УПРАВЛЕНИЯ ШАГАМИ
   const [tokens, setTokens] = useState(3);
   const [showPaywall, setShowPaywall] = useState(false);
   const [clicks, setClicks] = useState(0); 
@@ -392,7 +392,7 @@ export default function Page() {
 
   useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
   useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioLoc, engine, ttsVoice, ttsSpeed})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioLoc, engine, ttsVoice, ttsSpeed, draftLoaded]);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view, wizardStep]); // Добавлен wizardStep для автоскролла вверх при переходе
 
   const handleGodMode = () => {
     setClicks(c => c + 1);
@@ -535,10 +535,14 @@ export default function Page() {
       setLoadingMsg("Шаг 1/2: Пишем раскадровку и ДНК...");
       const targetFrames = Math.floor(sec / 3);
       
-      // Мы передаем персонажей напрямую в запрос как вводные данные, чтобы ИИ мог их использовать
       const charsStr = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
       
-      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\nЛОКАЦИЯ ВВОДНАЯ: ${studioLoc || "Авто"}.\nПЕРСОНАЖИ ВВОДНЫЕ: ${charsStr}.\nСЦЕНАРИЙ: ${script}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!`;
+      // ИЗМЕНЕНИЕ: Динамическая директива для персонажей на основе режима
+      const charDirective = pipelineMode === "I2V"
+        ? "РЕЖИМ I2V: У пользователя УЖЕ ЕСТЬ фото героев. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО генерировать 'ref_sheet_prompt' для существующих персонажей. Оставь массив 'characters_EN' пустым."
+        : "РЕЖИМ T2V: Для каждого ключевого персонажа сгенерируй 'ref_sheet_prompt' СТРОГО по шаблону.";
+      
+      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\nЛОКАЦИЯ ВВОДНАЯ: ${studioLoc || "Авто"}.\nПЕРСОНАЖИ ВВОДНЫЕ: ${charsStr}.\nСЦЕНАРИЙ: ${script}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!\n${charDirective}`;
       
       const text1A = await callAPI(req1A, 6000, SYS_STEP_1A);
       const data1A = cleanJSON(text1A);
@@ -784,113 +788,136 @@ export default function Page() {
       {view === "form" && (
         <div style={{maxWidth:600, margin:"0 auto", padding:"20px 20px 30px"}}>
           
-          {/* БЛОК 1: ГЛАВНЫЙ ГЕРОЙ */}
-          <div className="block-card" style={{borderLeft:"3px solid #f472b6"}}>
-             <div className="block-title"><span style={{color:"#f472b6"}}>1. ГЛАВНЫЕ ГЕРОИ (Subject)</span> <button onClick={addChar} style={{background:"none", border:"none", color:"#f472b6", cursor:"pointer", fontSize:18}}>+</button></div>
-             <div style={{display:"flex", flexDirection:"column", gap:12}}>
-               {chars.map((c) => (
-                 <div key={c.id} style={{background:"rgba(0,0,0,0.4)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12, padding:12}}>
-                   <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
-                     <input type="text" value={c.name} onChange={e => updateChar(c.id, 'name', e.target.value)} style={{background:"none", border:"none", color:"#fbcfe8", fontWeight:800, fontSize:12, width:"100%"}} placeholder="Имя (напр. Король Генрих)" />
-                     <div style={{display:"flex", gap:10, alignItems:"center"}}>
-                       <label style={{background:"rgba(236,72,153,0.15)", border:"1px solid rgba(236,72,153,0.3)", color:"#fbcfe8", fontSize:10, padding:"4px 8px", borderRadius:6, cursor:"pointer", fontWeight:800}}>
-                         📸 ФОТО <input type="file" accept="image/*" hidden onChange={(e) => handleCharImageUpload(e, c.id)} />
-                       </label>
-                       {chars.length > 1 && <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer"}}>×</button>}
+          {/* ШАГ 1: КУЗНИЦА */}
+          {wizardStep === 1 && (
+            <div style={{animation: "fadeIn 0.3s ease-in"}}>
+              {/* БЛОК 1: ГЛАВНЫЙ ГЕРОЙ */}
+              <div className="block-card" style={{borderLeft:"3px solid #f472b6"}}>
+                 <div className="block-title"><span style={{color:"#f472b6"}}>1. ГЛАВНЫЕ ГЕРОИ (Subject)</span> <button onClick={addChar} style={{background:"none", border:"none", color:"#f472b6", cursor:"pointer", fontSize:18}}>+</button></div>
+                 <div style={{display:"flex", flexDirection:"column", gap:12}}>
+                   {chars.map((c) => (
+                     <div key={c.id} style={{background:"rgba(0,0,0,0.4)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:12, padding:12}}>
+                       <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
+                         <input type="text" value={c.name} onChange={e => updateChar(c.id, 'name', e.target.value)} style={{background:"none", border:"none", color:"#fbcfe8", fontWeight:800, fontSize:12, width:"100%"}} placeholder="Имя (напр. Король Генрих)" />
+                         <div style={{display:"flex", gap:10, alignItems:"center"}}>
+                           <label style={{background:"rgba(236,72,153,0.15)", border:"1px solid rgba(236,72,153,0.3)", color:"#fbcfe8", fontSize:10, padding:"4px 8px", borderRadius:6, cursor:"pointer", fontWeight:800}}>
+                             📸 ФОТО <input type="file" accept="image/*" hidden onChange={(e) => handleCharImageUpload(e, c.id)} />
+                           </label>
+                           {chars.length > 1 && <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer"}}>×</button>}
+                         </div>
+                       </div>
+                       <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Опишите внешность или загрузите ФОТО для авто-кода (Vision)." style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
+                     </div>
+                   ))}
+                 </div>
+              </div>
+
+              {/* БЛОК 2: ЛОКАЦИЯ */}
+              <div className="block-card" style={{borderLeft:"3px solid #38bdf8"}}>
+                 <div className="block-title"><span style={{color:"#38bdf8"}}>2. ЛОКАЦИЯ (Environment)</span></div>
+                 <input type="text" value={studioLoc} onChange={e => setStudioLoc(e.target.value)} placeholder="Напр: Туманное поле битвы при Азенкуре, грязь..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:14, fontSize:13, color:"#bae6fd"}}/>
+              </div>
+
+              {/* БЛОК 3: СТИЛЬ */}
+              <div className="block-card" style={{borderLeft:"3px solid #a855f7"}}>
+                 <div className="block-title"><span style={{color:"#d8b4fe"}}>3. СТИЛЬ И ФОРМАТ (Aesthetics)</span></div>
+                 <div style={{display:"flex", gap:8, marginBottom:16}}>
+                   <button onClick={() => setPipelineMode("T2V")} style={{flex:1, background: pipelineMode === "T2V" ? "rgba(168,85,247,0.2)" : "rgba(0,0,0,.4)", border:`1px solid ${pipelineMode === "T2V" ? "#a855f7" : "rgba(255,255,255,.05)"}`, borderRadius:10, padding:10, fontSize:11, fontWeight:800, color: pipelineMode === "T2V" ? "#d8b4fe" : "#94a3b8", cursor:"pointer"}}>T2V (С НУЛЯ)</button>
+                   <button onClick={() => setPipelineMode("I2V")} style={{flex:1, background: pipelineMode === "I2V" ? "rgba(56,189,248,0.2)" : "rgba(0,0,0,.4)", border:`1px solid ${pipelineMode === "I2V" ? "#38bdf8" : "rgba(255,255,255,.05)"}`, borderRadius:10, padding:10, fontSize:11, fontWeight:800, color: pipelineMode === "I2V" ? "#bae6fd" : "#94a3b8", cursor:"pointer"}}>I2V (ПО ФОТО)</button>
+                 </div>
+                 
+                 <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Визуальный движок</label>
+                 <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12, marginBottom:4}}>
+                    {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} style={{flexShrink:0, background: engine === eId ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.3)", border:`1px solid ${engine === eId ? "#fff" : "transparent"}`, borderRadius:10, padding:"8px 12px", fontSize:11, color: engine === eId ? "#fff" : "rgba(255,255,255,.5)", cursor:"pointer"}}>{e.label}</button>))}
+                 </div>
+                 
+                 <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Жанр и Длительность</label>
+                 <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12}}>
+                  {Object.entries(GENRE_PRESETS).map(([g, p]) => (
+                    <button key={g} onClick={() => setGenre(g)} style={{flexShrink:0, display:"flex", alignItems:"center", gap:6, background: genre === g ? p.col : "rgba(0,0,0,0.4)", border: `1px solid ${genre === g ? p.col : "rgba(255,255,255,0.1)"}`, color: genre === g ? "#fff" : "rgba(255,255,255,0.6)", padding: "8px 12px", borderRadius: 10, fontWeight: 800, fontSize: 11, cursor: "pointer"}}>
+                      <span>{p.icon}</span> <span>{g}</span>
+                    </button>
+                  ))}
+                 </div>
+                 
+                 <div style={{display:"flex", gap:8}}>
+                    <select value={vidFormat} onChange={e => setVidFormat(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
+                      {FORMATS.map(f => <option key={f.id} value={f.id}>{f.label} ({f.id})</option>)}
+                    </select>
+                    <select value={dur} onChange={e => setDur(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
+                      {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                 </div>
+              </div>
+
+              {/* FLOATING NEXT BUTTON */}
+              <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 70%, transparent)", zIndex:100}}>
+                <div style={{fontSize:10, color:"#94a3b8", fontFamily:"monospace", marginBottom:10, textAlign:"center", opacity:0.8}}>
+                  ⚙️ {livePrompt}
+                </div>
+                <button className="gbtn" onClick={() => { setWizardStep(2); window.scrollTo(0,0); }} style={{background: "linear-gradient(135deg, #3b82f6, #8b5cf6)"}}>
+                  ДАЛЕЕ: СЦЕНАРИЙ (Шаг 1 из 2) →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ШАГ 2: СТУДИЯ */}
+          {wizardStep === 2 && (
+            <div style={{animation: "fadeIn 0.3s ease-in"}}>
+              <button onClick={() => setWizardStep(1)} style={{background:"none", border:"none", color:"#94a3b8", fontWeight:800, fontSize:12, cursor:"pointer", marginBottom: 20}}>
+                ← НАЗАД В КУЗНИЦУ
+              </button>
+
+              <div className="block-card" style={{borderLeft:"3px solid #fbbf24"}}>
+                 <div className="block-title"><span style={{color:"#fbbf24"}}>4. СЦЕНАРИЙ И ХУКИ (Story)</span></div>
+                 
+                 <div style={{display:"flex", gap:8, marginBottom:12}}>
+                   <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Идея видео (напр: Перевал Дятлова)" style={{flex:1, background:"rgba(0,0,0,.5)", border:"1px dashed rgba(251,191,36,0.3)", borderRadius:10, padding:10, fontSize:12, color:"#fde68a"}}/>
+                   <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(251,191,36,0.15)", color:"#fbbf24", border:"none", borderRadius:10, padding:"0 16px", fontSize:11, fontWeight:800, cursor:"pointer"}}>АВТО-ТЕКСТ</button>
+                 </div>
+                 
+                 <div style={{display:"flex", gap:8, marginBottom:12}}>
+                   <input type="text" value={finalTwist} onChange={e => setFinalTwist(e.target.value)} placeholder="Скрытый твист в конце..." style={{flex:1, background:"rgba(0,0,0,.5)", border:"1px dashed rgba(251,191,36,0.3)", borderRadius:10, padding:10, fontSize:12, color:"#fde68a"}}/>
+                   <button onClick={handleGenerateHooks} disabled={busy || !topic.trim()} style={{background:"rgba(251,191,36,0.15)", color:"#fbbf24", border:"none", borderRadius:10, padding:"0 12px", fontSize:11, fontWeight:800, cursor:"pointer"}}>3 ХУКА</button>
+                 </div>
+
+                 {hooksList.length > 0 && (
+                   <div style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(249,115,22,0.3)", borderRadius:12, padding:12, marginBottom:16}}>
+                     <div style={{display:"flex", flexDirection:"column", gap:6}}>
+                       {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{background:"rgba(255,255,255,0.05)", padding:10, borderRadius:8, fontSize:13, color:"#fcd34d", cursor:"pointer", borderLeft:"3px solid #f59e0b"}}>{h}</div> ))}
                      </div>
                    </div>
-                   <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Опишите внешность или загрузите ФОТО для авто-кода (Vision)." style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
+                 )}
+
+                 <textarea rows={8} value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте сюда готовый текст диктора или сгенерируйте Авто-Текст..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:14, fontSize:14, color:"#cbd5e1", resize:"none", marginBottom:12}}/>
+                 
+                 <div style={{background:"rgba(0,0,0,0.3)", borderRadius:12, padding:12}}>
+                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
+                     <span style={{fontSize:10, color:"#7dd3fc", fontWeight:900, textTransform:"uppercase"}}>🎙 Настройки Голоса (TTS)</span>
+                   </div>
+                   <div style={{display:"flex", gap:8}}>
+                     <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{flex:2, background:"#111", color:"#fff", border:"1px solid #333", padding:8, borderRadius:8, fontSize:11}}>
+                       <option value="Male_Deep">Мужской: Бас</option>
+                       <option value="Female_Mystic">Женский: Шепот</option>
+                       <option value="Doc_Narrator">Документальный</option>
+                     </select>
+                     <div style={{flex:1, display:"flex", alignItems:"center", gap:8}}>
+                       <span style={{fontSize:10, color:"#bae6fd"}}>Скорость:</span>
+                       <input type="number" step="0.05" value={ttsSpeed} onChange={e => setTtsSpeed(e.target.value)} style={{width:"50px", background:"#111", color:"#fff", border:"1px solid #333", padding:6, borderRadius:8, fontSize:11}}/>
+                     </div>
+                   </div>
                  </div>
-               ))}
-             </div>
-          </div>
+              </div>
 
-          {/* БЛОК 2: ЛОКАЦИЯ */}
-          <div className="block-card" style={{borderLeft:"3px solid #38bdf8"}}>
-             <div className="block-title"><span style={{color:"#38bdf8"}}>2. ЛОКАЦИЯ (Environment)</span></div>
-             <input type="text" value={studioLoc} onChange={e => setStudioLoc(e.target.value)} placeholder="Напр: Туманное поле битвы при Азенкуре, грязь..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:14, fontSize:13, color:"#bae6fd"}}/>
-          </div>
-
-          {/* БЛОК 3: СТИЛЬ */}
-          <div className="block-card" style={{borderLeft:"3px solid #a855f7"}}>
-             <div className="block-title"><span style={{color:"#d8b4fe"}}>3. СТИЛЬ И ФОРМАТ (Aesthetics)</span></div>
-             <div style={{display:"flex", gap:8, marginBottom:16}}>
-               <button onClick={() => setPipelineMode("T2V")} style={{flex:1, background: pipelineMode === "T2V" ? "rgba(168,85,247,0.2)" : "rgba(0,0,0,.4)", border:`1px solid ${pipelineMode === "T2V" ? "#a855f7" : "rgba(255,255,255,.05)"}`, borderRadius:10, padding:10, fontSize:11, fontWeight:800, color: pipelineMode === "T2V" ? "#d8b4fe" : "#94a3b8", cursor:"pointer"}}>T2V (С НУЛЯ)</button>
-               <button onClick={() => setPipelineMode("I2V")} style={{flex:1, background: pipelineMode === "I2V" ? "rgba(56,189,248,0.2)" : "rgba(0,0,0,.4)", border:`1px solid ${pipelineMode === "I2V" ? "#38bdf8" : "rgba(255,255,255,.05)"}`, borderRadius:10, padding:10, fontSize:11, fontWeight:800, color: pipelineMode === "I2V" ? "#bae6fd" : "#94a3b8", cursor:"pointer"}}>I2V (ПО ФОТО)</button>
-             </div>
-             
-             <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Визуальный движок</label>
-             <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12, marginBottom:4}}>
-                {Object.entries(VISUAL_ENGINES).map(([eId, e]) => (<button key={eId} onClick={() => setEngine(eId)} style={{flexShrink:0, background: engine === eId ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.3)", border:`1px solid ${engine === eId ? "#fff" : "transparent"}`, borderRadius:10, padding:"8px 12px", fontSize:11, color: engine === eId ? "#fff" : "rgba(255,255,255,.5)", cursor:"pointer"}}>{e.label}</button>))}
-             </div>
-             
-             <label style={{fontSize:10, color:"#94a3b8", display:"block", marginBottom:8, textTransform:"uppercase"}}>Жанр и Длительность</label>
-             <div className="hide-scroll" style={{display:"flex", gap:8, overflowX:"auto", paddingBottom:12}}>
-              {Object.entries(GENRE_PRESETS).map(([g, p]) => (
-                <button key={g} onClick={() => setGenre(g)} style={{flexShrink:0, display:"flex", alignItems:"center", gap:6, background: genre === g ? p.col : "rgba(0,0,0,0.4)", border: `1px solid ${genre === g ? p.col : "rgba(255,255,255,0.1)"}`, color: genre === g ? "#fff" : "rgba(255,255,255,0.6)", padding: "8px 12px", borderRadius: 10, fontWeight: 800, fontSize: 11, cursor: "pointer"}}>
-                  <span>{p.icon}</span> <span>{g}</span>
+              {/* FLOATING GENERATE BUTTON */}
+              <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 70%, transparent)", zIndex:100}}>
+                <button className="gbtn" onClick={handleStep1} disabled={!script.trim() || busy}>
+                  {busy ? "РАБОТА ИИ..." : "🎬 СОЗДАТЬ РАСКАДРОВКУ (💎 1)"}
                 </button>
-              ))}
-             </div>
-             
-             <div style={{display:"flex", gap:8}}>
-                <select value={vidFormat} onChange={e => setVidFormat(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
-                  {FORMATS.map(f => <option key={f.id} value={f.id}>{f.label} ({f.id})</option>)}
-                </select>
-                <select value={dur} onChange={e => setDur(e.target.value)} style={{flex:1, background:"rgba(0,0,0,.5)", color:"#fff", border:"1px solid rgba(255,255,255,.1)", padding:10, borderRadius:10, fontSize:12}}>
-                  {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-             </div>
-          </div>
-
-          {/* БЛОК 4: СЦЕНАРИЙ */}
-          <div className="block-card" style={{borderLeft:"3px solid #fbbf24"}}>
-             <div className="block-title"><span style={{color:"#fbbf24"}}>4. СЦЕНАРИЙ (Story)</span></div>
-             <div style={{display:"flex", gap:8, marginBottom:12}}>
-               <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Идея видео (напр: Перевал Дятлова)" style={{flex:1, background:"rgba(0,0,0,.5)", border:"1px dashed rgba(251,191,36,0.3)", borderRadius:10, padding:10, fontSize:12, color:"#fde68a"}}/>
-               <button onClick={handleDraftText} disabled={busy || !topic.trim()} style={{background:"rgba(251,191,36,0.15)", color:"#fbbf24", border:"none", borderRadius:10, padding:"0 16px", fontSize:11, fontWeight:800, cursor:"pointer"}}>АВТО-ТЕКСТ</button>
-             </div>
-             
-             <div style={{display:"flex", gap:8, marginBottom:12}}>
-               <input type="text" value={finalTwist} onChange={e => setFinalTwist(e.target.value)} placeholder="Скрытый твист в конце..." style={{flex:1, background:"rgba(0,0,0,.5)", border:"1px dashed rgba(251,191,36,0.3)", borderRadius:10, padding:10, fontSize:12, color:"#fde68a"}}/>
-               <button onClick={handleGenerateHooks} disabled={busy || !topic.trim()} style={{background:"rgba(251,191,36,0.15)", color:"#fbbf24", border:"none", borderRadius:10, padding:"0 12px", fontSize:11, fontWeight:800, cursor:"pointer"}}>3 ХУКА</button>
-             </div>
-
-             {hooksList.length > 0 && (
-               <div style={{background:"rgba(0,0,0,0.3)", border:"1px dashed rgba(249,115,22,0.3)", borderRadius:12, padding:12, marginBottom:16}}>
-                 <div style={{display:"flex", flexDirection:"column", gap:6}}>
-                   {hooksList.map((h, i) => ( <div key={i} onClick={() => { setScript(h + " " + script); setHooksList([]); }} style={{background:"rgba(255,255,255,0.05)", padding:10, borderRadius:8, fontSize:13, color:"#fcd34d", cursor:"pointer", borderLeft:"3px solid #f59e0b"}}>{h}</div> ))}
-                 </div>
-               </div>
-             )}
-
-             <textarea rows={6} value={script} onChange={e => setScript(e.target.value)} placeholder="Вставьте сюда готовый текст диктора..." style={{width:"100%", background:"rgba(0,0,0,.5)", border:"1px solid rgba(255,255,255,.1)", borderRadius:12, padding:14, fontSize:14, color:"#cbd5e1", resize:"none", marginBottom:12}}/>
-             
-             <div style={{background:"rgba(0,0,0,0.3)", borderRadius:12, padding:12}}>
-               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
-                 <span style={{fontSize:10, color:"#7dd3fc", fontWeight:900, textTransform:"uppercase"}}>🎙 Настройки Голоса (TTS)</span>
-               </div>
-               <div style={{display:"flex", gap:8}}>
-                 <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{flex:2, background:"#111", color:"#fff", border:"1px solid #333", padding:8, borderRadius:8, fontSize:11}}>
-                   <option value="Male_Deep">Мужской: Бас</option>
-                   <option value="Female_Mystic">Женский: Шепот</option>
-                   <option value="Doc_Narrator">Документальный</option>
-                 </select>
-                 <div style={{flex:1, display:"flex", alignItems:"center", gap:8}}>
-                   <span style={{fontSize:10, color:"#bae6fd"}}>Скорость:</span>
-                   <input type="number" step="0.05" value={ttsSpeed} onChange={e => setTtsSpeed(e.target.value)} style={{width:"50px", background:"#111", color:"#fff", border:"1px solid #333", padding:6, borderRadius:8, fontSize:11}}/>
-                 </div>
-               </div>
-             </div>
-          </div>
-
-          {/* LIVE PREVIEW & RUN BUTTON */}
-          <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 70%, transparent)", zIndex:100}}>
-            <div style={{fontSize:10, color:"#94a3b8", fontFamily:"monospace", marginBottom:10, textAlign:"center", opacity:0.8}}>
-              ⚙️ {livePrompt}
+              </div>
             </div>
-            <button className="gbtn" onClick={handleStep1} disabled={!script.trim() || busy}>{busy ? "РАБОТА ИИ..." : "🎬 СОЗДАТЬ РАСКАДРОВКУ (💎 1)"}</button>
-          </div>
+          )}
         </div>
       )}
 
