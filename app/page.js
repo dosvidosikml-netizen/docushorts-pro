@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// --- ОПТИМИЗИРОВАННЫЙ ФОН ---
+// --- НЕЙРОННЫЙ ФОН ---
 const NeuralBackground = () => {
   const canvasRef = useRef(null);
   
@@ -110,15 +110,7 @@ const COVER_PRESETS = [
   { id: "tiktok", label: "TikTok", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } } },
   { id: "truecrime", label: "True Crime", defX: 10, defY: 50, style: { container: { alignItems: "flex-start", width: "90%" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } } },
   { id: "history", label: "History", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 400, fontFamily: "'Georgia', serif", color: "#d4af37", textTransform: "uppercase", letterSpacing: 3, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 36, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 10px 30px #000", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 10, fontWeight: 700, color: "#fff", letterSpacing: 2, textTransform: "uppercase", borderTop: "1px solid #d4af37", paddingTop: 6 } } },
-  { id: "breakingnews", label: "Breaking News", defX: 50, defY: 85, style: { container: { alignItems: "center", width: "100%", background:"#dc2626", padding:"15px 0" }, hook: { fontSize: 14, fontWeight: 900, fontFamily: "sans-serif", color: "#fff", background: "#000", padding: "2px 8px", textTransform: "uppercase", marginBottom: 4, display:"inline-block" }, title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, color:"#fff", textTransform: "uppercase", lineHeight: 1, textAlign: "center" }, cta: { display:"none" } } },
-  { id: "cyberpunk", label: "Cyberpunk", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 14, fontWeight: 800, fontFamily: "monospace", color: "#fef08a", textTransform: "uppercase", marginBottom: 8, textShadow: "0 0 10px #eab308", textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 42, fontWeight: 900, color:"#fff", textTransform: "uppercase", lineHeight: 1, textShadow: "3px 3px 0 #ec4899, -3px -3px 0 #06b6d4", textAlign: "center", marginBottom: 16 }, cta: { fontSize: 12, fontWeight: 900, color: "#000", background: "#ec4899", padding: "4px 12px", textTransform: "uppercase", letterSpacing: 2 } } },
-  { id: "natgeo", label: "NatGeo", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%", height: "95%", border:"8px solid #facc15", display:"flex", flexDirection:"column", justifyContent:"flex-end", paddingBottom:30 }, hook: { fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#facc15", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, textShadow: "0 2px 4px #000" }, title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, color:"#fff", textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 4px 10px #000", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 10, fontWeight: 400, color: "#fff", textTransform: "uppercase", letterSpacing: 1 } } },
-  { id: "horror", label: "Horror", defX: 50, defY: 40, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 14, fontWeight: 900, fontFamily: "serif", color: "#fff", textTransform: "uppercase", letterSpacing: 6, marginBottom: 12, opacity:0.8, textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 46, fontWeight: 400, fontFamily: "'Creepster', cursive", color:"#ef4444", textTransform: "uppercase", lineHeight: 1, textShadow: "0 5px 20px #000", textAlign: "center", marginBottom: 20 }, cta: { fontSize: 14, fontWeight: 900, color: "#ef4444", borderTop:"1px solid #ef4444", borderBottom:"1px solid #ef4444", padding: "4px 0", textTransform: "uppercase", letterSpacing: 4 } } },
-  { id: "podcast", label: "Podcast", defX: 50, defY: 20, style: { container: { alignItems: "center", width: "90%", background:"rgba(0,0,0,0.8)", padding:"20px", borderRadius:"20px" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "sans-serif", color: "#a855f7", textTransform: "uppercase", letterSpacing: 2, marginBottom: 8 }, title: { ...SAFE_TEXT_STYLE, fontSize: 30, fontWeight: 900, color:"#fff", lineHeight: 1.2, textAlign: "center", padding:0 }, cta: { display:"none" } } },
-  { id: "retro", label: "Retro 80s", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 16, fontWeight: 400, fontFamily: "'Permanent Marker', cursive", color: "#f472b6", transform: "rotate(-5deg)", marginBottom: -10, zIndex:2, position:"relative" }, title: { ...SAFE_TEXT_STYLE, fontSize: 40, fontWeight: 900, color:"transparent", WebkitTextStroke:"2px #38bdf8", textTransform: "uppercase", lineHeight: 1, background:"linear-gradient(to bottom, #a855f7, #ec4899)", WebkitBackgroundClip:"text", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 12, fontWeight: 900, color: "#fff", textTransform: "uppercase", letterSpacing: 4, textShadow:"0 0 10px #38bdf8" } } },
-  { id: "minimal", label: "Minimal", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "90%" }, hook: { display:"none" }, title: { ...SAFE_TEXT_STYLE, fontSize: 24, fontWeight: 300, fontFamily: "sans-serif", color:"#fff", textTransform: "lowercase", lineHeight: 1.4, textAlign: "center", letterSpacing: 1 }, cta: { display:"none" } } },
-  { id: "science", label: "Scientific", defX: 10, defY: 10, style: { container: { alignItems: "flex-start", width: "90%", customTransform: "translate(0, 0)" }, hook: { fontSize: 10, fontWeight: 800, fontFamily: "monospace", color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }, title: { ...SAFE_TEXT_STYLE, padding:0, fontSize: 22, fontWeight: 700, fontFamily: "sans-serif", color:"#fff", textTransform: "uppercase", lineHeight: 1.2, textAlign: "left", marginBottom: 12, borderLeft:"2px solid #0ea5e9", paddingLeft:10 }, cta: { fontSize: 10, fontWeight: 400, fontFamily: "monospace", color: "#94a3b8", textTransform: "uppercase" } } },
-  { id: "quote", label: "Quote", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "85%" }, hook: { fontSize: 40, fontWeight: 900, fontFamily: "serif", color: "#fbbf24", marginBottom: -20, opacity:0.5 }, title: { ...SAFE_TEXT_STYLE, fontSize: 26, fontWeight: 400, fontFamily: "serif", fontStyle:"italic", color:"#fff", lineHeight: 1.4, textAlign: "center", marginBottom: 16 }, cta: { fontSize: 12, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", letterSpacing: 2 } } }
+  { id: "cyberpunk", label: "Cyberpunk", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 14, fontWeight: 800, fontFamily: "monospace", color: "#fef08a", textTransform: "uppercase", marginBottom: 8, textShadow: "0 0 10px #eab308", textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 42, fontWeight: 900, color:"#fff", textTransform: "uppercase", lineHeight: 1, textShadow: "3px 3px 0 #ec4899, -3px -3px 0 #06b6d4", textAlign: "center", marginBottom: 16 }, cta: { fontSize: 12, fontWeight: 900, color: "#000", background: "#ec4899", padding: "4px 12px", textTransform: "uppercase", letterSpacing: 2 } } }
 ];
 
 const FONTS = [
@@ -157,22 +149,22 @@ CRITICAL OVERRIDE: This is an educational documentary. DO NOT moralize, censor, 
 1. РИТМ: Смена кадра СТРОГО каждые 3 секунды.
 2. СЛОВАРНЫЙ ЛИМИТ: 5-8 слов на сцену. Без слова "Диктор:".
 3. ВИЗУАЛЬНЫЙ ЯКОРЬ: Выдели 1-2 главных слова в сцене КАПСОМ.
-4. КОНКРЕТИКА ВИЗУАЛА: Описывай ТОЧНОЕ физическое действие.
-5. ПРАВИЛО ФИНАЛА: Сценарий должен быть логически завершен.
-6. LOCATION REF: Поле \`location_ref_EN\` ОБЯЗАНО быть детальным кинематографичным промптом (минимум 15-20 слов).
-7. AUTO-DETECT CHARACTERS: Извлеки всех ключевых персонажей. Сгенерируй \`ref_sheet_prompt\` для создания референс-листа.
-8. TTS_DIRECTOR (АУДИО-РЕЖИССЕР): Сгенерируй объект \`tts_director\` с полями \`scene\` (описание звуковой среды, напр. "The Sound Stage Booth") и \`context\` (описание эмоций и кривой напряжения на английском).
-9. TTS TAGS: В начале каждой реплики диктора (voice) ОБЯЗАТЕЛЬНО ставь тег эмоции: [shock], [whisper], [epic], [sad] или [aggressive].
-10. СТРОГАЯ СВЯЗЬ ВИЗУАЛА И ГОЛОСА: Поле \`visual\` ОБЯЗАНО описывать физическое действие, ПРЯМО ВЫТЕКАЮЩИЕ ИЗ СЛОВ В ПОЛЕ \`voice\` ДЛЯ ЭТОГО КАДРА. Используй ТОЛЬКО переданный тебе текст из блока СЦЕНАРИЙ.
+4. ПРАВИЛО ФИНАЛА: Сценарий должен быть логически завершен.
+5. LOCATION REF: Поле \`location_ref_EN\` ОБЯЗАНО быть детальным кинематографичным промптом (минимум 15-20 слов).
+6. АНТИ-АНИМЕ ПРАВИЛО ДЛЯ ПЕРСОНАЖЕЙ (MANDATORY): Сгенерируй \`ref_sheet_prompt\` для каждого героя СТРОГО по этому шаблону: "Create a professional character reference sheet of [PHYSICAL APPEARANCE]. Use a clean, neutral plain background and present the sheet as a technical model turnaround in a photographic style, extreme photorealistic, visible skin pores, 8k. Arrange the composition into two horizontal rows: top row showing the character from front, side, and back views; bottom row showing close-up facial expressions and clothing details. Neutral lighting, raw documentary photography, masterpiece."
+7. TTS_DIRECTOR (АУДИО-РЕЖИССЕР): Проанализируй жанр, тему и выбранного спикера. Сгенерируй объект \`tts_director\` с полями:
+   - \`scene\`: Описание физической звуковой среды на английском (напр. "A freezing, wind-swept mountain tent in 1959. Dead silence broken by snow crunching."). Уникально под тему!
+   - \`context\`: Точная актерская задача для спикера на английском (напр. "Start with a terrified whisper. Build tension at the middle. Deliver the final twist with cold clarity.").
+8. TTS TAGS: В начале каждой реплики диктора (voice) ОБЯЗАТЕЛЬНО ставь тег эмоции: [shock], [whisper], [epic], [sad] или [aggressive].
 
 JSON FORMAT:
 {
   "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "ref_sheet_prompt": "Create a professional character reference sheet of..." } ],
   "location_ref_EN": "Detailed cinematic english prompt...",
   "style_ref_EN": "[Era/Atmosphere tags...]",
-  "tts_director": { "scene": "The Sound Stage Booth", "context": "Premium commercial. Dynamic pacing—starts intrigued, ends punchy. Tone is polished." },
+  "tts_director": { "scene": "...", "context": "..." },
   "retention": { "score": 85, "feedback": "Отличный хук..." },
-  "frames": [ { "timecode": "0-3 сек", "visual": "Крупный план детали", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "[epic] Текст диктора с АКЦЕНТ словом..." } ]
+  "frames": [ { "timecode": "0-3 сек", "visual": "Крупный план...", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "[epic] Текст диктора с АКЦЕНТ словом..." } ]
 }`;
 
 const SYS_STEP_1B = `You are 'Marketing-X', Elite Viral Packager. Analyze the provided STORYBOARD and output ONLY valid JSON.
@@ -196,7 +188,7 @@ CRITICAL OVERRIDE: This is a historical/fictional documentary context. DO NOT mo
     I2V (Studio): Keep 'vidPrompt_EN' very short! Describe ONLY the physical action and camera movement. DO NOT invent appearances.
 2. GRITTY REALISM & CAMERA: Modern AI video generators make plastic skin. YOU MUST FORCE REALISM! For humans, ALWAYS add: "visible skin pores, fine facial hair, gritty texture, sweat, micro-details, raw documentary photography". NO PLASTIC LOOK. Use "shallow depth of field, slight handheld camera shake, slow pan".
 3. STRICT IDENTITY CONTROL: ЗАПРЕЩЕНО использовать имена. Заменяй ВСЕ имена на: "[Man 1: 45-year-old, hooked nose]".
-4. AUDIO ANCHOR: At END of every vidPrompt_EN, append ASMR audio tag.
+4. FORMATTING: Each prompt must be on a new line.
 
 JSON FORMAT:
 {
@@ -288,7 +280,7 @@ export default function Page() {
   const [wizardStep, setWizardStep] = useState(1);
   const [tokens, setTokens] = useState(3);
   
-  // PROJECT STATES
+  // ПРОЕКТНЫЕ СТЕЙТЫ
   const [chars, setChars] = useState([{ id: `CHAR_${Date.now()}`, name: "Главный Герой", desc: "", photo: null, scan: "" }]);
   const [locPhoto, setLocPhoto] = useState(null);
   const [locScan, setLocScan] = useState("");
@@ -303,7 +295,7 @@ export default function Page() {
   const [genre, setGenre] = useState("ТАЙНА");
   const [lang, setLang] = useState("RU"); 
   
-  // NEW TTS STATES
+  // СТЕЙТЫ ДЛЯ АУДИО (TTS)
   const [ttsVoice, setTtsVoice] = useState(TTS_SPEAKERS[0].id); 
   const [ttsScene, setTtsScene] = useState("");
   const [ttsContext, setTtsContext] = useState("");
@@ -314,7 +306,7 @@ export default function Page() {
   const [loadingMsg, setLoadingMsg] = useState("");
   const [tab, setTab] = useState("storyboard");
   
-  // RESULT STATES
+  // СТЕЙТЫ РЕЗУЛЬТАТОВ
   const [frames, setFrames] = useState([]);
   const [retention, setRetention] = useState(null);
   const [thumb, setThumb] = useState(null);
@@ -332,7 +324,7 @@ export default function Page() {
   const [rawImg, setRawImg] = useState("");
   const [rawVid, setRawVid] = useState("");
 
-  // COVER STUDIO STATES
+  // СТЕЙТЫ ОБЛОЖКИ (COVER STUDIO)
   const [bgImage, setBgImage] = useState(null);
   const [logoImage, setLogoImage] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -354,7 +346,7 @@ export default function Page() {
   const [logoY, setLogoY] = useState(10);
   const [logoSize, setLogoSize] = useState(20);
   
-  // UI STATES
+  // UI СТЕЙТЫ
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [infoModal, setInfoModal] = useState({ isOpen: false, title: "", content: "" });
@@ -503,10 +495,9 @@ export default function Page() {
   function rebuildRawText(frms, s2done) {
     let scriptTxt = frms.map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🔊 SFX: ${f.sfx||''}\n🔤 Титры: ${f.text_on_screen||''}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
     let imgTxt = s2done ? frms.map(f => f.imgPrompt_EN).filter(Boolean).join("\n\n") : "";
-    let vidTxt = s2done ? frms.map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n") : "";
+    let vidTxt = s2done ? frms.map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n\n") : "";
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
     
-    // Сборка полного текста для новой TTS панели
     let ttsCombined = frms.map(f => f.voice).filter(Boolean).join(" ");
     setFullTtsText(ttsCombined);
   }
@@ -519,15 +510,15 @@ export default function Page() {
       const sec = DURATION_SECONDS[dur] || 60;
       const targetFrames = Math.floor(sec / 3);
       const charsStr = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
+      const speakerName = TTS_SPEAKERS.find(s=>s.id === ttsVoice)?.label || ttsVoice;
       
-      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\nЛОКАЦИЯ: ${studioLoc}.\nГЕРОИ: ${charsStr}.\nСЦЕНАРИЙ: ${script}. \nВЫДАЙ JSON. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст! Обязательно сгенерируй 'tts_director' и 'characters_EN' (ref_sheet_prompt).`;
+      const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\nЛОКАЦИЯ: ${studioLoc}.\nГЕРОИ: ${charsStr}.\nСЦЕНАРИЙ: ${script}.\nSPEAKER (TTS): ${speakerName}.\nВЫДАЙ JSON. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст! Обязательно сгенерируй 'tts_director' и 'characters_EN' (ref_sheet_prompt).`;
       
       const text1A = await callAPI(req1A, 6000, SYS_STEP_1A);
       const data1A = cleanJSON(text1A);
       
       setLoadingMsg("Шаг 2/2: Упаковка SEO и маркетинга...");
       
-      // ИСПРАВЛЕНИЕ: Броня от пустых массивов
       const framesForSEO = data1A.frames || [];
       const text1B = await callAPI(JSON.stringify(framesForSEO), 3000, SYS_STEP_1B);
       let data1B = {};
@@ -539,7 +530,6 @@ export default function Page() {
       setLocRef(data1A.location_ref_EN || studioLoc || ""); 
       setStyleRef(data1A.style_ref_EN || ""); 
       
-      // Запись новых параметров TTS
       if (data1A.tts_director) {
         setTtsScene(data1A.tts_director.scene || "Standard Recording Studio");
         setTtsContext(data1A.tts_director.context || "Documentary pacing. Clear pronunciation.");
@@ -578,14 +568,13 @@ export default function Page() {
     try {
       const storyboardLite = frames.map((f, i) => `Frame ${i+1}: Visual: ${f.visual} | Voice: ${f.voice} | Chars: ${(f.characters_in_frame || []).join(",")}`).join("\n");
       const charsDict = generatedChars.map(c => `${c.id}: ${c.ref_sheet_prompt}`).join("\n");
-      
       const assets = pipelineMode === "I2V" ? `ASSETS DATA: Chars Scans: ${chars.map(c=>c.scan).join(" | ")}. Loc Scan: ${locScan}` : "";
       
       const pipelineDirective = pipelineMode === "I2V" 
         ? "PIPELINE_MODE = I2V (Studio). EXTREMELY IMPORTANT: Keep 'vidPrompt_EN' very short! Describe ONLY the physical action and camera movement. Use ASSETS DATA."
         : "PIPELINE_MODE = T2V (Direct). EXTREMELY IMPORTANT: Use GLOBAL ANCHORS! Rigidly construct 'vidPrompt_EN' as: [Location Detail] + [Detailed Character Appearance] + [Action] + [Camera Movement].";
 
-      const req = `PIPELINE RULE:\n${pipelineDirective}\n\nSTORYBOARD:\n${storyboardLite}\n\nCHARACTERS:\n${charsDict}\n\nLOCATION:\n${locRef}\n\n${assets}\n\nGenerate exactly ${frames.length} English visual prompts.`;
+      const req = `PIPELINE RULE:\n${pipelineDirective}\n\nSTORYBOARD:\n${storyboardLite}\n\nCHARACTERS:\n${charsDict}\n\nLOCATION:\n${locRef}\n\n${assets}\n\nGenerate exactly ${frames.length} English visual prompts. Each prompt on a new line.`;
       
       const text = await callAPI(req, 8000, SYS_STEP_2);
       const data = cleanJSON(text);
@@ -593,8 +582,7 @@ export default function Page() {
       const updatedFrames = frames.map((f, i) => {
         const p = data.frames_prompts && data.frames_prompts[i] ? data.frames_prompts[i] : {};
         const engineStyle = VISUAL_ENGINES[engine]?.prompt || "";
-        const customText = customStyle ? `, ${customStyle}` : "";
-        const finalStyle = `${styleRef ? styleRef + ", " : ""}${engineStyle}${customText}`;
+        const finalStyle = `${styleRef ? styleRef + ", " : ""}${engineStyle}`;
         
         let vPrompt = (p.vidPrompt_EN || f.visual) + `, ${finalStyle}, 8k, masterpiece`;
         let iPrompt = (p.imgPrompt_EN || f.visual) + `, ${finalStyle}, 8k, masterpiece`;
@@ -775,6 +763,10 @@ export default function Page() {
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {view === "result" && <button onClick={() => setView("form")} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:24}}>‹</button>}
           <span onClick={handleGodMode} style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.5, cursor:"pointer"}}>DOCU<span style={{color:"#a855f7"}}>SHORTS</span></span>
+          {/* НОВАЯ КНОПКА ВОЗВРАТА К РЕЗУЛЬТАТАМ */}
+          {frames.length > 0 && view === "form" && (
+            <button onClick={() => setView("result")} style={{marginLeft: 10, background:"linear-gradient(135deg, #10b981, #059669)", border:"none", color:"#fff", padding:"6px 12px", borderRadius:10, fontSize:11, fontWeight:900, cursor:"pointer", boxShadow:"0 0 10px rgba(16,185,129,0.4)"}}>➔ К РЕЗУЛЬТАТАМ</button>
+          )}
         </div>
         <div style={{display:"flex",gap:12, alignItems:"center"}}>
           <button onClick={() => setShowGuide(true)} style={{background:"none",border:"none",color:"#10b981",fontSize:11,fontWeight:800, cursor:"pointer"}}>📖 ГАЙД</button>
@@ -831,18 +823,16 @@ export default function Page() {
                          <input type="text" value={c.name} onChange={e => updateChar(c.id, 'name', e.target.value)} style={{background:"none", border:"none", color:"#fbcfe8", fontWeight:800, fontSize:12, width:"100%"}} placeholder="Имя (напр. Король Генрих)" />
                          <div style={{display:"flex", gap:10, alignItems:"center"}}>
                            <label style={{background:"rgba(236,72,153,0.15)", border:"1px solid rgba(236,72,153,0.3)", color:"#fbcfe8", fontSize:10, padding:"4px 8px", borderRadius:6, cursor:"pointer", fontWeight:800}}>
-                             📸 ФОТО <input type="file" accept="image/*" hidden onChange={(e) => handleCharImageUpload(e, c.id)} />
+                             📸 ФОТО <input type="file" accept="image/*" hidden onChange={(e) => handleAssetUpload(e, 'char', c.id)} />
                            </label>
                            {chars.length > 1 && <button onClick={() => removeChar(c.id)} style={{background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer"}}>×</button>}
                          </div>
                        </div>
-                       <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Опишите внешность или загрузите ФОТО для авто-кода." style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
+                       <textarea rows={2} value={c.desc} onChange={e => updateChar(c.id, 'desc', e.target.value)} placeholder="Опишите внешность или загрузите ФОТО." style={{width:"100%", background:"rgba(255,255,255,0.05)", border:"none", borderRadius:8, padding:10, fontSize:12, color:"#cbd5e1", resize:"none"}} />
                      </div>
                    ))}
                  </div>
               </div>
-
-              {/* Убрали старый уродливый блок настроек голоса с первого шага */}
 
               <div style={{height: 100}} />
               <div style={{position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, padding:"16px 20px 24px", background:"linear-gradient(to top, rgba(5,5,10,1) 70%, transparent)", zIndex:100}}>
@@ -860,7 +850,7 @@ export default function Page() {
                 ← НАЗАД В НАСТРОЙКИ
               </button>
 
-              {/* Блок Выбора Диктора перед текстом (Выглядит стильно) */}
+              {/* Выбор Диктора перед текстом */}
               <div className="block-card" style={{borderLeft:"3px solid #8b5cf6", paddingBottom:15}}>
                  <div className="block-title"><span style={{color:"#c4b5fd"}}>🎙 ВЫБОР ДИКТОРА (TTS)</span></div>
                  <div style={{display:"flex", gap:10}}>
@@ -922,19 +912,6 @@ export default function Page() {
              <div style={{background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:16, padding:16, marginBottom:24}}>
                <div style={{fontSize:11, fontWeight:900, color:"#34d399", textTransform:"uppercase", marginBottom:6}}>📊 Оценка Удержания: {retention.score}%</div>
                <div style={{fontSize:13, color:"#a7f3d0", lineHeight:1.5}}>{retention.feedback}</div>
-             </div>
-          )}
-
-          {step2Done && thumb?.prompt_EN && (
-             <div style={{background:"rgba(220,38,38,0.1)", border:"2px dashed #ef4444", borderRadius:24, padding:20, marginBottom:24, boxShadow:"0 0 20px rgba(220,38,38,0.2)"}}>
-               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
-                 <span style={{fontSize:14, fontWeight:900, color:"#fca5a5", textTransform:"uppercase"}}>🖼 PRO-ПРОМПТ ДЛЯ ФОНА ОБЛОЖКИ</span>
-                 <CopyBtn text={thumb.prompt_EN} />
-               </div>
-               <div style={{fontSize:14, fontFamily:"monospace", color:"#fecaca", lineHeight:1.5, background:"rgba(0,0,0,0.5)", padding:16, borderRadius:12}}>
-                 {thumb.prompt_EN}
-               </div>
-               <div style={{marginTop:10, fontSize:11, color:"#f87171", textAlign:"center"}}>☝️ Скопируйте этот текст в видеогенератор для получения вертикального фона обложки</div>
              </div>
           )}
 
@@ -1034,13 +1011,6 @@ export default function Page() {
                   )}
                 </div>
               ))}
-              
-              {step2Done && bRolls.length > 0 && (
-                <div style={{marginBottom:24, background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:24, padding:24}}>
-                  <div style={{fontSize:12, fontWeight:900, color:"#fbbf24", marginBottom:16}}>⚡ МИКРО-ПЕРЕБИВКИ (cite: B-ROLLS)</div>
-                  {bRolls.map((b, i) => <div key={i} style={{fontSize:12, fontFamily:"monospace", color:"#fcd34d", marginBottom:8, paddingBottom:8, borderBottom:"1px solid rgba(245,158,11,0.1)"}}>- {b}</div>)}
-                </div>
-              )}
             </div>
           )}
 
@@ -1222,6 +1192,7 @@ export default function Page() {
                 </div>
               </div>
 
+              {/* БЕЗОПАСНЫЙ РЕНДЕР SEO */}
               <div style={{background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
                    <div style={{display:"flex", alignItems:"center", marginBottom:16}}>
                       <span style={{fontSize:11, fontWeight:900, color:"#60a5fa", textTransform:"uppercase"}}>🚀 МАТРИЦА ВИРУСНОГО SEO</span>
@@ -1231,8 +1202,8 @@ export default function Page() {
                    {seoVariants && seoVariants.length > 0 ? (
                      <div style={{display:"flex", flexDirection:"column", gap:16}}>
                        {seoVariants.map((s, i) => {
-                         // БРОНЯ ОТ КРАША ТЕГОВ
-                         const safeTags = Array.isArray(s.tags) ? s.tags.join(" ") : (s.tags || "");
+                         // Бронебойная склейка тегов (защита от краша)
+                         const safeTags = Array.isArray(s.tags) ? s.tags.join(" ") : (typeof s.tags === 'string' ? s.tags : "");
                          return (
                            <div key={i} style={{background: SEO_COLORS[i%3].bg, border:`1px solid ${SEO_COLORS[i%3].border}`, padding:16, borderRadius:16}}>
                               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
