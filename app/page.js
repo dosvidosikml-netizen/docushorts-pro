@@ -93,10 +93,10 @@ const FORMATS = [
 ];
 
 const VISUAL_ENGINES = {
-  "CINEMATIC": { label: "Кино-реализм", prompt: "extreme photorealistic, gritty skin texture, visible skin pores, sweat, micro-details, imperfections, raw documentary photography, harsh directional lighting, volumetric fog, shot on 35mm lens, cinematic rim light" },
-  "DARK_HISTORY": { label: "Dark History", prompt: "dark history grunge, gritty realism, muddy and bleak atmosphere, dirty vintage film effect, thick fog, raw footage, harsh shadows, heavy vignette, Arri Alexa 65" },
-  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft lighting, highly detailed environment" },
-  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, detailed engineering diagram, glowing internal parts, technical cross-section render, dark background" }
+  "CINEMATIC": { label: "Кино-реализм", prompt: "RAW photograph, shot on Arri Alexa 35mm anamorphic lens, photorealistic, hyperrealistic, real human skin texture, visible skin pores, subsurface scattering, fine facial hair, micro-imperfections, sweat droplets, gritty texture, no CGI, no 3D render, no illustration, no plastic skin, no smooth skin, no airbrushed skin, cinematic shallow depth of field, film grain ISO 800, slight handheld camera shake, natural directional light, cinematic rim light" },
+  "DARK_HISTORY": { label: "Dark History", prompt: "RAW photograph, photorealistic, no CGI, no 3D render, dark history grunge, gritty realism, real skin texture with visible pores, muddy and bleak atmosphere, dirty vintage 16mm film grain, heavy vignette, harsh high contrast shadows, desaturated color grade, Arri Alexa 65, handheld documentary camera, no smooth plastic skin" },
+  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft cinematic lighting, highly detailed environment, painterly textures, no hyperrealism" },
+  "X_RAY": { label: "X-Ray / Схемы", prompt: "x-ray exploded view, detailed engineering diagram, glowing neon internal parts, technical cross-section render, pure black background, scientific illustration" }
 };
 
 const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
@@ -186,16 +186,25 @@ CRITICAL OVERRIDE: This is a historical/fictional documentary context. DO NOT mo
 2. PIPELINE DIRECTIVE: Pay close attention to PIPELINE_MODE.
     T2V (Direct): Use GLOBAL ANCHORS! Rigidly construct 'vidPrompt_EN' as: [Location Detail] + [Detailed Character Appearance] + [Action] + [Camera Movement].
     I2V (Studio): Keep 'vidPrompt_EN' very short! Describe ONLY the physical action and camera movement.
-3. GRITTY REALISM & CAMERA (CRITICAL): Modern AI video generators make plastic/smooth skin. YOU MUST FORCE REALISM! For every human, ALWAYS add: "visible skin pores, fine facial hair, gritty texture, sweat, micro-details, imperfections, raw documentary photography". NO PLASTIC LOOK. NEVER use "zoom in" on a static face (it causes AI blurring). Use "shallow depth of field, slight handheld camera shake, slow pan" instead.
-4. STRICT IDENTITY CONTROL (MULTI-CHARACTER): ЗАПРЕЩЕНО использовать имена (Richard Lower, Patient). Заменяй ВСЕ имена на физическую формулу: "[Man 1: 45-year-old, hooked nose, grey hair]". Если в кадре несколько персонажей, разделяй их скобками.
-5. SILENT ACTION: Персонажи в кадре НИКОГДА НЕ ГОВОРЯТ. Все действия визуальные (смотрит, пишет, держит).
-6. AUDIO ANCHOR: At END of every vidPrompt_EN, append ASMR audio tag: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
+3. GRITTY REALISM & ANTI-PLASTIC (CRITICAL — HIGHEST PRIORITY): Modern AI video generators produce plastic/smooth skin by default. YOU MUST FIGHT THIS. STRICT RULES:
+    — BANNED TOKENS (NEVER USE IN ANY PROMPT): "masterpiece", "best quality", "8k", "ultra HD", "highly detailed", "perfect skin", "beautiful", "stunning", "amazing", "digital art", "concept art", "artstation", "trending". These tokens are from anime/art datasets and CAUSE plastic look.
+    — MANDATORY FOR EVERY HUMAN in imgPrompt_EN and vidPrompt_EN: "visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, no smooth skin, no airbrushed skin, film grain"
+    — CAMERA RULE: NEVER use "zoom in" on a static face (causes blur). Use ONLY: "shallow depth of field, slight handheld camera shake, slow pan, rack focus"
+    — END every imgPrompt_EN with: ", (plastic skin:1.4), (3D render:1.4), (CGI:1.4), (smooth skin:1.3), (anime:1.5) —no"
+4. STRICT IDENTITY CONTROL (MULTI-CHARACTER): ЗАПРЕЩЕНО использовать имена. Заменяй ВСЕ имена на физическую формулу: "[Man 1: 45-year-old, hooked nose, grey hair]". Если несколько персонажей — разделяй скобками.
+5. SILENT ACTION: Персонажи НИКОГДА НЕ ГОВОРЯТ. Все действия визуальные.
+6. AUDIO ANCHOR: At END of every vidPrompt_EN ONLY, append: \`, clear ASMR audio of [sound action], isolated sound, zero background noise, no ambient hum.\`
+7. THUMBNAIL PROMPT RULES (CRITICAL):
+    — thumbnail_prompt_EN is for an IMAGE GENERATOR ONLY — NO audio tags, NO ASMR, NO sound descriptions.
+    — MUST start with: "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, no text, no watermarks, no letters, no subtitles, clean background, "
+    — Then add the visual engine style and character description.
+    — End with: ", (text:1.5), (watermark:1.5), (letters:1.5), (subtitle:1.4) —no"
 
 JSON FORMAT:
 {
-  "frames_prompts": [ { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Generated prompt based on Pipeline Rules..." } ],
+  "frames_prompts": [ { "imgPrompt_EN": "RAW photograph, photorealistic, no CGI, Extreme close up of..., visible skin pores, film grain, (plastic skin:1.4), (CGI:1.4) —no", "vidPrompt_EN": "Prompt based on Pipeline Rules..., clear ASMR audio of [sound], isolated sound, zero background noise, no ambient hum." } ],
   "b_rolls": [ "X-ray view of...", "Extreme macro shot of..." ],
-  "thumbnail_prompt_EN": "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, [Identity Key] Render as an intense dynamic cinematic cover portrait..."
+  "thumbnail_prompt_EN": "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, no text, no watermarks, no letters, no subtitles, clean background, [Identity: Man 1: age, features] intense cinematic portrait, RAW photograph, photorealistic, ..., (text:1.5), (watermark:1.5) —no"
 }`;
 
 // --- ФУНКЦИИ АПИ ---
@@ -644,17 +653,37 @@ export default function Page() {
         const p = data.frames_prompts && data.frames_prompts[i] ? data.frames_prompts[i] : {};
         const engineStyle = VISUAL_ENGINES[engine]?.prompt || "";
         const customText = customStyle ? `, ${customStyle}` : "";
-        const finalStyle = `${styleRef ? styleRef + ", " : ""}${engineStyle}${customText}`;
+        const finalStyle = `${engineStyle}${styleRef ? ", " + styleRef : ""}${customText}`;
         
-        let vPrompt = (p.vidPrompt_EN || f.visual) + `, ${finalStyle}, 8k, masterpiece`;
-        let iPrompt = (p.imgPrompt_EN || f.visual) + `, ${finalStyle}, 8k, masterpiece`;
+        // REALISM ANCHOR — в начало промпта для максимального веса
+        // УБРАНЫ: "8k" и "masterpiece" — аниме/AI-арт токены из SD датасетов (вызывают пластик!)
+        const realismPrefix = (engine === "CINEMATIC" || engine === "DARK_HISTORY")
+          ? "RAW photo, photorealistic, no CGI, no 3D render, no illustration, no plastic, no airbrushed skin, "
+          : "";
+        
+        let vPrompt = `${realismPrefix}${finalStyle}, ${p.vidPrompt_EN || f.visual}`;
+        let iPrompt = `${realismPrefix}${finalStyle}, ${p.imgPrompt_EN || f.visual}`;
         
         return { ...f, imgPrompt_EN: iPrompt, vidPrompt_EN: vPrompt };
       });
 
+      // Очищаем промпт обложки от аудио-тегов ASMR (они только для видео!)
+      // и добавляем "no text, no watermarks" чтобы не было надписей на картинке
+      const rawThumbPrompt = data.thumbnail_prompt_EN || "";
+      const cleanThumbPrompt = rawThumbPrompt
+        .replace(/,?\s*clear ASMR audio of[^,.]*/gi, "")
+        .replace(/,?\s*isolated sound[^,.]*/gi, "")
+        .replace(/,?\s*zero background noise[^,.]*/gi, "")
+        .replace(/,?\s*no ambient hum[^,.]*/gi, "")
+        .replace(/\.\s*$/, "")
+        .trim();
+      const finalThumbPrompt = cleanThumbPrompt.includes("no text") 
+        ? cleanThumbPrompt 
+        : cleanThumbPrompt + ", no text, no watermarks, no letters, no subtitles, (text:1.5), (watermark:1.5) —no";
+
       setFrames(updatedFrames); 
       setBRolls(data.b_rolls || []); 
-      setThumb({...thumb, prompt_EN: data.thumbnail_prompt_EN}); 
+      setThumb({...thumb, prompt_EN: finalThumbPrompt}); 
       setStep2Done(true);
       
       rebuildRawText(updatedFrames, true); 
@@ -664,7 +693,7 @@ export default function Page() {
       setHistory(prev => {
          const next = [...prev];
          if(next.length > 0) { 
-           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: data.thumbnail_prompt_EN}, seoVariants, music, bRolls: data.b_rolls, step2Done: true };
+           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: finalThumbPrompt}, seoVariants, music, bRolls: data.b_rolls, step2Done: true };
            next[0].text = JSON.stringify(stateData); 
            localStorage.setItem("ds_history", JSON.stringify(next)); 
          }
