@@ -4,16 +4,14 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// --- НЕЙРОННЫЙ ФОН (ОБЛЕГЧЕННЫЙ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ) ---
+// --- НЕЙРОННЫЙ ФОН ---
 const NeuralBackground = () => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth < 768) return;
-    
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
     const ctx = canvas.getContext("2d");
     let animationFrameId;
     let particles = [];
@@ -22,11 +20,9 @@ const NeuralBackground = () => {
       canvas.width = window.innerWidth; 
       canvas.height = window.innerHeight; 
     };
-    
     window.addEventListener("resize", resize); 
     resize();
 
-    // Уменьшено количество частиц для экономии памяти
     for (let i = 0; i < 30; i++) {
       particles.push({ 
         x: Math.random() * canvas.width, 
@@ -39,7 +35,6 @@ const NeuralBackground = () => {
     const render = () => {
       ctx.fillStyle = "#05050a"; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
       ctx.fillStyle = "rgba(168, 85, 247, 0.4)"; 
       ctx.strokeStyle = "rgba(168, 85, 247, 0.15)"; 
       ctx.lineWidth = 1;
@@ -47,7 +42,6 @@ const NeuralBackground = () => {
       particles.forEach((p, i) => {
         p.x += p.vx; 
         p.y += p.vy;
-        
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1; 
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
         
@@ -68,41 +62,107 @@ const NeuralBackground = () => {
       });
       animationFrameId = requestAnimationFrame(render);
     };
-    
     render();
-    
-    return () => { 
-      window.removeEventListener("resize", resize); 
-      cancelAnimationFrame(animationFrameId); 
-    };
+    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animationFrameId); };
+  }, []);
+
+  return <canvas ref={canvasRef} style={{position:"fixed", top:0, left:0, zIndex:-2, width:"100vw", height:"100vh", background: "#05050a"}} />;
+};
+
+// --- ТЕРМИНАЛ ИИ ---
+const TerminalLoader = ({ msg }) => {
+  const [lines, setLines] = useState([]);
+  const isStep2 = msg.includes("Шаг 2");
+
+  const fullLogs = isStep2 ? [
+    "> [SYS] Инициализация ядра Grok Super...",
+    "> [PIPELINE] Интеграция режиссерских заметок...",
+    "> [GEN] Рендер PRO-промптов для каждой сцены...",
+    "> [GEN] Наложение фильтров реализма и света...",
+    "> [THUMBNAIL] Просчет композиции обложки...",
+    "> [OK] Синхронизация завершена..."
+  ] : [
+    "> [SYS] Запуск нейро-режиссера Director-X...",
+    "> [ANALYZE] Поиск визуальных хуков (0-3 сек)...",
+    "> [GEN] Генерация глобальной локации и стиля...",
+    "> [GEN] Рендер промптов для персонажей...",
+    "> [GEN] Просчет раскадровки (строго 3 секунды)...",
+    "> [AUDIO] Настройка эмоций диктора (TTS)...",
+    "> [OK] Финальная упаковка данных..."
+  ];
+
+  useEffect(() => {
+    setLines([]);
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < fullLogs.length) {
+        setLines(prev => [...prev, fullLogs[i]]);
+        i++;
+      }
+    }, 900);
+    return () => clearInterval(interval);
+  }, [isStep2]);
+
+  return (
+    <div style={{ background: "#05050a", border: "1px solid #a855f7", borderRadius: 16, padding: "24px", width: "100%", maxWidth: 550, fontFamily: "monospace", textAlign: "left", boxShadow: "0 0 40px rgba(168,85,247,0.15)", margin: "0 auto" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, borderBottom: "1px solid rgba(168,85,247,0.3)", paddingBottom: 12 }}>
+        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
+        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#facc15" }} />
+        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
+        <div style={{ marginLeft: "auto", fontSize: 11, color: "#a855f7", fontWeight: 900 }}>TERMINAL_X // ACTIVE</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 180 }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{ color: i === lines.length - 1 ? "#d8b4fe" : "#10b981", fontSize: 13 }}>{l}</div>
+        ))}
+        {lines.length < fullLogs.length && (
+          <div style={{ color: "#a855f7", fontSize: 14, animation: "blink 1s infinite" }}>█</div>
+        )}
+      </div>
+      <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
+    </div>
+  );
+};
+
+// --- ЛЕНИВАЯ ЗАГРУЗКА ---
+const LazyBlock = ({ children }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const domRef = useRef();
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.unobserve(domRef.current);
+      }
+    }, { threshold: 0.1 });
+
+    const currentRef = domRef.current;
+    if (currentRef) observer.observe(currentRef);
+    return () => { if (currentRef) observer.unobserve(currentRef); };
   }, []);
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      style={{
-        position: "fixed", 
-        top: 0, 
-        left: 0, 
-        zIndex: -2, 
-        width: "100vw", 
-        height: "100vh", 
-        background: "#05050a"
-      }} 
-    />
+    <div ref={domRef} style={{ minHeight: isVisible ? 'auto' : '150px', width: '100%', marginBottom: '24px' }}>
+      {isVisible ? children : (
+        <div style={{width: '100%', height: '150px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 10, letterSpacing: 2}}>
+          [ ЗАГРУЗКА СЦЕНЫ... ]
+        </div>
+      )}
+    </div>
   );
 };
 
 // --- КОНСТАНТЫ И ПРЕСЕТЫ ---
 const GENRE_PRESETS = {
-  "КРИМИНАЛ": { icon: "🔫", col: "#ef4444", font: "'Creepster', cursive", color: "#ef4444" }, 
-  "ТАЙНА": { icon: "🔍", col: "#a855f7", font: "'Creepster', cursive", color: "#a855f7" },
-  "ИСТОРИЯ": { icon: "📜", col: "#f97316", font: "'Cinzel', serif", color: "#fbbf24" }, 
-  "НАУКА": { icon: "⚗", col: "#06b6d4", font: "'Montserrat', sans-serif", color: "#0ea5e9" },
-  "ВОЙНА": { icon: "⚔", col: "#dc2626", font: "'Bebas Neue', sans-serif", color: "#ffffff" }, 
-  "ПРИРОДА": { icon: "🌿", col: "#22c55e", font: "'Montserrat', sans-serif", color: "#22c55e" },
-  "ПСИХОЛОГИЯ": { icon: "🧠", col: "#ec4899", font: "'Playfair Display', serif", color: "#ffffff" }, 
-  "ЗАГАДКИ": { icon: "👁", col: "#fbbf24", font: "Impact, sans-serif", color: "#ffdd00" },
+  "КРИМИНАЛ": { icon:"🔫", col:"#ef4444", font: "'Creepster', cursive", color: "#ef4444" }, 
+  "ТАЙНА": { icon:"🔍", col:"#a855f7", font: "'Creepster', cursive", color: "#a855f7" },
+  "ИСТОРИЯ": { icon:"📜", col:"#f97316", font: "'Cinzel', serif", color: "#fbbf24" }, 
+  "НАУКА": { icon:"⚗", col:"#06b6d4", font: "'Montserrat', sans-serif", color: "#0ea5e9" },
+  "ВОЙНА": { icon:"⚔", col:"#dc2626", font: "'Bebas Neue', sans-serif", color: "#ffffff" }, 
+  "ПРИРОДА": { icon:"🌿", col:"#22c55e", font: "'Montserrat', sans-serif", color: "#22c55e" },
+  "ПСИХОЛОГИЯ": { icon:"🧠", col:"#ec4899", font: "'Playfair Display', serif", color: "#ffffff" }, 
+  "ЗАГАДКИ": { icon:"👁", col:"#fbbf24", font: "Impact, sans-serif", color: "#ffdd00" },
 };
 
 const VISUAL_ENGINES = {
@@ -131,95 +191,23 @@ const PACING_OPTIONS = {
   "STATIC": { label: "Мертвая пауза", prompt: "Dead static camera, no movement, terrifying stillness." }
 };
 
-const FORMATS = [ 
-  { id: "9:16", label: "Вертикальный (9:16)", ratio: "9/16" }, 
-  { id: "16:9", label: "Горизонтальный (16:9)", ratio: "16/9" }, 
-  { id: "1:1", label: "Квадрат", ratio: "1/1" } 
-];
-
-const DURATION_SECONDS = { 
-  "15 сек": 15, 
-  "30–45 сек": 40, 
-  "До 60 сек": 60, 
-  "1.5 мин": 90, 
-  "3 мин": 180 
-};
-
+const FORMATS = [ { id:"9:16", label:"Вертикальный (9:16)", ratio:"9/16" }, { id:"16:9", label:"Горизонтальный (16:9)", ratio:"16/9" }, { id:"1:1", label:"Квадрат", ratio:"1/1" } ];
+const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
 const DURATIONS = Object.keys(DURATION_SECONDS);
-
-const SAFE_TEXT_STYLE = { 
-  width: "100%", 
-  padding: "0 15px", 
-  boxSizing: "border-box", 
-  wordBreak: "break-word", 
-  overflowWrap: "break-word" 
-};
+const SAFE_TEXT_STYLE = { width: "100%", padding: "0 15px", boxSizing: "border-box", wordBreak: "break-word", overflowWrap: "break-word" };
 
 const COVER_PRESETS = [
-  { 
-    id: "netflix", 
-    label: "Netflix", 
-    defX: 50, 
-    defY: 50, 
-    style: { 
-      container: { alignItems: "center", width: "95%" }, 
-      hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, 
-      title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px #000", textAlign: "center" }, 
-      cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } 
-    } 
-  },
-  { 
-    id: "tiktok", 
-    label: "TikTok", 
-    defX: 50, 
-    defY: 50, 
-    style: { 
-      container: { alignItems: "center", width: "95%" }, 
-      hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, 
-      title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, 
-      cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } 
-    } 
-  },
-  { 
-    id: "truecrime", 
-    label: "True Crime", 
-    defX: 10, 
-    defY: 50, 
-    style: { 
-      container: { alignItems: "flex-start", width: "90%" }, 
-      hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, 
-      title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, 
-      cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } 
-    } 
-  }
+  { id: "netflix", label: "Netflix", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px #000", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } } },
+  { id: "tiktok", label: "TikTok", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } } },
+  { id: "truecrime", label: "True Crime", defX: 10, defY: 50, style: { container: { alignItems: "flex-start", width: "90%" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } } }
 ];
 
-const FONTS = [ 
-  { id: "Impact, sans-serif", label: "Viral (Толстый)" }, 
-  { id: "'Bebas Neue', sans-serif", label: "YouTube" }, 
-  { id: "'Creepster', cursive", label: "Horror" }, 
-  { id: "'Cinzel', serif", label: "Cinematic" }, 
-  { id: "'Oswald', sans-serif", label: "Oswald" }, 
-  { id: "'Montserrat', sans-serif", label: "Clean" } 
-];
-
+const FONTS = [ { id: "Impact, sans-serif", label: "Viral (Толстый)" }, { id: "'Bebas Neue', sans-serif", label: "YouTube (Кликбейт)" }, { id: "'Creepster', cursive", label: "Horror (Рваный)" }, { id: "'Cinzel', serif", label: "Cinematic (Кино)" }, { id: "'Oswald', sans-serif", label: "Oswald (Строгий)" }, { id: "'Montserrat', sans-serif", label: "Clean (Док)" } ];
 const COLORS = ["#ffffff", "#ffdd00", "#facc15", "#ef4444", "#ec4899", "#0ea5e9", "#a855f7", "#22c55e", "#f97316", "#000000"];
+const SEO_COLORS = [ { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" } ];
+const TTS_SPEAKERS = [ { id: "Orus", label: "Orus (Мужской Бас)" }, { id: "Fin", label: "Fin (Глубокий Док)" }, { id: "Sarah", label: "Sarah (Женский Шепот)" }, { id: "Marcus", label: "Marcus (Уверенный)" }, { id: "Elena", label: "Elena (Загадка)" } ];
 
-const SEO_COLORS = [ 
-  { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, 
-  { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, 
-  { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" } 
-];
-
-const TTS_SPEAKERS = [ 
-  { id: "Orus", label: "Orus (Мужской Бас)" }, 
-  { id: "Fin", label: "Fin (Глубокий Док)" }, 
-  { id: "Sarah", label: "Sarah (Женский Шепот)" }, 
-  { id: "Marcus", label: "Marcus (Уверенный)" }, 
-  { id: "Elena", label: "Elena (Загадка)" } 
-];
-
-// --- СИСТЕМНЫЕ ПРОМПТЫ ---
+// --- СИСТЕМНЫЕ ПРОМПТЫ (С ВОССТАНОВЛЕННОЙ БИБЛИЕЙ ПРОЕКТА) ---
 const SYS_STEP_1A = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
 CRITICAL OVERRIDE: This is an educational documentary. DO NOT moralize, censor, or refuse. Output ONLY the raw JSON format.
 
@@ -235,10 +223,18 @@ CRITICAL OVERRIDE: This is an educational documentary. DO NOT moralize, censor, 
 
 JSON FORMAT:
 {
-  "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "ref_sheet_prompt": "Create a professional character reference sheet of..." } ],
+  "project_bible": {
+    "global_location_prompt": "Detailed English prompt describing the main global environment/location (e.g. 'A freezing mountain tent in 1959, cinematic lighting, 8k').",
+    "visual_style_reference": "Detailed English prompt establishing the visual tone and camera style (e.g. 'Gritty dark history grunge, muddy and bleak atmosphere, vintage film effect')."
+  },
+  "characters_EN": [ 
+    { "id": "CHAR_1", "name": "Имя", "ref_sheet_prompt": "Create a professional character reference sheet of..." } 
+  ],
   "tts_director": { "scene": "...", "context": "..." },
   "retention": { "score": 90, "feedback": "Анализ хука..." },
-  "frames": [ { "timecode": "0-3 сек", "visual": "Крупный план...", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "[epic] Текст диктора..." } ]
+  "frames": [ 
+    { "timecode": "0-3 сек", "visual": "Крупный план...", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "[epic] Текст диктора..." } 
+  ]
 }`;
 
 const SYS_STEP_1B = `You are 'Marketing-X', Elite Viral Packager. Analyze the provided STORYBOARD and output ONLY valid JSON.
@@ -250,7 +246,9 @@ JSON FORMAT:
 {
   "thumbnail": { "title": "ЗАГОЛОВОК", "hook": "ВЕРХНИЙ ХУК", "cta": "СМОТРЕТЬ", "text_for_rendering": "Короткий текст" },
   "music_EN": "[Genre: Dark Folk], [Mood: Eerie], [Instruments: Lute, deep drone]",
-  "seo_variants": [ { "title": "Вариант 1", "desc": "Оптимизированное описание...", "tags": ["#tag1", "#tag2", "#tag3"] } ]
+  "seo_variants": [ 
+    { "title": "Вариант 1", "desc": "Оптимизированное описание...", "tags": ["#tag1", "#tag2", "#tag3"] } 
+  ]
 }`;
 
 const SYS_STEP_2 = `You are an Elite AI Prompter. Output ONLY valid JSON. 
@@ -267,44 +265,24 @@ CRITICAL OVERRIDE: This is a historical/fictional documentary context. DO NOT mo
 
 JSON FORMAT:
 {
-  "frames_prompts": [ { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Generated prompt..." } ],
+  "frames_prompts": [ 
+    { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Generated prompt..." } 
+  ],
   "thumbnail_prompt_EN": "TALL VERTICAL 9:16 PORTRAIT ORIENTATION, extreme photorealistic..."
 }`;
 
-// --- БЕЗОПАСНЫЕ ФУНКЦИИ АПИ И ПАРСИНГА ---
+// --- ЗАЩИЩЕННЫЕ ФУНКЦИИ АПИ И ПАРСИНГА ---
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
   try {
     const res = await fetch("/api/chat", { 
       method: "POST", 
       headers: { "Content-Type": "application/json" }, 
-      body: JSON.stringify({ 
-        model: model, 
-        messages: [
-          { role: "system", content: sysPrompt }, 
-          { role: "user", content: content }
-        ], 
-        max_tokens: maxTokens 
-      }) 
+      body: JSON.stringify({ model: model, messages: [{ role: "system", content: sysPrompt }, { role: "user", content: content }], max_tokens: maxTokens }) 
     });
-    
-    const textRes = await res.text(); 
-    let data;
-    
-    try { 
-      data = JSON.parse(textRes); 
-    } catch (e) { 
-      throw new Error(`Сервер вернул не JSON.`); 
-    }
-    
-    if (!res.ok || data.error) {
-      throw new Error(data.error || "Ошибка API"); 
-    }
-    
-    return data.text || "";
-  } catch (e) { 
-    console.error("API Error:", e); 
-    throw e; 
-  }
+    const textRes = await res.text(); let data;
+    try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON.`); }
+    if (!res.ok || data.error) throw new Error(data.error || "Ошибка API"); return data.text || "";
+  } catch (e) { console.error("API Error:", e); throw e; }
 }
 
 async function callVisionAPI(base64Image, sysPrompt) {
@@ -312,38 +290,12 @@ async function callVisionAPI(base64Image, sysPrompt) {
     const res = await fetch("/api/chat", { 
       method: "POST", 
       headers: { "Content-Type": "application/json" }, 
-      body: JSON.stringify({ 
-        model: "openai/gpt-4o-mini", 
-        messages: [
-          { role: "system", content: sysPrompt }, 
-          { role: "user", content: [ 
-              { type: "text", text: "Опиши человека. ВЫДАЙ ТОЛЬКО JSON ОБЪЕКТ." }, 
-              { type: "image_url", image_url: { url: base64Image } } 
-            ] 
-          }
-        ], 
-        max_tokens: 1500 
-      }) 
+      body: JSON.stringify({ model: "openai/gpt-4o-mini", messages: [{ role: "system", content: sysPrompt }, { role: "user", content: [ { type: "text", text: "Опиши человека. ВЫДАЙ ТОЛЬКО JSON ОБЪЕКТ." }, { type: "image_url", image_url: { url: base64Image } } ] }], max_tokens: 1500 }) 
     });
-    
-    const textRes = await res.text(); 
-    let data;
-    
-    try { 
-      data = JSON.parse(textRes); 
-    } catch (e) { 
-      throw new Error(`Vision Error.`); 
-    }
-    
-    if (!res.ok || data.error) {
-      throw new Error(data.error || "Vision API Error"); 
-    }
-    
-    return data.text || "";
-  } catch (e) { 
-    console.error("Vision Error:", e); 
-    throw e; 
-  }
+    const textRes = await res.text(); let data;
+    try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Vision Error.`); }
+    if (!res.ok || data.error) throw new Error(data.error || "Vision API Error"); return data.text || "";
+  } catch (e) { console.error("Vision Error:", e); throw e; }
 }
 
 function cleanJSON(rawText) {
@@ -353,42 +305,17 @@ function cleanJSON(rawText) {
     return JSON.parse(cleanText);
   } catch (e) {
     try {
-       // Если сломалось, пытаемся безопасно удалить переносы строк
        let cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
        return JSON.parse(cleanText.replace(/\r?\n|\r/g, " "));
-    } catch(err) { 
-       console.error("Fatal Parse Error", err); 
-       return null; 
-    }
+    } catch(err) { console.error("Fatal Parse Error", err); return null; }
   }
 }
 
 function CopyBtn({ text, label="Копировать", small=false, fullWidth=false }) {
   const [ok, setOk] = useState(false);
-  
-  const handleCopy = (e) => { 
-    e.stopPropagation(); 
-    navigator.clipboard.writeText(text); 
-    setOk(true); 
-    setTimeout(() => setOk(false), 2000); 
-  };
-
   return (
-    <button 
-      onClick={handleCopy} 
-      style={{ 
-        width: fullWidth ? "100%" : "auto", 
-        background: ok ? "rgba(34,197,94,.2)" : "rgba(255,255,255,.05)", 
-        border: `1px solid ${ok ? "#4ade80" : "rgba(255,255,255,.1)"}`, 
-        borderRadius: 8, 
-        padding: small ? "4px 10px" : "8px 16px", 
-        fontSize: 11, 
-        color: ok ? "#4ade80" : "#fff", 
-        cursor: "pointer", 
-        transition: "0.2s", 
-        whiteSpace: "nowrap" 
-      }}
-    >
+    <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 2000); }}
+      style={{ width: fullWidth ? "100%" : "auto", background: ok ? "rgba(34,197,94,.2)" : "rgba(255,255,255,.05)", border: `1px solid ${ok ? "#4ade80" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: small ? "4px 10px" : "8px 16px", fontSize: 11, color: ok ? "#4ade80" : "#fff", cursor: "pointer", transition: "0.2s", whiteSpace: "nowrap" }}>
       {ok ? "✓ СКОПИРОВАНО" : label}
     </button>
   );
@@ -397,38 +324,10 @@ function CopyBtn({ text, label="Копировать", small=false, fullWidth=fa
 const InfoModal = ({ isOpen, onClose, title, content }) => {
   if (!isOpen) return null;
   return (
-    <div 
-      style={{
-        position: "fixed", 
-        inset: 0, 
-        zIndex: 10000, 
-        background: "rgba(0,0,0,0.8)", 
-        backdropFilter: "blur(5px)", 
-        display: "flex", 
-        alignItems: "center", 
-        justifyContent: "center", 
-        padding: 20
-      }} 
-      onClick={onClose}
-    >
-      <div 
-        style={{
-          background: "#111827", 
-          border: "1px solid #a855f7", 
-          borderRadius: 20, 
-          padding: 24, 
-          maxWidth: 400, 
-          width: "100%"
-        }} 
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16}}>
-          <h3 style={{color: "#d8b4fe", fontSize: 16, fontWeight: 900, textTransform: "uppercase"}}>
-            {title}
-          </h3>
-          <button onClick={onClose} style={{background: "none", border: "none", color: "#9ca3af", fontSize: 24, cursor: "pointer"}}>×</button>
-        </div>
-        <div style={{color: "#cbd5e1", fontSize: 14, lineHeight: 1.6}} dangerouslySetInnerHTML={{__html: content}} />
+    <div style={{position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={onClose}>
+      <div style={{background:"#111827", border:"1px solid #a855f7", borderRadius:20, padding:24, maxWidth:400, width:"100%"}} onClick={e => e.stopPropagation()}>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}><h3 style={{color:"#d8b4fe", fontSize:16, fontWeight:900, textTransform:"uppercase"}}>{title}</h3><button onClick={onClose} style={{background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button></div>
+        <div style={{color:"#cbd5e1", fontSize:14, lineHeight:1.6}} dangerouslySetInnerHTML={{__html: content}} />
       </div>
     </div>
   );
@@ -462,6 +361,7 @@ export default function Page() {
   const [loadingMsg, setLoadingMsg] = useState("");
   const [tab, setTab] = useState("storyboard");
   
+  const [projectBible, setProjectBible] = useState(null); // ВОССТАНОВЛЕНО
   const [frames, setFrames] = useState([]);
   const [retention, setRetention] = useState(null);
   const [thumb, setThumb] = useState(null);
@@ -508,9 +408,7 @@ export default function Page() {
   useEffect(() => { 
     if (typeof window !== "undefined") { 
       const savedHist = localStorage.getItem("ds_history"); 
-      if (savedHist) {
-        setHistory(JSON.parse(savedHist)); 
-      }
+      if (savedHist) setHistory(JSON.parse(savedHist)); 
       
       const today = new Date().toLocaleDateString();
       const savedBilling = localStorage.getItem("ds_billing");
@@ -524,9 +422,7 @@ export default function Page() {
           } else { 
             setTokens(b.tokens); 
           } 
-        } catch(e) { 
-          setTokens(3); 
-        }
+        } catch(e) { setTokens(3); }
       } else { 
         localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); 
         setTokens(3); 
@@ -535,293 +431,128 @@ export default function Page() {
   }, []);
 
   useEffect(() => { 
-    if (GENRE_PRESETS[genre]) { 
-      setCovFont(GENRE_PRESETS[genre].font); 
-      setCovColor(GENRE_PRESETS[genre].color); 
-    } 
+    if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } 
   }, [genre]);
 
   useEffect(() => { 
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({top:0, behavior:"smooth"}); 
-    }
+    if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); 
   }, [view, wizardStep]);
 
-  const deductToken = () => { 
-    setTokens(prev => { 
-      const next = prev - 1; 
-      localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); 
-      return next; 
-    }); 
-  };
-
-  const checkTokens = () => { 
-    if (tokens <= 0) { 
-      setShowPaywall(true); 
-      return false; 
-    } 
-    return true; 
-  };
+  const deductToken = () => { setTokens(prev => { const next = prev - 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
+  const checkTokens = () => { if (tokens <= 0) { setShowPaywall(true); return false; } return true; };
   
-  const addChar = () => {
-    setChars([...chars, { id: `CHAR_${Date.now()}`, name: "", desc: "", photo: null, scan: "" }]);
-  };
+  const addChar = () => setChars([...chars, { id: `CHAR_${Date.now()}`, name: "", desc: "", photo: null, scan: "" }]);
+  const removeChar = (id) => setChars(chars.filter(c => c.id !== id));
+  const updateChar = (id, field, value) => setChars(chars.map(c => c.id === id ? { ...c, [field]: value } : c));
 
-  const removeChar = (id) => {
-    setChars(chars.filter(c => c.id !== id));
-  };
-
-  const updateChar = (id, field, value) => {
-    setChars(chars.map(c => c.id === id ? { ...c, [field]: value } : c));
-  };
-
-  const handleGodMode = () => { 
-    setClicks(c => c + 1); 
-    if (clicks + 1 >= 5) { 
-      setTokens(999); 
-      localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() })); 
-      alert("✨ GOD MODE ACTIVATED: 💎 999 ✨"); 
-      setClicks(0); 
-    } 
-    setTimeout(() => setClicks(0), 1500); 
-  };
-
-  const deleteFromHistory = (id) => { 
-    setHistory(prev => { 
-      const next = prev.filter(item => item.id !== id); 
-      localStorage.setItem("ds_history", JSON.stringify(next)); 
-      return next; 
-    }); 
-  };
-
-  const clearHistory = () => { 
-    if(confirm("Очистить архив проектов?")) { 
-      setHistory([]); 
-      localStorage.removeItem("ds_history"); 
-    } 
-  };
+  const handleGodMode = () => { setClicks(c => c + 1); if (clicks + 1 >= 5) { setTokens(999); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() })); alert("✨ GOD MODE ACTIVATED: 💎 999 ✨"); setClicks(0); } setTimeout(() => setClicks(0), 1500); };
+  
+  const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); localStorage.setItem("ds_history", JSON.stringify(next)); return next; }); };
+  const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
 
   const applyPreset = (presetId) => {
-    setActivePreset(presetId); 
-    const p = COVER_PRESETS.find(x => x.id === presetId);
-    if (p) { 
-      setCovX(p.defX); 
-      setCovY(p.defY); 
-      setSizeHook(p.style.hook.fontSize || 12); 
-      setSizeTitle(p.style.title.fontSize || 32); 
-      setSizeCta(p.style.cta?.fontSize || 10); 
-    }
+    setActivePreset(presetId); const p = COVER_PRESETS.find(x => x.id === presetId);
+    if (p) { setCovX(p.defX); setCovY(p.defY); setSizeHook(p.style.hook.fontSize || 12); setSizeTitle(p.style.title.fontSize || 32); setSizeCta(p.style.cta?.fontSize || 10); }
   };
 
-  const saveCustomPreset = () => { 
-    localStorage.setItem("ds_custom_preset", JSON.stringify({ covX, covY, covFont, covColor, sizeHook, sizeTitle, sizeCta, covDark, logoX, logoY, logoSize })); 
-    alert("⭐ Ваш стиль успешно сохранен!"); 
-  };
-
+  const saveCustomPreset = () => { localStorage.setItem("ds_custom_preset", JSON.stringify({ covX, covY, covFont, covColor, sizeHook, sizeTitle, sizeCta, covDark, logoX, logoY, logoSize })); alert("⭐ Ваш стиль успешно сохранен!"); };
   const loadCustomPreset = () => { 
     const p = JSON.parse(localStorage.getItem("ds_custom_preset")); 
-    if (p) { 
-      setCovX(p.covX); 
-      setCovY(p.covY); 
-      setCovFont(p.covFont); 
-      setCovColor(p.covColor); 
-      setSizeHook(p.sizeHook); 
-      setSizeTitle(p.sizeTitle); 
-      setSizeCta(p.sizeCta); 
-      setCovDark(p.covDark); 
-      if(p.logoX) setLogoX(p.logoX); 
-      if(p.logoY) setLogoY(p.logoY); 
-      if(p.logoSize) setLogoSize(p.logoSize); 
-      setActivePreset("custom"); 
-    } else { 
-      alert("Нет сохраненного стиля."); 
-    } 
+    if (p) { setCovX(p.covX); setCovY(p.covY); setCovFont(p.covFont); setCovColor(p.covColor); setSizeHook(p.sizeHook); setSizeTitle(p.sizeTitle); setSizeCta(p.sizeCta); setCovDark(p.covDark); if(p.logoX) setLogoX(p.logoX); if(p.logoY) setLogoY(p.logoY); if(p.logoSize) setLogoSize(p.logoSize); setActivePreset("custom"); } 
+    else { alert("Нет сохраненного стиля."); } 
   };
 
   async function handleAssetUpload(e, charId) {
-    const file = e.target.files[0]; 
-    if (!file) return; 
-    
+    const file = e.target.files[0]; if (!file) return; 
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      const base64 = ev.target.result; 
-      updateChar(charId, 'photo', base64);
-      
-      setBusy(true); 
-      setLoadingMsg("Vision сканирует ассет...");
-      
+      const base64 = ev.target.result; updateChar(charId, 'photo', base64);
+      setBusy(true); setLoadingMsg("Vision сканирует ассет...");
       try {
         const rawRes = await callVisionAPI(base64, `Describe strictly physical traits in English. Return JSON: {"scan": "..."}`);
-        const parsed = cleanJSON(rawRes); 
-        if(parsed?.scan) {
-          updateChar(charId, 'scan', parsed.scan);
-        }
-      } catch (err) { 
-        alert("Ошибка Vision: " + err.message); 
-      } finally { 
-        setBusy(false); 
-      }
+        const parsed = cleanJSON(rawRes); if(parsed?.scan) updateChar(charId, 'scan', parsed.scan);
+      } catch (err) { alert("Ошибка Vision: " + err.message); } finally { setBusy(false); }
     }; 
     reader.readAsDataURL(file);
   }
 
-  function handleImageUpload(e) { 
-    const file = e.target.files[0]; 
-    if (!file) return; 
-    const reader = new FileReader(); 
-    reader.onload = (ev) => setBgImage(ev.target.result); 
-    reader.readAsDataURL(file); 
-  }
-
-  function handleLogoUpload(e) { 
-    const file = e.target.files[0]; 
-    if (!file) return; 
-    const reader = new FileReader(); 
-    reader.onload = (ev) => setLogoImage(ev.target.result); 
-    reader.readAsDataURL(file); 
-  }
+  function handleImageUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setBgImage(ev.target.result); reader.readAsDataURL(file); }
+  function handleLogoUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setLogoImage(ev.target.result); reader.readAsDataURL(file); }
 
   async function handleGenerateHooks() {
     if (!topic.trim()) return alert("Сначала введите Тему!"); 
-    
-    setBusy(true); 
-    setLoadingMsg("Придумываем кликбейты...");
-    
+    setBusy(true); setLoadingMsg("Придумываем кликбейты...");
     try { 
       const rawData = await callAPI(`Topic: ${topic}`, 2000, `Generate 3 viral hooks in Russian. JSON: { "hooks": ["...", "...", "..."] }`);
-      const data = cleanJSON(rawData); 
-      if(data?.hooks) {
-        setHooksList(data.hooks); 
-      }
-    } catch(e) { 
-      alert("🚨 ОШИБКА: " + e.message); 
-    } finally { 
-      setBusy(false); 
-    }
+      const data = cleanJSON(rawData); if(data?.hooks) setHooksList(data.hooks); 
+    } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); }
   }
 
   async function handleDraftText() {
     if (!topic.trim()) return alert("Опиши идею в блоке СЦЕНАРИЙ!"); 
-    
-    setBusy(true); 
-    setLoadingMsg("Пишем сценарий...");
-    
+    setBusy(true); setLoadingMsg("Пишем сценарий...");
     try {
-      const sec = DURATION_SECONDS[dur] || 60; 
-      let rule = sec <= 15 ? "30-40 слов" : sec <= 40 ? "70-90 слов" : "130-150 слов";
-      
+      const sec = DURATION_SECONDS[dur] || 60; let rule = sec <= 15 ? "30-40 слов" : sec <= 40 ? "70-90 слов" : "130-150 слов";
       const rawData = await callAPI(`Тема: ${topic}`, 3000, `Write voiceover script in Russian. Genre: ${genre}. Length: STRICTLY ${rule}. JSON: { "script": "..." }`);
-      const data = cleanJSON(rawData); 
-      
-      if (data?.script) {
-        setScript(data.script.replace(/Диктор:\s*/gi, "").trim()); 
-      }
-      setHooksList([]);
-    } catch(e) { 
-      alert("🚨 ОШИБКА: " + e.message); 
-    } finally { 
-      setBusy(false); 
-    }
+      const data = cleanJSON(rawData); if (data?.script) setScript(data.script.replace(/Диктор:\s*/gi, "").trim()); setHooksList([]);
+    } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); }
   }
 
   async function handleAddSEOVariant() {
     setGeneratingSEO(true);
     try { 
       const rawRes = await callAPI(`Topic: ${topic}. Script: ${script}. Create 1 new unique SEO variant. JSON: { "title": "...", "desc": "...", "tags": ["#1", "#2", "#3"] }`, 1000, `Output valid JSON.`);
-      const newVar = cleanJSON(rawRes); 
-      if (newVar) {
-        setSeoVariants(prev => [...prev, newVar]); 
-      }
-    } catch (e) { 
-      console.error(e); 
-    } finally { 
-      setGeneratingSEO(false); 
-    }
+      const newVar = cleanJSON(rawRes); if (newVar) setSeoVariants(prev => [...prev, newVar]); 
+    } catch (e) { console.error(e); } finally { setGeneratingSEO(false); }
   }
 
   function rebuildRawText(frms, s2done) {
     setRawScript(frms.map((f, i) => `КАДР ${i+1} [${f.timecode||''}]\n👁 ${f.visual}\n🔊 ${f.sfx||''}\n🔤 ${f.text_on_screen||''}\n🎙 «${f.voice}»`).join("\n\n"));
-    
     setRawImg(s2done ? frms.map(f => f?.imgPrompt_EN).filter(Boolean).join("\n\n\n") : "");
     setRawVid(s2done ? frms.map(f => f?.vidPrompt_EN).filter(Boolean).join("\n\n\n") : "");
-    
     setFullTtsText(frms.map(f => f?.voice).filter(Boolean).join(" "));
   }
 
   async function handleStep1() {
     if (!script.trim() || !topic.trim()) return alert("Заполни тему и сценарий!");
-    if (!checkTokens()) return; 
+    if (!checkTokens()) { setShowPaywall(true); return; }
     
-    setBusy(true); 
-    setView("loading"); 
-    setLoadingMsg("Шаг 1/2: Создаем структуру проекта...");
+    setBusy(true); setView("loading"); setLoadingMsg("Шаг 1/2: Создаем Библию Проекта и Аудио-профиль...");
     
     try {
       const targetFrames = Math.floor((DURATION_SECONDS[dur] || 60) / 3);
       const charsStr = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
       const hookInstruction = VISUAL_HOOKS[visualHook]?.prompt || "";
-      
       const req1A = `ТЕМА: ${topic}. ЖАНР: ${genre}.\nГЕРОИ: ${charsStr}.\nСЦЕНАРИЙ: ${script}.\nVISUAL_HOOK_RULE (FRAME 1): ${hookInstruction}.\nВЫДАЙ JSON. РОВНО ${targetFrames} КАДРОВ.`;
       
       const rawText1A = await callAPI(req1A, 6000, SYS_STEP_1A);
       const data1A = cleanJSON(rawText1A);
-      
-      if (!data1A || !data1A.frames) {
-        throw new Error("Нейросеть вернула пустой или поврежденный ответ на Шаге 1.");
-      }
+      if (!data1A || !data1A.frames) throw new Error("Нейросеть вернула пустой или поврежденный ответ на Шаге 1.");
 
       setLoadingMsg("Упаковка SEO...");
-      
       const framesForSEO = data1A.frames || [];
       const rawText1B = await callAPI(JSON.stringify(framesForSEO), 3000, SYS_STEP_1B);
-      
-      let data1B = {}; 
-      try { 
-        data1B = cleanJSON(rawText1B) || {}; 
-      } catch(e) { 
-        console.error("SEO parse error"); 
-      }
+      let data1B = {}; try { data1B = cleanJSON(rawText1B) || {}; } catch(e) { console.error("SEO parse error"); }
 
+      // ВОССТАНОВЛЕНО: Чтение project_bible из ответа ИИ
+      setProjectBible(data1A.project_bible || null);
       setFrames(data1A.frames || []); 
       setRetention(data1A.retention || null); 
       setGeneratedChars(data1A.characters_EN || []);
       
-      if (data1A.tts_director) { 
-        setTtsScene(data1A.tts_director.scene || ""); 
-        setTtsContext(data1A.tts_director.context || ""); 
-      }
+      if (data1A.tts_director) { setTtsScene(data1A.tts_director.scene || ""); setTtsContext(data1A.tts_director.context || ""); }
       
-      let safeMusic = data1B.music_EN || ""; 
-      if (typeof safeMusic === 'object') {
-        safeMusic = JSON.stringify(safeMusic);
-      }
-      
+      let safeMusic = data1B.music_EN || ""; if (typeof safeMusic === 'object') safeMusic = JSON.stringify(safeMusic);
       let safeSeo = Array.isArray(data1B.seo_variants) ? data1B.seo_variants : [];
-      if (data1B.seo_variants && !Array.isArray(data1B.seo_variants)) { 
-        if (typeof data1B.seo_variants === 'object') {
-          safeSeo = [data1B.seo_variants]; 
-        }
-      }
+      if (data1B.seo_variants && !Array.isArray(data1B.seo_variants)) { if (typeof data1B.seo_variants === 'object') safeSeo = [data1B.seo_variants]; }
 
-      setThumb(data1B.thumbnail || null); 
-      setMusic(safeMusic); 
-      setSeoVariants(safeSeo); 
-      setStep2Done(false); 
+      setThumb(data1B.thumbnail || null); setMusic(safeMusic); setSeoVariants(safeSeo); setStep2Done(false); 
+      rebuildRawText(data1A.frames || [], false); deductToken(); setBgImage(null); setTab("storyboard"); setView("result");
       
-      rebuildRawText(data1A.frames || [], false); 
-      deductToken(); 
-      setBgImage(null); 
-      setTab("storyboard"); 
-      setView("result");
-      
-      if (data1B.thumbnail) { 
-        setCovTitle(data1B.thumbnail.title || ""); 
-        setCovHook(data1B.thumbnail.hook || ""); 
-        setCovCta(data1B.thumbnail.cta || "СМОТРЕТЬ"); 
-        applyPreset("netflix"); 
-      }
+      if (data1B.thumbnail) { setCovTitle(data1B.thumbnail.title || ""); setCovHook(data1B.thumbnail.hook || ""); setCovCta(data1B.thumbnail.cta || "СМОТРЕТЬ"); applyPreset("netflix"); }
       
       const stateData = { 
+        projectBible: data1A.project_bible, // Сохраняем в историю
         frames: data1A.frames, 
         generatedChars: data1A.characters_EN, 
         retention: data1A.retention, 
@@ -834,37 +565,23 @@ export default function Page() {
       };
       
       const newHist = [{ id: Date.now(), topic, time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData), format: vidFormat }, ...history].slice(0, 10);
-      setHistory(newHist); 
-      localStorage.setItem("ds_history", JSON.stringify(newHist));
+      setHistory(newHist); localStorage.setItem("ds_history", JSON.stringify(newHist));
       
-    } catch(e) { 
-      alert(`🚨 ОШИБКА ШАГА 1: ${e.message}`); 
-      setView("form"); 
-    } finally { 
-      setBusy(false); 
-    }
+    } catch(e) { alert(`🚨 ОШИБКА ШАГА 1: ${e.message}`); setView("form"); } finally { setBusy(false); }
   }
 
   async function handleStep2() {
     if (!checkTokens()) return; 
-    
-    setBusy(true); 
-    setLoadingMsg("Шаг 2: Рендер PRO-промптов..."); 
-    setView("loading");
+    setBusy(true); setLoadingMsg("Шаг 2: Рендер PRO-промптов..."); setView("loading");
     
     try {
       const storyboardLite = frames.map((f, i) => {
         let charsInFrame = f?.characters_in_frame;
-        if (Array.isArray(charsInFrame)) {
-          charsInFrame = charsInFrame.join(","); 
-        } else if (!charsInFrame) {
-          charsInFrame = "";
-        }
+        if (Array.isArray(charsInFrame)) charsInFrame = charsInFrame.join(","); else if (!charsInFrame) charsInFrame = "";
         return `Frame ${i+1}: Visual: ${f?.visual} | Chars: ${charsInFrame}`;
       }).join("\n");
 
       const charsDict = generatedChars.map(c => `${c?.id}: ${c?.ref_sheet_prompt}`).join("\n");
-      
       let formatString = "TALL VERTICAL 9:16 PORTRAIT ORIENTATION";
       if (vidFormat === "16:9") formatString = "WIDE HORIZONTAL 16:9 LANDSCAPE ORIENTATION";
       if (vidFormat === "1:1") formatString = "SQUARE 1:1 ORIENTATION";
@@ -891,44 +608,21 @@ export default function Page() {
       });
 
       let safeThumbPrompt = data.thumbnail_prompt_EN;
-      if (typeof safeThumbPrompt === 'object' && safeThumbPrompt !== null) { 
-        safeThumbPrompt = JSON.stringify(safeThumbPrompt); 
-      }
+      if (typeof safeThumbPrompt === 'object' && safeThumbPrompt !== null) { safeThumbPrompt = JSON.stringify(safeThumbPrompt); }
 
-      setFrames(updatedFrames); 
-      setThumb(prev => ({ ...(prev || {}), prompt_EN: safeThumbPrompt })); 
-      setStep2Done(true); 
-      
-      rebuildRawText(updatedFrames, true); 
-      deductToken(); 
-      setView("result");
+      setFrames(updatedFrames); setThumb(prev => ({ ...(prev || {}), prompt_EN: safeThumbPrompt })); setStep2Done(true); 
+      rebuildRawText(updatedFrames, true); deductToken(); setView("result");
 
       setHistory(prev => {
          const next = [...prev];
          if(next.length > 0) { 
-           const stateData = { 
-             frames: updatedFrames, 
-             generatedChars, 
-             retention, 
-             thumb: { ...(thumb || {}), prompt_EN: safeThumbPrompt }, 
-             seoVariants, 
-             music, 
-             step2Done: true, 
-             ttsScene, 
-             ttsContext 
-           };
-           next[0].text = JSON.stringify(stateData); 
-           localStorage.setItem("ds_history", JSON.stringify(next)); 
+           const stateData = { projectBible, frames: updatedFrames, generatedChars, retention, thumb: { ...(thumb || {}), prompt_EN: safeThumbPrompt }, seoVariants, music, step2Done: true, ttsScene, ttsContext };
+           next[0].text = JSON.stringify(stateData); localStorage.setItem("ds_history", JSON.stringify(next)); 
          }
          return next;
       });
       
-    } catch(e) { 
-      alert(`🚨 ОШИБКА ШАГА 2: ${e.message}`); 
-      setView("result"); 
-    } finally { 
-      setBusy(false); 
-    }
+    } catch(e) { alert(`🚨 ОШИБКА ШАГА 2: ${e.message}`); setView("result"); } finally { setBusy(false); }
   }
   return (
     <div 
@@ -971,15 +665,15 @@ export default function Page() {
           cursor: not-allowed; 
         }
         
-        /* ВЫРЕЗАН backdrop-filter: blur() ДЛЯ СПАСЕНИЯ GPU */
+        /* ВОЗВРАЩЕН ПРЕМИУМ-ДИЗАЙН СО СТЕКЛОМ */
         .block-card { 
-          background: rgba(15,15,25,.9); 
+          background: rgba(15,15,25,.6); 
           border: 1px solid rgba(255,255,255,.08); 
           border-radius: 20px; 
           padding: 20px; 
           margin-bottom: 20px; 
+          backdrop-filter: blur(20px); 
         }
-        
         .block-title { 
           font-size: 11px; 
           font-weight: 900; 
@@ -1043,18 +737,17 @@ export default function Page() {
           background: rgba(56,189,248,0.1); 
         }
         
-        @keyframes spin { 
-          to { transform: rotate(360deg); } 
-        }
         @keyframes fadeIn { 
           from { opacity: 0; transform: translateY(10px); } 
           to { opacity: 1; transform: translateY(0); } 
         }
+        .blinking-cursor { animation: blink 1s step-end infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
       `}</style>
 
       {/* МОДАЛЬНЫЕ ОКНА */}
       {showPaywall && (
-        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
           <div style={{background:"#111827", border:"1px solid #a855f7", borderRadius:24, padding:30, maxWidth:400, textAlign:"center", position:"relative", boxShadow:"0 10px 50px rgba(168,85,247,0.3)"}}>
             <button onClick={() => setShowPaywall(false)} style={{position:"absolute", top:15, right:15, background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button>
             <div style={{fontSize:50, marginBottom:10}}>💎</div>
@@ -1066,7 +759,7 @@ export default function Page() {
       )}
 
       {showGuide && (
-        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={() => setShowGuide(false)}>
+        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={() => setShowGuide(false)}>
           <div style={{background:"#111827", border:"1px solid #10b981", borderRadius:24, padding:30, maxWidth:450, position:"relative"}} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowGuide(false)} style={{position:"absolute", top:15, right:15, background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button>
             <h2 style={{fontSize:20, fontWeight:900, color:"#fff", marginBottom:16, borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:12}}>📖 ПРАВИЛА ВИРУСНОСТИ</h2>
@@ -1080,15 +773,10 @@ export default function Page() {
         </div>
       )}
 
-      <InfoModal 
-        isOpen={infoModal.isOpen} 
-        onClose={() => setInfoModal({...infoModal, isOpen: false})} 
-        title={infoModal.title} 
-        content={infoModal.content} 
-      />
+      <InfoModal isOpen={infoModal.isOpen} onClose={() => setInfoModal({...infoModal, isOpen: false})} title={infoModal.title} content={infoModal.content} />
 
       {showHistory && (
-        <div style={{position:"fixed", inset:0, zIndex:999, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+        <div style={{position:"fixed", inset:0, zIndex:999, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
           <div style={{background:"#111827", border:"1px solid #374151", borderRadius:24, width:"100%", maxWidth:500, maxHeight:"80vh", display:"flex", flexDirection:"column", overflow:"hidden"}}>
             <div style={{padding:"20px 24px", borderBottom:"1px solid #374151", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
                <h2 style={{fontSize:18, fontWeight:900, color:"#fff"}}>🗄 Архив Проектов</h2>
@@ -1105,6 +793,7 @@ export default function Page() {
                     <button onClick={() => {
                       try {
                         const d = JSON.parse(item.text);
+                        setProjectBible(d.projectBible || null);
                         setFrames(d.frames || []); 
                         setRetention(d.retention || null); 
                         setThumb(d.thumb || null); 
@@ -1146,7 +835,7 @@ export default function Page() {
       )}
 
       {/* НАВБАР */}
-      <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.9)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}>
+      <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.6)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {view === "result" && (
             <button onClick={() => setView("form")} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:24}}>‹</button>
@@ -1321,11 +1010,10 @@ export default function Page() {
         </div>
       )}
 
-      {/* КЛАССИЧЕСКИЙ КРУГЛЫЙ ЛОАДЕР (ВОЗВРАЩЕНО ДЛЯ СТАБИЛЬНОСТИ) */}
+      {/* АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ (ЗАГРУЗКА) */}
       {view === "loading" && (
-        <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"60vh", padding:"20px", textAlign:"center"}}>
-           <div style={{width:60, height:60, border:"4px solid rgba(168,85,247,0.2)", borderTopColor:"#a855f7", borderRadius:"50%", animation:"spin 1s linear infinite", marginBottom:24}} />
-           <div style={{fontSize:20, fontWeight:900, color:"#fff", letterSpacing:2}}>{loadingMsg}</div>
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"70vh", padding:"20px", textAlign:"center"}}>
+           <TerminalLoader msg={loadingMsg} />
         </div>
       )}
 
@@ -1388,6 +1076,33 @@ export default function Page() {
           {/* ВКЛАДКА: РАСКАДРОВКА */}
           {tab === "storyboard" && (
             <div>
+              {/* ВОССТАНОВЛЕНО: БИБЛИЯ ПРОЕКТА */}
+              {projectBible && (
+                <div style={{marginBottom:24, background:"rgba(56,189,248,0.05)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:24, padding:24}}>
+                  <div style={{fontSize:12, fontWeight:900, color:"#38bdf8", marginBottom:16, textTransform:"uppercase"}}>📖 БИБЛИЯ ПРОЕКТА</div>
+                  
+                  <div style={{marginBottom: 16}}>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
+                      <span style={{fontSize:11, color:"#bae6fd", fontWeight:800, textTransform:"uppercase"}}>Глобальная Локация</span>
+                      <CopyBtn text={projectBible.global_location_prompt} small/>
+                    </div>
+                    <div style={{fontSize:13, fontFamily:"monospace", color:"#7dd3fc", lineHeight:1.5, background:"rgba(0,0,0,0.4)", padding:12, borderRadius:8}}>
+                      {projectBible.global_location_prompt}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
+                      <span style={{fontSize:11, color:"#bae6fd", fontWeight:800, textTransform:"uppercase"}}>Визуальный Стиль</span>
+                      <CopyBtn text={projectBible.visual_style_reference} small/>
+                    </div>
+                    <div style={{fontSize:13, fontFamily:"monospace", color:"#7dd3fc", lineHeight:1.5, background:"rgba(0,0,0,0.4)", padding:12, borderRadius:8}}>
+                      {projectBible.visual_style_reference}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {generatedChars && generatedChars.length > 0 && (
                 <div style={{marginBottom:24, background:"rgba(236,72,153,0.05)", border:"1px solid rgba(236,72,153,0.3)", borderRadius:24, padding:24}}>
                   <div style={{fontSize:12, fontWeight:900, color:"#f472b6", marginBottom:16, textTransform:"uppercase"}}>👤 СГЕНЕРИРОВАННЫЕ ПЕРСОНАЖИ</div>
@@ -1403,40 +1118,43 @@ export default function Page() {
                 </div>
               )}
               
+              {/* ОПТИМИЗИРОВАННАЯ РАСКАДРОВКА (LazyBlock) */}
               {frames.map((f, i) => (
-                <div key={i} style={{marginBottom:24, background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
-                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:16}}>
-                    <span style={{fontSize:12, fontWeight:900, color:"#ef4444"}}>REC {String(i+1).padStart(2,"0")}</span>
-                    <span style={{fontSize:10, color:"#cbd5e1", background:"rgba(255,255,255,0.1)", padding:"4px 8px", borderRadius:6, fontFamily:"monospace"}}>TC: {f.timecode}</span>
-                  </div>
-                  
-                  {f.visual && <div style={{fontSize:14, color:"#fff", marginBottom:12, lineHeight:1.5}}>👁 {f.visual}</div>}
-                  {f.voice && <div style={{fontSize:14, fontStyle:"italic", color:"#a855f7", marginBottom:16, borderLeft:"3px solid #a855f7", paddingLeft:12}}>«{f.voice}»</div>}
-                  
-                  <div style={{display:"flex", gap:10, flexWrap:"wrap", marginBottom: step2Done ? 16 : 0}}>
-                    {f.sfx && <div style={{flex:1, minWidth:"140px", background:"rgba(245,158,11,0.05)", border:"1px dashed rgba(245,158,11,0.3)", padding:8, borderRadius:8, fontSize:11, color:"#fcd34d"}}>🔊 {f.sfx}</div>}
-                    {f.text_on_screen && <div style={{flex:1, minWidth:"140px", background:"rgba(236,72,153,0.05)", border:"1px dashed rgba(236,72,153,0.3)", padding:8, borderRadius:8, fontSize:11, color:"#fbcfe8", fontWeight:800}}>🔤 "{f.text_on_screen}"</div>}
-                  </div>
-                  
-                  {step2Done && f.imgPrompt_EN && (
-                    <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}>
-                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
-                        <span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (cite: WHISK/VEO)</span>
-                        <CopyBtn text={f.imgPrompt_EN} small/>
-                      </div>
-                      <div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div>
+                <LazyBlock key={i}>
+                  <div style={{background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
+                    <div style={{display:"flex", justifyContent:"space-between", marginBottom:16}}>
+                      <span style={{fontSize:12, fontWeight:900, color:"#ef4444"}}>REC {String(i+1).padStart(2,"0")}</span>
+                      <span style={{fontSize:10, color:"#cbd5e1", background:"rgba(255,255,255,0.1)", padding:"4px 8px", borderRadius:6, fontFamily:"monospace"}}>TC: {f.timecode}</span>
                     </div>
-                  )}
-                  {step2Done && f.vidPrompt_EN && (
-                    <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}>
-                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
-                        <span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (cite: GROK SUPER)</span>
-                        <CopyBtn text={f.vidPrompt_EN} small/>
-                      </div>
-                      <div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div>
+                    
+                    {f.visual && <div style={{fontSize:14, color:"#fff", marginBottom:12, lineHeight:1.5}}>👁 {f.visual}</div>}
+                    {f.voice && <div style={{fontSize:14, fontStyle:"italic", color:"#a855f7", marginBottom:16, borderLeft:"3px solid #a855f7", paddingLeft:12}}>«{f.voice}»</div>}
+                    
+                    <div style={{display:"flex", gap:10, flexWrap:"wrap", marginBottom: step2Done ? 16 : 0}}>
+                      {f.sfx && <div style={{flex:1, minWidth:"140px", background:"rgba(245,158,11,0.05)", border:"1px dashed rgba(245,158,11,0.3)", padding:8, borderRadius:8, fontSize:11, color:"#fcd34d"}}>🔊 {f.sfx}</div>}
+                      {f.text_on_screen && <div style={{flex:1, minWidth:"140px", background:"rgba(236,72,153,0.05)", border:"1px dashed rgba(236,72,153,0.3)", padding:8, borderRadius:8, fontSize:11, color:"#fbcfe8", fontWeight:800}}>🔤 "{f.text_on_screen}"</div>}
                     </div>
-                  )}
-                </div>
+                    
+                    {step2Done && f.imgPrompt_EN && (
+                      <div style={{background:"rgba(16,185,129,.05)", padding:12, borderRadius:12, marginBottom:10}}>
+                        <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
+                          <span style={{fontSize:9, color:"#34d399", fontWeight:800}}>IMAGE PROMPT (cite: WHISK/VEO)</span>
+                          <CopyBtn text={f.imgPrompt_EN} small/>
+                        </div>
+                        <div style={{fontSize:12, fontFamily:"monospace", color:"#6ee7b7", lineHeight:1.4}}>{f.imgPrompt_EN}</div>
+                      </div>
+                    )}
+                    {step2Done && f.vidPrompt_EN && (
+                      <div style={{background:"rgba(139,92,246,.05)", padding:12, borderRadius:12}}>
+                        <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
+                          <span style={{fontSize:9, color:"#a78bfa", fontWeight:800}}>VIDEO PROMPT (cite: GROK SUPER)</span>
+                          <CopyBtn text={f.vidPrompt_EN} small/>
+                        </div>
+                        <div style={{fontSize:12, fontFamily:"monospace", color:"#d8b4fe", lineHeight:1.4}}>{f.vidPrompt_EN}</div>
+                      </div>
+                    )}
+                  </div>
+                </LazyBlock>
               ))}
             </div>
           )}
@@ -1624,17 +1342,11 @@ export default function Page() {
                     </div>
                   )}
 
-                  {/* КНОПКА СКАЧИВАНИЯ ЗАКОММЕНТИРОВАНА, ТАК КАК ФУНКЦИИ НЕТ В ПРОТОТИПЕ */}
-                  {/* <div style={{display:"flex", gap:10}}>
-                    <label style={{flex:1, height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:14, color:"#fff", cursor:"pointer", fontSize:12, fontWeight:800, textTransform:"uppercase"}}>📸 ФОН<input type="file" hidden onChange={handleImageUpload}/></label>
-                    <label style={{flex:1, height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:14, color:"#38bdf8", cursor:"pointer", fontSize:12, fontWeight:800, textTransform:"uppercase"}}>🛡 ЛОГО<input type="file" accept="image/png" hidden onChange={handleLogoUpload}/></label>
-                    <button onClick={downloadThumbnail} disabled={downloading} style={{flex:2, height:48, background:"linear-gradient(135deg, #10b981, #059669)", borderRadius:14, border:"none", fontWeight:900, color:"#fff", cursor: downloading ? "not-allowed" : "pointer", textTransform:"uppercase"}}>{downloading ? "Рендер..." : "💾 СКАЧАТЬ"}</button>
-                  </div> */}
                 </div>
               </div>
 
               {/* РЕНДЕР SEO С БРОНЕЙ ОТ КРАШЕЙ */}
-              <div style={{background:"rgba(15,15,25,.9)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
+              <div style={{background:"rgba(15,15,25,.6)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
                    <div style={{display:"flex", alignItems:"center", marginBottom:16}}>
                       <span style={{fontSize:11, fontWeight:900, color:"#60a5fa", textTransform:"uppercase"}}>🚀 МАТРИЦА ВИРУСНОГО SEO</span>
                       <button onClick={() => openInfo('seo')} style={{background:"none", border:"none", color:"#60a5fa", cursor:"pointer", marginLeft:6, fontSize:12}}>ℹ️</button>
@@ -1667,6 +1379,15 @@ export default function Page() {
             </div>
           )}
         </div>
+      )}
+
+      {/* КНОПКА ГЕНЕРАЦИИ PDF БРИФА */}
+      {view === "result" && step2Done && frames.length > 0 && (
+         <div style={{padding:"0 20px 40px", maxWidth:600, margin:"0 auto"}}>
+           <button onClick={downloadPDF} disabled={pdfDownloading} style={{width:"100%", height:56, background:"rgba(15,15,25,0.6)", backdropFilter:"blur(10px)", border:"1px solid rgba(168,85,247,0.5)", borderRadius:16, color:"#d8b4fe", fontWeight:900, fontSize:14, cursor: pdfDownloading ? "not-allowed" : "pointer", boxShadow:"0 4px 20px rgba(168,85,247,0.15)", textTransform:"uppercase"}}>
+             {pdfDownloading ? "ГЕНЕРАЦИЯ PDF..." : "📄 СКАЧАТЬ ФИНАЛЬНЫЙ PDF БРИФ"}
+           </button>
+         </div>
       )}
     </div>
   );
