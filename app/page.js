@@ -69,7 +69,7 @@ const NeuralBackground = () => {
   return <canvas ref={canvasRef} style={{position:"fixed", top:0, left:0, zIndex:-2, width:"100vw", height:"100vh", background: "#05050a"}} />;
 };
 
-// --- АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ ---
+// --- АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ (ИСПРАВЛЕНА УТЕЧКА ПАМЯТИ) ---
 const TerminalLoader = ({ msg }) => {
   const [lines, setLines] = useState([]);
   const isStep2 = msg.includes("Шаг 2");
@@ -116,10 +116,9 @@ const TerminalLoader = ({ msg }) => {
           <div key={i} style={{ color: i === lines.length - 1 ? "#d8b4fe" : "#10b981", fontSize: 13 }}>{l}</div>
         ))}
         {lines.length < fullLogs.length && (
-          <div style={{ color: "#a855f7", fontSize: 14, animation: "blink 1s infinite" }}>█</div>
+          <div className="blinking-cursor" style={{ color: "#a855f7", fontSize: 14 }}>█</div>
         )}
       </div>
-      <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
     </div>
   );
 };
@@ -246,7 +245,7 @@ JSON FORMAT:
   "thumbnail_prompt_EN": "TALL VERTICAL 9:16 PORTRAIT ORIENTATION, extreme photorealistic..."
 }`;
 
-// --- ЗАЩИЩЕННЫЕ ФУНКЦИИ АПИ ---
+// --- ЗАЩИЩЕННЫЕ ФУНКЦИИ АПИ (ИСПРАВЛЕН OOM КРАШ) ---
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
   try {
     const res = await fetch("/api/chat", { 
@@ -268,7 +267,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama
     try { 
       data = JSON.parse(textRes); 
     } catch (e) { 
-      throw new Error(`Сервер вернул не JSON. \n ${textRes.substring(0, 50)}...`); 
+      throw new Error(`Сервер вернул не JSON.`); 
     }
     
     if (!res.ok || data.error) {
@@ -321,19 +320,21 @@ async function callVisionAPI(base64Image, sysPrompt) {
   }
 }
 
+// ОПТИМИЗИРОВАННАЯ ФУНКЦИЯ ПАРСИНГА БЕЗ ТЯЖЕЛЫХ РЕГУЛЯРОК
 function cleanJSON(rawText) {
   if (!rawText) return null;
   try {
-    let cleanText = rawText.replace(/```json/gi, "").replace(/```/gi, "").trim();
-    const startIdx = cleanText.indexOf('{'); 
-    const endIdx = cleanText.lastIndexOf('}');
-    if (startIdx !== -1 && endIdx !== -1) {
-      cleanText = cleanText.substring(startIdx, endIdx + 1);
+    let cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+    return JSON.parse(cleanText);
+  } catch (e) {
+    try {
+       // Если упало, безопасно удаляем только переносы строк
+       let cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+       return JSON.parse(cleanText.replace(/\r?\n|\r/g, " "));
+    } catch(err) {
+       console.error("Фатальная ошибка парсинга JSON", err);
+       return null;
     }
-    return JSON.parse(cleanText.replace(/\r?\n|\r/g, " ").replace(/[\u0000-\u001F]+/g, ""));
-  } catch (error) {
-    console.error("cleanJSON parse error", error); 
-    return null;
   }
 }
 
@@ -822,7 +823,6 @@ export default function Page() {
         return { ...f, imgPrompt_EN: iPrompt, vidPrompt_EN: vPrompt };
       });
 
-      // Броня для промпта обложки от ИИ
       let safeThumbPrompt = data.thumbnail_prompt_EN;
       if (typeof safeThumbPrompt === 'object' && safeThumbPrompt !== null) {
         safeThumbPrompt = JSON.stringify(safeThumbPrompt);
@@ -888,6 +888,8 @@ export default function Page() {
         .asset-slot { width: 100px; height: 100px; border: 2px dashed rgba(255,255,255,0.15); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: rgba(0,0,0,0.4); transition: all 0.2s; flex-shrink: 0; }
         .asset-slot:hover { border-color: rgba(56,189,248,0.5); background: rgba(56,189,248,0.1); }
         
+        .blinking-cursor { animation: blink 1s step-end infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
@@ -937,28 +939,32 @@ export default function Page() {
                   </div>
                   <div style={{display:"flex", gap:8}}>
                     <button onClick={() => {
-                      const d = JSON.parse(item.text);
-                      setFrames(d.frames || []); 
-                      setRetention(d.retention || null); 
-                      setThumb(d.thumb || null); 
-                      setSeoVariants(d.seoVariants || []); 
-                      setMusic(d.music || "");
-                      setGeneratedChars(d.generatedChars || []); 
-                      setStep2Done(d.step2Done || false);
-                      
-                      if (d.ttsScene) setTtsScene(d.ttsScene); 
-                      if (d.ttsContext) setTtsContext(d.ttsContext);
-                      
-                      if(d.thumb) { 
-                        setCovTitle(d.thumb.title || ""); 
-                        setCovHook(d.thumb.hook || ""); 
-                        setCovCta(d.thumb.cta || "СМОТРЕТЬ"); 
-                        applyPreset("netflix"); 
+                      try {
+                        const d = JSON.parse(item.text);
+                        setFrames(d.frames || []); 
+                        setRetention(d.retention || null); 
+                        setThumb(d.thumb || null); 
+                        setSeoVariants(d.seoVariants || []); 
+                        setMusic(d.music || "");
+                        setGeneratedChars(d.generatedChars || []); 
+                        setStep2Done(d.step2Done || false);
+                        
+                        if (d.ttsScene) setTtsScene(d.ttsScene); 
+                        if (d.ttsContext) setTtsContext(d.ttsContext);
+                        
+                        if(d.thumb) { 
+                          setCovTitle(d.thumb.title || ""); 
+                          setCovHook(d.thumb.hook || ""); 
+                          setCovCta(d.thumb.cta || "СМОТРЕТЬ"); 
+                          applyPreset("netflix"); 
+                        }
+                        
+                        rebuildRawText(d.frames || [], d.step2Done); 
+                        setShowHistory(false); 
+                        setView("result");
+                      } catch(e) {
+                        alert("Ошибка чтения архива");
                       }
-                      
-                      rebuildRawText(d.frames || [], d.step2Done); 
-                      setShowHistory(false); 
-                      setView("result");
                     }} style={{background:"#10b981", border:"none", borderRadius:8, padding:"8px 12px", color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer"}}>ОТКРЫТЬ</button>
                     
                     <button onClick={() => deleteFromHistory(item.id)} style={{background:"#ef4444", border:"none", borderRadius:8, padding:"8px 12px", color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer"}}>УДАЛИТЬ</button>
