@@ -10,10 +10,8 @@ const NeuralBackground = () => {
 
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth < 768) return;
-    
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
     const ctx = canvas.getContext("2d");
     let animationFrameId;
     let particles = [];
@@ -37,7 +35,6 @@ const NeuralBackground = () => {
     const render = () => {
       ctx.fillStyle = "#05050a"; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
       ctx.fillStyle = "rgba(168, 85, 247, 0.4)"; 
       ctx.strokeStyle = "rgba(168, 85, 247, 0.15)"; 
       ctx.lineWidth = 1;
@@ -45,7 +42,6 @@ const NeuralBackground = () => {
       particles.forEach((p, i) => {
         p.x += p.vx; 
         p.y += p.vy;
-        
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1; 
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
         
@@ -66,13 +62,8 @@ const NeuralBackground = () => {
       });
       animationFrameId = requestAnimationFrame(render);
     };
-    
     render();
-    
-    return () => { 
-      window.removeEventListener("resize", resize); 
-      cancelAnimationFrame(animationFrameId); 
-    };
+    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animationFrameId); };
   }, []);
 
   return <canvas ref={canvasRef} style={{position:"fixed", top:0, left:0, zIndex:-2, width:"100vw", height:"100vh", background: "#05050a"}} />;
@@ -177,86 +168,21 @@ const FORMATS = [
   { id:"1:1", label:"Квадрат", ratio:"1/1" } 
 ];
 
-const DURATION_SECONDS = { 
-  "15 сек": 15, 
-  "30–45 сек": 40, 
-  "До 60 сек": 60, 
-  "1.5 мин": 90, 
-  "3 мин": 180 
-};
+const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
 const DURATIONS = Object.keys(DURATION_SECONDS);
 
-const SAFE_TEXT_STYLE = { 
-  width: "100%", 
-  padding: "0 15px", 
-  boxSizing: "border-box", 
-  wordBreak: "break-word", 
-  overflowWrap: "break-word" 
-};
+const SAFE_TEXT_STYLE = { width: "100%", padding: "0 15px", boxSizing: "border-box", wordBreak: "break-word", overflowWrap: "break-word" };
 
 const COVER_PRESETS = [
-  { 
-    id: "netflix", 
-    label: "Netflix", 
-    defX: 50, 
-    defY: 50, 
-    style: { 
-      container: { alignItems: "center", width: "95%" }, 
-      hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, 
-      title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px #000", textAlign: "center" }, 
-      cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } 
-    } 
-  },
-  { 
-    id: "tiktok", 
-    label: "TikTok", 
-    defX: 50, 
-    defY: 50, 
-    style: { 
-      container: { alignItems: "center", width: "95%" }, 
-      hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, 
-      title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, 
-      cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } 
-    } 
-  },
-  { 
-    id: "truecrime", 
-    label: "True Crime", 
-    defX: 10, 
-    defY: 50, 
-    style: { 
-      container: { alignItems: "flex-start", width: "90%" }, 
-      hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, 
-      title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, 
-      cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } 
-    } 
-  }
+  { id: "netflix", label: "Netflix", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px #000", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } } },
+  { id: "tiktok", label: "TikTok", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } } },
+  { id: "truecrime", label: "True Crime", defX: 10, defY: 50, style: { container: { alignItems: "flex-start", width: "90%" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } } }
 ];
 
-const FONTS = [ 
-  { id: "Impact, sans-serif", label: "Viral (Толстый)" }, 
-  { id: "'Bebas Neue', sans-serif", label: "YouTube (Кликбейт)" }, 
-  { id: "'Creepster', cursive", label: "Horror (Рваный)" }, 
-  { id: "'Cinzel', serif", label: "Cinematic (Кино)" }, 
-  { id: "'Oswald', sans-serif", label: "Oswald (Строгий)" }, 
-  { id: "'Montserrat', sans-serif", label: "Clean (Док)" } 
-];
-
+const FONTS = [ { id: "Impact, sans-serif", label: "Viral (Толстый)" }, { id: "'Bebas Neue', sans-serif", label: "YouTube (Кликбейт)" }, { id: "'Creepster', cursive", label: "Horror (Рваный)" }, { id: "'Cinzel', serif", label: "Cinematic (Кино)" }, { id: "'Oswald', sans-serif", label: "Oswald (Строгий)" }, { id: "'Montserrat', sans-serif", label: "Clean (Док)" } ];
 const COLORS = ["#ffffff", "#ffdd00", "#facc15", "#ef4444", "#ec4899", "#0ea5e9", "#a855f7", "#22c55e", "#f97316", "#000000"];
-
-const SEO_COLORS = [ 
-  { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, 
-  { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, 
-  { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" } 
-];
-
-const TTS_SPEAKERS = [ 
-  { id: "Orus", label: "Orus (Мужской Бас)" }, 
-  { id: "Fin", label: "Fin (Глубокий Док)" }, 
-  { id: "Sarah", label: "Sarah (Женский Шепот)" }, 
-  { id: "Marcus", label: "Marcus (Уверенный)" }, 
-  { id: "Elena", label: "Elena (Загадка)" } 
-];
+const SEO_COLORS = [ { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" } ];
+const TTS_SPEAKERS = [ { id: "Orus", label: "Orus (Мужской Бас)" }, { id: "Fin", label: "Fin (Глубокий Док)" }, { id: "Sarah", label: "Sarah (Женский Шепот)" }, { id: "Marcus", label: "Marcus (Уверенный)" }, { id: "Elena", label: "Elena (Загадка)" } ];
 
 // --- СИСТЕМНЫЕ ПРОМПТЫ ---
 const SYS_STEP_1A = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
@@ -800,7 +726,6 @@ export default function Page() {
         setTtsContext(data1A.tts_director.context || ""); 
       }
       
-      // ЗАЩИТА МУЗЫКИ И SEO ОТ КРАШЕЙ РЕНДЕРА
       let safeMusic = data1B.music_EN || "";
       if (typeof safeMusic === 'object') safeMusic = JSON.stringify(safeMusic);
       
@@ -862,7 +787,6 @@ export default function Page() {
     setView("loading");
     
     try {
-      // ЗАЩИТА СБОРКИ СТОРИБОРДА ОТ ОШИБКИ JOIN()
       const storyboardLite = frames.map((f, i) => {
         let charsInFrame = f?.characters_in_frame;
         if (Array.isArray(charsInFrame)) charsInFrame = charsInFrame.join(",");
@@ -898,8 +822,14 @@ export default function Page() {
         return { ...f, imgPrompt_EN: iPrompt, vidPrompt_EN: vPrompt };
       });
 
+      // Броня для промпта обложки от ИИ
+      let safeThumbPrompt = data.thumbnail_prompt_EN;
+      if (typeof safeThumbPrompt === 'object' && safeThumbPrompt !== null) {
+        safeThumbPrompt = JSON.stringify(safeThumbPrompt);
+      }
+
       setFrames(updatedFrames); 
-      setThumb(prev => ({ ...(prev || {}), prompt_EN: data.thumbnail_prompt_EN })); 
+      setThumb(prev => ({ ...(prev || {}), prompt_EN: safeThumbPrompt })); 
       setStep2Done(true); 
       
       rebuildRawText(updatedFrames, true); 
@@ -913,7 +843,7 @@ export default function Page() {
              frames: updatedFrames, 
              generatedChars, 
              retention, 
-             thumb: { ...(thumb || {}), prompt_EN: data.thumbnail_prompt_EN }, 
+             thumb: { ...(thumb || {}), prompt_EN: safeThumbPrompt }, 
              seoVariants, 
              music, 
              step2Done: true, 
@@ -932,7 +862,8 @@ export default function Page() {
     } finally { 
       setBusy(false); 
     }
-  }  return (
+  }
+  return (
     <div ref={scrollRef} style={{minHeight:"100vh", color:"#e2e8f0", paddingBottom:120, position:"relative", zIndex:1, overflowY:"auto", fontFamily:"sans-serif"}}>
       <NeuralBackground />
       <style>{`
@@ -1054,7 +985,7 @@ export default function Page() {
             DOCU<span style={{color:"#a855f7"}}>SHORTS</span>
           </span>
           
-          {/* НОВАЯ КНОПКА ВОЗВРАТА К РЕЗУЛЬТАТАМ */}
+          {/* КНОПКА ВОЗВРАТА К РЕЗУЛЬТАТАМ */}
           {frames.length > 0 && view === "form" && (
             <button onClick={() => setView("result")} style={{marginLeft: 10, background:"linear-gradient(135deg, #10b981, #059669)", border:"none", color:"#fff", padding:"6px 12px", borderRadius:10, fontSize:11, fontWeight:900, cursor:"pointer", boxShadow:"0 0 10px rgba(16,185,129,0.4)"}}>
               ➔ К РЕЗУЛЬТАТАМ
@@ -1577,4 +1508,3 @@ export default function Page() {
     </div>
   );
 }
-
