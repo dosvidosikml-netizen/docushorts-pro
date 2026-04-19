@@ -4,14 +4,16 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// --- НЕЙРОННЫЙ ФОН ---
+// --- НЕЙРОННЫЙ ФОН (ОБЛЕГЧЕННЫЙ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ) ---
 const NeuralBackground = () => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.innerWidth < 768) return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
+    
     const ctx = canvas.getContext("2d");
     let animationFrameId;
     let particles = [];
@@ -20,10 +22,12 @@ const NeuralBackground = () => {
       canvas.width = window.innerWidth; 
       canvas.height = window.innerHeight; 
     };
+    
     window.addEventListener("resize", resize); 
     resize();
 
-    for (let i = 0; i < 40; i++) {
+    // Уменьшено количество частиц для экономии памяти
+    for (let i = 0; i < 30; i++) {
       particles.push({ 
         x: Math.random() * canvas.width, 
         y: Math.random() * canvas.height, 
@@ -35,6 +39,7 @@ const NeuralBackground = () => {
     const render = () => {
       ctx.fillStyle = "#05050a"; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
       ctx.fillStyle = "rgba(168, 85, 247, 0.4)"; 
       ctx.strokeStyle = "rgba(168, 85, 247, 0.15)"; 
       ctx.lineWidth = 1;
@@ -42,6 +47,7 @@ const NeuralBackground = () => {
       particles.forEach((p, i) => {
         p.x += p.vx; 
         p.y += p.vy;
+        
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1; 
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
         
@@ -62,77 +68,41 @@ const NeuralBackground = () => {
       });
       animationFrameId = requestAnimationFrame(render);
     };
+    
     render();
-    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(animationFrameId); };
+    
+    return () => { 
+      window.removeEventListener("resize", resize); 
+      cancelAnimationFrame(animationFrameId); 
+    };
   }, []);
 
-  return <canvas ref={canvasRef} style={{position:"fixed", top:0, left:0, zIndex:-2, width:"100vw", height:"100vh", background: "#05050a"}} />;
-};
-
-// --- АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ (ИСПРАВЛЕНА УТЕЧКА ПАМЯТИ) ---
-const TerminalLoader = ({ msg }) => {
-  const [lines, setLines] = useState([]);
-  const isStep2 = msg.includes("Шаг 2");
-
-  const fullLogs = isStep2 ? [
-    "> [SYS] Инициализация ядра Grok Super...",
-    "> [PIPELINE] Интеграция режиссерских заметок...",
-    "> [GEN] Рендер PRO-промптов для каждой сцены...",
-    "> [GEN] Наложение фильтров реализма и света...",
-    "> [THUMBNAIL] Просчет композиции обложки...",
-    "> [OK] Синхронизация завершена..."
-  ] : [
-    "> [SYS] Запуск нейро-режиссера Director-X...",
-    "> [ANALYZE] Поиск визуальных хуков (0-3 сек)...",
-    "> [GEN] Рендер промптов для персонажей...",
-    "> [GEN] Просчет раскадровки (строго 3 секунды)...",
-    "> [AUDIO] Настройка эмоций диктора (TTS)...",
-    "> [SEO] Сборка матрицы вирусности...",
-    "> [OK] Финальная упаковка данных..."
-  ];
-
-  useEffect(() => {
-    setLines([]);
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < fullLogs.length) {
-        setLines(prev => [...prev, fullLogs[i]]);
-        i++;
-      }
-    }, 900);
-    return () => clearInterval(interval);
-  }, [isStep2]);
-
   return (
-    <div style={{ background: "#05050a", border: "1px solid #a855f7", borderRadius: 16, padding: "24px", width: "100%", maxWidth: 550, fontFamily: "monospace", textAlign: "left", boxShadow: "0 0 40px rgba(168,85,247,0.15)", margin: "0 auto" }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, borderBottom: "1px solid rgba(168,85,247,0.3)", paddingBottom: 12 }}>
-        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
-        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#facc15" }} />
-        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
-        <div style={{ marginLeft: "auto", fontSize: 11, color: "#a855f7", fontWeight: 900 }}>TERMINAL_X // ACTIVE</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 180 }}>
-        {lines.map((l, i) => (
-          <div key={i} style={{ color: i === lines.length - 1 ? "#d8b4fe" : "#10b981", fontSize: 13 }}>{l}</div>
-        ))}
-        {lines.length < fullLogs.length && (
-          <div className="blinking-cursor" style={{ color: "#a855f7", fontSize: 14 }}>█</div>
-        )}
-      </div>
-    </div>
+    <canvas 
+      ref={canvasRef} 
+      style={{
+        position: "fixed", 
+        top: 0, 
+        left: 0, 
+        zIndex: -2, 
+        width: "100vw", 
+        height: "100vh", 
+        background: "#05050a"
+      }} 
+    />
   );
 };
 
 // --- КОНСТАНТЫ И ПРЕСЕТЫ ---
 const GENRE_PRESETS = {
-  "КРИМИНАЛ":   { icon:"🔫", col:"#ef4444", font: "'Creepster', cursive", color: "#ef4444" }, 
-  "ТАЙНА":      { icon:"🔍", col:"#a855f7", font: "'Creepster', cursive", color: "#a855f7" },
-  "ИСТОРИЯ":    { icon:"📜", col:"#f97316", font: "'Cinzel', serif", color: "#fbbf24" }, 
-  "НАУКА":      { icon:"⚗",  col:"#06b6d4", font: "'Montserrat', sans-serif", color: "#0ea5e9" },
-  "ВОЙНА":      { icon:"⚔",  col:"#dc2626", font: "'Bebas Neue', sans-serif", color: "#ffffff" }, 
-  "ПРИРОДА":    { icon:"🌿", col:"#22c55e", font: "'Montserrat', sans-serif", color: "#22c55e" },
-  "ПСИХОЛОГИЯ": { icon:"🧠", col:"#ec4899", font: "'Playfair Display', serif", color: "#ffffff" }, 
-  "ЗАГАДКИ":    { icon:"👁", col:"#fbbf24", font: "Impact, sans-serif", color: "#ffdd00" },
+  "КРИМИНАЛ": { icon: "🔫", col: "#ef4444", font: "'Creepster', cursive", color: "#ef4444" }, 
+  "ТАЙНА": { icon: "🔍", col: "#a855f7", font: "'Creepster', cursive", color: "#a855f7" },
+  "ИСТОРИЯ": { icon: "📜", col: "#f97316", font: "'Cinzel', serif", color: "#fbbf24" }, 
+  "НАУКА": { icon: "⚗", col: "#06b6d4", font: "'Montserrat', sans-serif", color: "#0ea5e9" },
+  "ВОЙНА": { icon: "⚔", col: "#dc2626", font: "'Bebas Neue', sans-serif", color: "#ffffff" }, 
+  "ПРИРОДА": { icon: "🌿", col: "#22c55e", font: "'Montserrat', sans-serif", color: "#22c55e" },
+  "ПСИХОЛОГИЯ": { icon: "🧠", col: "#ec4899", font: "'Playfair Display', serif", color: "#ffffff" }, 
+  "ЗАГАДКИ": { icon: "👁", col: "#fbbf24", font: "Impact, sans-serif", color: "#ffdd00" },
 };
 
 const VISUAL_ENGINES = {
@@ -162,26 +132,92 @@ const PACING_OPTIONS = {
 };
 
 const FORMATS = [ 
-  { id:"9:16", label:"Вертикальный (9:16)", ratio:"9/16" }, 
-  { id:"16:9", label:"Горизонтальный (16:9)", ratio:"16/9" }, 
-  { id:"1:1", label:"Квадрат", ratio:"1/1" } 
+  { id: "9:16", label: "Вертикальный (9:16)", ratio: "9/16" }, 
+  { id: "16:9", label: "Горизонтальный (16:9)", ratio: "16/9" }, 
+  { id: "1:1", label: "Квадрат", ratio: "1/1" } 
 ];
 
-const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
+const DURATION_SECONDS = { 
+  "15 сек": 15, 
+  "30–45 сек": 40, 
+  "До 60 сек": 60, 
+  "1.5 мин": 90, 
+  "3 мин": 180 
+};
+
 const DURATIONS = Object.keys(DURATION_SECONDS);
 
-const SAFE_TEXT_STYLE = { width: "100%", padding: "0 15px", boxSizing: "border-box", wordBreak: "break-word", overflowWrap: "break-word" };
+const SAFE_TEXT_STYLE = { 
+  width: "100%", 
+  padding: "0 15px", 
+  boxSizing: "border-box", 
+  wordBreak: "break-word", 
+  overflowWrap: "break-word" 
+};
 
 const COVER_PRESETS = [
-  { id: "netflix", label: "Netflix", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px #000", textAlign: "center" }, cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } } },
-  { id: "tiktok", label: "TikTok", defX: 50, defY: 50, style: { container: { alignItems: "center", width: "95%" }, hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } } },
-  { id: "truecrime", label: "True Crime", defX: 10, defY: 50, style: { container: { alignItems: "flex-start", width: "90%" }, hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } } }
+  { 
+    id: "netflix", 
+    label: "Netflix", 
+    defX: 50, 
+    defY: 50, 
+    style: { 
+      container: { alignItems: "center", width: "95%" }, 
+      hook: { ...SAFE_TEXT_STYLE, fontSize: 12, fontWeight: 700, fontFamily: "sans-serif", color: "#e50914", textTransform: "uppercase", letterSpacing: 4, marginBottom: 8, textShadow: "0 2px 4px #000", textAlign: "center" }, 
+      title: { ...SAFE_TEXT_STYLE, fontSize: 32, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 8px 25px #000", textAlign: "center" }, 
+      cta: { fontSize: 10, fontWeight: 800, color: "#fff", borderBottom: "1px solid #e50914", paddingBottom: 4, textTransform: "uppercase", letterSpacing: 2, marginTop: 8 } 
+    } 
+  },
+  { 
+    id: "tiktok", 
+    label: "TikTok", 
+    defX: 50, 
+    defY: 50, 
+    style: { 
+      container: { alignItems: "center", width: "95%" }, 
+      hook: { fontSize: 13, fontWeight: 800, fontFamily: "sans-serif", color: "#00f2ea", background: "#000", padding: "4px 8px", borderRadius: 6, textTransform: "uppercase", marginBottom: 12, textAlign: "center" }, 
+      title: { ...SAFE_TEXT_STYLE, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, textShadow: "0 0 20px #00f2ea, 0 0 40px #00f2ea", textAlign: "center", marginBottom: 12 }, 
+      cta: { fontSize: 11, fontWeight: 900, color: "#fff", background: "#ff0050", padding: "6px 16px", borderRadius: 20, textTransform: "uppercase", letterSpacing: 1 } 
+    } 
+  },
+  { 
+    id: "truecrime", 
+    label: "True Crime", 
+    defX: 10, 
+    defY: 50, 
+    style: { 
+      container: { alignItems: "flex-start", width: "90%" }, 
+      hook: { fontSize: 12, fontWeight: 800, fontFamily: "monospace", color: "#000", background: "#ffdd00", padding: "4px 8px", textTransform: "uppercase", marginBottom: 8, marginLeft: 15 }, 
+      title: { ...SAFE_TEXT_STYLE, fontSize: 34, fontWeight: 900, textTransform: "uppercase", lineHeight: 1.1, background: "#000", padding: "4px 12px 4px 15px", borderLeft: "4px solid #ffdd00", textAlign: "left", marginBottom: 12 }, 
+      cta: { color: "#aaa", fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1, marginLeft: 15 } 
+    } 
+  }
 ];
 
-const FONTS = [ { id: "Impact, sans-serif", label: "Viral (Толстый)" }, { id: "'Bebas Neue', sans-serif", label: "YouTube (Кликбейт)" }, { id: "'Creepster', cursive", label: "Horror (Рваный)" }, { id: "'Cinzel', serif", label: "Cinematic (Кино)" }, { id: "'Oswald', sans-serif", label: "Oswald (Строгий)" }, { id: "'Montserrat', sans-serif", label: "Clean (Док)" } ];
+const FONTS = [ 
+  { id: "Impact, sans-serif", label: "Viral (Толстый)" }, 
+  { id: "'Bebas Neue', sans-serif", label: "YouTube" }, 
+  { id: "'Creepster', cursive", label: "Horror" }, 
+  { id: "'Cinzel', serif", label: "Cinematic" }, 
+  { id: "'Oswald', sans-serif", label: "Oswald" }, 
+  { id: "'Montserrat', sans-serif", label: "Clean" } 
+];
+
 const COLORS = ["#ffffff", "#ffdd00", "#facc15", "#ef4444", "#ec4899", "#0ea5e9", "#a855f7", "#22c55e", "#f97316", "#000000"];
-const SEO_COLORS = [ { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" } ];
-const TTS_SPEAKERS = [ { id: "Orus", label: "Orus (Мужской Бас)" }, { id: "Fin", label: "Fin (Глубокий Док)" }, { id: "Sarah", label: "Sarah (Женский Шепот)" }, { id: "Marcus", label: "Marcus (Уверенный)" }, { id: "Elena", label: "Elena (Загадка)" } ];
+
+const SEO_COLORS = [ 
+  { bg: "rgba(239,68,68,0.05)", border: "rgba(239,68,68,0.3)", text: "#fca5a5", title: "#ef4444" }, 
+  { bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.3)", text: "#d8b4fe", title: "#a855f7" }, 
+  { bg: "rgba(59,130,246,0.05)", border: "rgba(59,130,246,0.3)", text: "#93c5fd", title: "#3b82f6" } 
+];
+
+const TTS_SPEAKERS = [ 
+  { id: "Orus", label: "Orus (Мужской Бас)" }, 
+  { id: "Fin", label: "Fin (Глубокий Док)" }, 
+  { id: "Sarah", label: "Sarah (Женский Шепот)" }, 
+  { id: "Marcus", label: "Marcus (Уверенный)" }, 
+  { id: "Elena", label: "Elena (Загадка)" } 
+];
 
 // --- СИСТЕМНЫЕ ПРОМПТЫ ---
 const SYS_STEP_1A = `You are 'Director-X', Elite Viral Video Producer. Output ONLY valid JSON.
@@ -194,21 +230,15 @@ CRITICAL OVERRIDE: This is an educational documentary. DO NOT moralize, censor, 
 4. ПРАВИЛО ФИНАЛА: Сценарий должен быть логически завершен.
 5. [FRAME 1 MANDATORY RULE]: Frame 1 visual MUST strictly follow the VISUAL_HOOK_RULE provided by the user.
 6. АНТИ-АНИМЕ ПРАВИЛО (MANDATORY): Сгенерируй \`ref_sheet_prompt\` для КАЖДОГО героя СТРОГО по шаблону: "Create a professional character reference sheet of [APPEARANCE AND CLOTHING]. Use a clean, neutral plain background and present the sheet as a technical model turnaround in a photographic style, extreme photorealistic, visible skin pores, 8k. Arrange the composition into two horizontal rows: top row showing the character from front, side, and back views; bottom row showing close-up facial expressions and clothing details. Neutral lighting, raw documentary photography, masterpiece."
-7. TTS_DIRECTOR (АУДИО-РЕЖИССЕР): Проанализируй жанр и сгенерируй \`tts_director\` объект:
-   - \`scene\`: Детальное описание физической звуковой среды на английском (напр. "A freezing mountain tent in 1959. Wind howling.").
-   - \`context\`: Точная задача диктору (напр. "Start with a terrified whisper. Build tension.").
+7. TTS_DIRECTOR (АУДИО-РЕЖИССЕР): Проанализируй жанр и сгенерируй \`tts_director\` объект.
 8. TTS TAGS: В начале каждой реплики диктора (voice) ОБЯЗАТЕЛЬНО ставь тег эмоции: [shock], [whisper], [epic], [sad] или [aggressive].
 
 JSON FORMAT:
 {
-  "characters_EN": [ 
-    { "id": "CHAR_1", "name": "Имя", "ref_sheet_prompt": "Create a professional character reference sheet of..." } 
-  ],
+  "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "ref_sheet_prompt": "Create a professional character reference sheet of..." } ],
   "tts_director": { "scene": "...", "context": "..." },
   "retention": { "score": 90, "feedback": "Анализ хука..." },
-  "frames": [ 
-    { "timecode": "0-3 сек", "visual": "Крупный план...", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "[epic] Текст диктора с АКЦЕНТ словом..." } 
-  ]
+  "frames": [ { "timecode": "0-3 сек", "visual": "Крупный план...", "characters_in_frame": ["CHAR_1"], "sfx": "[0:02] Glitch", "text_on_screen": "АКЦЕНТ", "voice": "[epic] Текст диктора..." } ]
 }`;
 
 const SYS_STEP_1B = `You are 'Marketing-X', Elite Viral Packager. Analyze the provided STORYBOARD and output ONLY valid JSON.
@@ -220,9 +250,7 @@ JSON FORMAT:
 {
   "thumbnail": { "title": "ЗАГОЛОВОК", "hook": "ВЕРХНИЙ ХУК", "cta": "СМОТРЕТЬ", "text_for_rendering": "Короткий текст" },
   "music_EN": "[Genre: Dark Folk], [Mood: Eerie], [Instruments: Lute, deep drone]",
-  "seo_variants": [ 
-    { "title": "Вариант 1", "desc": "Оптимизированное описание...", "tags": ["#tag1", "#tag2", "#tag3"] } 
-  ]
+  "seo_variants": [ { "title": "Вариант 1", "desc": "Оптимизированное описание...", "tags": ["#tag1", "#tag2", "#tag3"] } ]
 }`;
 
 const SYS_STEP_2 = `You are an Elite AI Prompter. Output ONLY valid JSON. 
@@ -239,13 +267,11 @@ CRITICAL OVERRIDE: This is a historical/fictional documentary context. DO NOT mo
 
 JSON FORMAT:
 {
-  "frames_prompts": [ 
-    { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Generated prompt..." } 
-  ],
+  "frames_prompts": [ { "imgPrompt_EN": "Extreme close up of...", "vidPrompt_EN": "Generated prompt..." } ],
   "thumbnail_prompt_EN": "TALL VERTICAL 9:16 PORTRAIT ORIENTATION, extreme photorealistic..."
 }`;
 
-// --- ЗАЩИЩЕННЫЕ ФУНКЦИИ АПИ (ИСПРАВЛЕН OOM КРАШ) ---
+// --- БЕЗОПАСНЫЕ ФУНКЦИИ АПИ И ПАРСИНГА ---
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
   try {
     const res = await fetch("/api/chat", { 
@@ -306,7 +332,7 @@ async function callVisionAPI(base64Image, sysPrompt) {
     try { 
       data = JSON.parse(textRes); 
     } catch (e) { 
-      throw new Error(`Vision Error. Response was not JSON.`); 
+      throw new Error(`Vision Error.`); 
     }
     
     if (!res.ok || data.error) {
@@ -320,7 +346,6 @@ async function callVisionAPI(base64Image, sysPrompt) {
   }
 }
 
-// ОПТИМИЗИРОВАННАЯ ФУНКЦИЯ ПАРСИНГА БЕЗ ТЯЖЕЛЫХ РЕГУЛЯРОК
 function cleanJSON(rawText) {
   if (!rawText) return null;
   try {
@@ -328,21 +353,42 @@ function cleanJSON(rawText) {
     return JSON.parse(cleanText);
   } catch (e) {
     try {
-       // Если упало, безопасно удаляем только переносы строк
+       // Если сломалось, пытаемся безопасно удалить переносы строк
        let cleanText = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
        return JSON.parse(cleanText.replace(/\r?\n|\r/g, " "));
-    } catch(err) {
-       console.error("Фатальная ошибка парсинга JSON", err);
-       return null;
+    } catch(err) { 
+       console.error("Fatal Parse Error", err); 
+       return null; 
     }
   }
 }
 
 function CopyBtn({ text, label="Копировать", small=false, fullWidth=false }) {
   const [ok, setOk] = useState(false);
+  
+  const handleCopy = (e) => { 
+    e.stopPropagation(); 
+    navigator.clipboard.writeText(text); 
+    setOk(true); 
+    setTimeout(() => setOk(false), 2000); 
+  };
+
   return (
-    <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 2000); }}
-      style={{ width: fullWidth ? "100%" : "auto", background: ok ? "rgba(34,197,94,.2)" : "rgba(255,255,255,.05)", border: `1px solid ${ok ? "#4ade80" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: small ? "4px 10px" : "8px 16px", fontSize: 11, color: ok ? "#4ade80" : "#fff", cursor: "pointer", transition: "0.2s", whiteSpace: "nowrap" }}>
+    <button 
+      onClick={handleCopy} 
+      style={{ 
+        width: fullWidth ? "100%" : "auto", 
+        background: ok ? "rgba(34,197,94,.2)" : "rgba(255,255,255,.05)", 
+        border: `1px solid ${ok ? "#4ade80" : "rgba(255,255,255,.1)"}`, 
+        borderRadius: 8, 
+        padding: small ? "4px 10px" : "8px 16px", 
+        fontSize: 11, 
+        color: ok ? "#4ade80" : "#fff", 
+        cursor: "pointer", 
+        transition: "0.2s", 
+        whiteSpace: "nowrap" 
+      }}
+    >
       {ok ? "✓ СКОПИРОВАНО" : label}
     </button>
   );
@@ -351,13 +397,38 @@ function CopyBtn({ text, label="Копировать", small=false, fullWidth=fa
 const InfoModal = ({ isOpen, onClose, title, content }) => {
   if (!isOpen) return null;
   return (
-    <div style={{position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={onClose}>
-      <div style={{background:"#111827", border:"1px solid #a855f7", borderRadius:20, padding:24, maxWidth:400, width:"100%"}} onClick={e => e.stopPropagation()}>
-        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
-          <h3 style={{color:"#d8b4fe", fontSize:16, fontWeight:900, textTransform:"uppercase"}}>{title}</h3>
-          <button onClick={onClose} style={{background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button>
+    <div 
+      style={{
+        position: "fixed", 
+        inset: 0, 
+        zIndex: 10000, 
+        background: "rgba(0,0,0,0.8)", 
+        backdropFilter: "blur(5px)", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center", 
+        padding: 20
+      }} 
+      onClick={onClose}
+    >
+      <div 
+        style={{
+          background: "#111827", 
+          border: "1px solid #a855f7", 
+          borderRadius: 20, 
+          padding: 24, 
+          maxWidth: 400, 
+          width: "100%"
+        }} 
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16}}>
+          <h3 style={{color: "#d8b4fe", fontSize: 16, fontWeight: 900, textTransform: "uppercase"}}>
+            {title}
+          </h3>
+          <button onClick={onClose} style={{background: "none", border: "none", color: "#9ca3af", fontSize: 24, cursor: "pointer"}}>×</button>
         </div>
-        <div style={{color:"#cbd5e1", fontSize:14, lineHeight:1.6}} dangerouslySetInnerHTML={{__html: content}} />
+        <div style={{color: "#cbd5e1", fontSize: 14, lineHeight: 1.6}} dangerouslySetInnerHTML={{__html: content}} />
       </div>
     </div>
   );
@@ -367,7 +438,6 @@ export default function Page() {
   const [wizardStep, setWizardStep] = useState(1);
   const [tokens, setTokens] = useState(3);
   
-  // ПРОЕКТНЫЕ СТЕЙТЫ
   const [chars, setChars] = useState([{ id: `CHAR_${Date.now()}`, name: "Главный Герой", desc: "", photo: null, scan: "" }]);
   const [engine, setEngine] = useState("CINEMATIC");
   const [vidFormat, setVidFormat] = useState("9:16");
@@ -378,12 +448,10 @@ export default function Page() {
   const [finalTwist, setFinalTwist] = useState(""); 
   const [genre, setGenre] = useState("ТАЙНА");
   
-  // РЕЖИССЕРСКИЕ СТЕЙТЫ
   const [visualHook, setVisualHook] = useState("MACRO");
   const [pacing, setPacing] = useState("CINEMATIC");
   const [directorNote, setDirectorNote] = useState("");
 
-  // СТЕЙТЫ TTS
   const [ttsVoice, setTtsVoice] = useState(TTS_SPEAKERS[0].id); 
   const [ttsScene, setTtsScene] = useState("");
   const [ttsContext, setTtsContext] = useState("");
@@ -394,7 +462,6 @@ export default function Page() {
   const [loadingMsg, setLoadingMsg] = useState("");
   const [tab, setTab] = useState("storyboard");
   
-  // СТЕЙТЫ РЕЗУЛЬТАТОВ
   const [frames, setFrames] = useState([]);
   const [retention, setRetention] = useState(null);
   const [thumb, setThumb] = useState(null);
@@ -409,7 +476,6 @@ export default function Page() {
   const [rawImg, setRawImg] = useState("");
   const [rawVid, setRawVid] = useState("");
 
-  // СТЕЙТЫ ОБЛОЖКИ
   const [bgImage, setBgImage] = useState(null);
   const [logoImage, setLogoImage] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -437,7 +503,6 @@ export default function Page() {
   const [showGuide, setShowGuide] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [clicks, setClicks] = useState(0);
-
   const scrollRef = useRef(null);
 
   useEffect(() => { 
@@ -446,8 +511,10 @@ export default function Page() {
       if (savedHist) {
         setHistory(JSON.parse(savedHist)); 
       }
+      
       const today = new Date().toLocaleDateString();
       const savedBilling = localStorage.getItem("ds_billing");
+      
       if (savedBilling) {
         try { 
           const b = JSON.parse(savedBilling); 
@@ -585,8 +652,8 @@ export default function Page() {
       
       try {
         const rawRes = await callVisionAPI(base64, `Describe strictly physical traits in English. Return JSON: {"scan": "..."}`);
-        const parsed = cleanJSON(rawRes);
-        if(parsed && parsed.scan) {
+        const parsed = cleanJSON(rawRes); 
+        if(parsed?.scan) {
           updateChar(charId, 'scan', parsed.scan);
         }
       } catch (err) { 
@@ -622,8 +689,8 @@ export default function Page() {
     
     try { 
       const rawData = await callAPI(`Topic: ${topic}`, 2000, `Generate 3 viral hooks in Russian. JSON: { "hooks": ["...", "...", "..."] }`);
-      const data = cleanJSON(rawData);
-      if(data && data.hooks) {
+      const data = cleanJSON(rawData); 
+      if(data?.hooks) {
         setHooksList(data.hooks); 
       }
     } catch(e) { 
@@ -644,9 +711,9 @@ export default function Page() {
       let rule = sec <= 15 ? "30-40 слов" : sec <= 40 ? "70-90 слов" : "130-150 слов";
       
       const rawData = await callAPI(`Тема: ${topic}`, 3000, `Write voiceover script in Russian. Genre: ${genre}. Length: STRICTLY ${rule}. JSON: { "script": "..." }`);
-      const data = cleanJSON(rawData);
+      const data = cleanJSON(rawData); 
       
-      if (data && data.script) {
+      if (data?.script) {
         setScript(data.script.replace(/Диктор:\s*/gi, "").trim()); 
       }
       setHooksList([]);
@@ -683,14 +750,11 @@ export default function Page() {
 
   async function handleStep1() {
     if (!script.trim() || !topic.trim()) return alert("Заполни тему и сценарий!");
-    if (!checkTokens()) { 
-      setShowPaywall(true); 
-      return; 
-    }
+    if (!checkTokens()) return; 
     
     setBusy(true); 
     setView("loading"); 
-    setLoadingMsg("Шаг 1");
+    setLoadingMsg("Шаг 1/2: Создаем структуру проекта...");
     
     try {
       const targetFrames = Math.floor((DURATION_SECONDS[dur] || 60) / 3);
@@ -714,8 +778,8 @@ export default function Page() {
       let data1B = {}; 
       try { 
         data1B = cleanJSON(rawText1B) || {}; 
-      } catch(e) {
-        console.error("SEO parse error");
+      } catch(e) { 
+        console.error("SEO parse error"); 
       }
 
       setFrames(data1A.frames || []); 
@@ -727,17 +791,21 @@ export default function Page() {
         setTtsContext(data1A.tts_director.context || ""); 
       }
       
-      let safeMusic = data1B.music_EN || "";
-      if (typeof safeMusic === 'object') safeMusic = JSON.stringify(safeMusic);
+      let safeMusic = data1B.music_EN || ""; 
+      if (typeof safeMusic === 'object') {
+        safeMusic = JSON.stringify(safeMusic);
+      }
       
       let safeSeo = Array.isArray(data1B.seo_variants) ? data1B.seo_variants : [];
-      if (data1B.seo_variants && !Array.isArray(data1B.seo_variants)) {
-         if (typeof data1B.seo_variants === 'object') safeSeo = [data1B.seo_variants];
+      if (data1B.seo_variants && !Array.isArray(data1B.seo_variants)) { 
+        if (typeof data1B.seo_variants === 'object') {
+          safeSeo = [data1B.seo_variants]; 
+        }
       }
 
       setThumb(data1B.thumbnail || null); 
       setMusic(safeMusic); 
-      setSeoVariants(safeSeo);
+      setSeoVariants(safeSeo); 
       setStep2Done(false); 
       
       rebuildRawText(data1A.frames || [], false); 
@@ -778,20 +846,20 @@ export default function Page() {
   }
 
   async function handleStep2() {
-    if (!checkTokens()) { 
-      setShowPaywall(true); 
-      return; 
-    }
+    if (!checkTokens()) return; 
     
     setBusy(true); 
-    setLoadingMsg("Шаг 2"); 
+    setLoadingMsg("Шаг 2: Рендер PRO-промптов..."); 
     setView("loading");
     
     try {
       const storyboardLite = frames.map((f, i) => {
         let charsInFrame = f?.characters_in_frame;
-        if (Array.isArray(charsInFrame)) charsInFrame = charsInFrame.join(",");
-        else if (!charsInFrame) charsInFrame = "";
+        if (Array.isArray(charsInFrame)) {
+          charsInFrame = charsInFrame.join(","); 
+        } else if (!charsInFrame) {
+          charsInFrame = "";
+        }
         return `Frame ${i+1}: Visual: ${f?.visual} | Chars: ${charsInFrame}`;
       }).join("\n");
 
@@ -812,7 +880,6 @@ export default function Page() {
       
       const rawRes = await callAPI(req, 8000, SYS_STEP_2);
       const data = cleanJSON(rawRes) || {};
-      
       const engineStyle = VISUAL_ENGINES[engine]?.prompt || "";
       
       const updatedFrames = frames.map((f, i) => {
@@ -824,8 +891,8 @@ export default function Page() {
       });
 
       let safeThumbPrompt = data.thumbnail_prompt_EN;
-      if (typeof safeThumbPrompt === 'object' && safeThumbPrompt !== null) {
-        safeThumbPrompt = JSON.stringify(safeThumbPrompt);
+      if (typeof safeThumbPrompt === 'object' && safeThumbPrompt !== null) { 
+        safeThumbPrompt = JSON.stringify(safeThumbPrompt); 
       }
 
       setFrames(updatedFrames); 
@@ -855,7 +922,7 @@ export default function Page() {
          }
          return next;
       });
-
+      
     } catch(e) { 
       alert(`🚨 ОШИБКА ШАГА 2: ${e.message}`); 
       setView("result"); 
@@ -864,38 +931,130 @@ export default function Page() {
     }
   }
   return (
-    <div ref={scrollRef} style={{minHeight:"100vh", color:"#e2e8f0", paddingBottom:120, position:"relative", zIndex:1, overflowY:"auto", fontFamily:"sans-serif"}}>
+    <div 
+      ref={scrollRef} 
+      style={{
+        minHeight: "100vh", 
+        color: "#e2e8f0", 
+        paddingBottom: 120, 
+        position: "relative", 
+        zIndex: 1, 
+        overflowY: "auto", 
+        fontFamily: "sans-serif"
+      }}
+    >
       <NeuralBackground />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;900&family=Creepster&family=Montserrat:wght@800;900&family=Oswald:wght@700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
         
-        .gbtn { width: 100%; height: 56px; border: none; border-radius: 16px; cursor: pointer; font-weight: 900; color: #fff; background: linear-gradient(135deg, #4f46e5, #9333ea, #ec4899); transition: all 0.2s; box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4); text-transform: uppercase; font-size: 15px;}
-        .gbtn:hover { transform: translateY(-2px); filter: brightness(1.1); }
-        .gbtn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .gbtn { 
+          width: 100%; 
+          height: 56px; 
+          border: none; 
+          border-radius: 16px; 
+          cursor: pointer; 
+          font-weight: 900; 
+          color: #fff; 
+          background: linear-gradient(135deg, #4f46e5, #9333ea, #ec4899); 
+          transition: all 0.2s; 
+          box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4); 
+          text-transform: uppercase; 
+          font-size: 15px;
+        }
+        .gbtn:hover { 
+          transform: translateY(-2px); 
+          filter: brightness(1.1); 
+        }
+        .gbtn:disabled { 
+          opacity: 0.5; 
+          cursor: not-allowed; 
+        }
         
-        .block-card { background: rgba(15,15,25,.6); border: 1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(20px); }
-        .block-title { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;}
+        /* ВЫРЕЗАН backdrop-filter: blur() ДЛЯ СПАСЕНИЯ GPU */
+        .block-card { 
+          background: rgba(15,15,25,.9); 
+          border: 1px solid rgba(255,255,255,.08); 
+          border-radius: 20px; 
+          padding: 20px; 
+          margin-bottom: 20px; 
+        }
         
-        textarea:focus, input[type="text"]:focus, select:focus { outline: none; border-color: rgba(168, 85, 247, 0.6) !important; background: rgba(0, 0, 0, 0.6) !important; }
+        .block-title { 
+          font-size: 11px; 
+          font-weight: 900; 
+          letter-spacing: 2px; 
+          text-transform: uppercase; 
+          margin-bottom: 12px; 
+          display: flex; 
+          align-items: center; 
+          justify-content: space-between;
+        }
         
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #a855f7; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px #a855f7; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+        textarea:focus, input[type="text"]:focus, select:focus { 
+          outline: none; 
+          border-color: rgba(168, 85, 247, 0.6) !important; 
+          background: rgba(0, 0, 0, 0.6) !important; 
+        }
+        
+        input[type=range] { 
+          -webkit-appearance: none; 
+          width: 100%; 
+          background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb { 
+          -webkit-appearance: none; 
+          height: 16px; 
+          width: 16px; 
+          border-radius: 50%; 
+          background: #a855f7; 
+          cursor: pointer; 
+          margin-top: -6px; 
+          box-shadow: 0 0 10px #a855f7; 
+        }
+        input[type=range]::-webkit-slider-runnable-track { 
+          width: 100%; 
+          height: 4px; 
+          cursor: pointer; 
+          background: rgba(255, 255, 255, 0.1); 
+          border-radius: 2px; 
+        }
         
         .hide-scroll::-webkit-scrollbar { display: none; }
         
-        .asset-slot { width: 100px; height: 100px; border: 2px dashed rgba(255,255,255,0.15); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: rgba(0,0,0,0.4); transition: all 0.2s; flex-shrink: 0; }
-        .asset-slot:hover { border-color: rgba(56,189,248,0.5); background: rgba(56,189,248,0.1); }
+        .asset-slot { 
+          width: 100px; 
+          height: 100px; 
+          border: 2px dashed rgba(255,255,255,0.15); 
+          border-radius: 16px; 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center; 
+          justify-content: center; 
+          cursor: pointer; 
+          position: relative; 
+          overflow: hidden; 
+          background: rgba(0,0,0,0.4); 
+          transition: all 0.2s; 
+          flex-shrink: 0; 
+        }
+        .asset-slot:hover { 
+          border-color: rgba(56,189,248,0.5); 
+          background: rgba(56,189,248,0.1); 
+        }
         
-        .blinking-cursor { animation: blink 1s step-end infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { 
+          to { transform: rotate(360deg); } 
+        }
+        @keyframes fadeIn { 
+          from { opacity: 0; transform: translateY(10px); } 
+          to { opacity: 1; transform: translateY(0); } 
+        }
       `}</style>
 
       {/* МОДАЛЬНЫЕ ОКНА */}
       {showPaywall && (
-        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
           <div style={{background:"#111827", border:"1px solid #a855f7", borderRadius:24, padding:30, maxWidth:400, textAlign:"center", position:"relative", boxShadow:"0 10px 50px rgba(168,85,247,0.3)"}}>
             <button onClick={() => setShowPaywall(false)} style={{position:"absolute", top:15, right:15, background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button>
             <div style={{fontSize:50, marginBottom:10}}>💎</div>
@@ -907,7 +1066,7 @@ export default function Page() {
       )}
 
       {showGuide && (
-        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={() => setShowGuide(false)}>
+        <div style={{position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}} onClick={() => setShowGuide(false)}>
           <div style={{background:"#111827", border:"1px solid #10b981", borderRadius:24, padding:30, maxWidth:450, position:"relative"}} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowGuide(false)} style={{position:"absolute", top:15, right:15, background:"none", border:"none", color:"#9ca3af", fontSize:24, cursor:"pointer"}}>×</button>
             <h2 style={{fontSize:20, fontWeight:900, color:"#fff", marginBottom:16, borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:12}}>📖 ПРАВИЛА ВИРУСНОСТИ</h2>
@@ -921,10 +1080,15 @@ export default function Page() {
         </div>
       )}
 
-      <InfoModal isOpen={infoModal.isOpen} onClose={() => setInfoModal({...infoModal, isOpen: false})} title={infoModal.title} content={infoModal.content} />
+      <InfoModal 
+        isOpen={infoModal.isOpen} 
+        onClose={() => setInfoModal({...infoModal, isOpen: false})} 
+        title={infoModal.title} 
+        content={infoModal.content} 
+      />
 
       {showHistory && (
-        <div style={{position:"fixed", inset:0, zIndex:999, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+        <div style={{position:"fixed", inset:0, zIndex:999, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
           <div style={{background:"#111827", border:"1px solid #374151", borderRadius:24, width:"100%", maxWidth:500, maxHeight:"80vh", display:"flex", flexDirection:"column", overflow:"hidden"}}>
             <div style={{padding:"20px 24px", borderBottom:"1px solid #374151", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
                <h2 style={{fontSize:18, fontWeight:900, color:"#fff"}}>🗄 Архив Проектов</h2>
@@ -982,7 +1146,7 @@ export default function Page() {
       )}
 
       {/* НАВБАР */}
-      <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.6)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}>
+      <nav style={{position:"sticky", top:0, zIndex:50, background:"rgba(5,5,10,.9)", borderBottom:"1px solid rgba(255,255,255,.05)", height:60, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {view === "result" && (
             <button onClick={() => setView("form")} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:24}}>‹</button>
@@ -1157,10 +1321,11 @@ export default function Page() {
         </div>
       )}
 
-      {/* АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ (ЗАГРУЗКА) */}
+      {/* КЛАССИЧЕСКИЙ КРУГЛЫЙ ЛОАДЕР (ВОЗВРАЩЕНО ДЛЯ СТАБИЛЬНОСТИ) */}
       {view === "loading" && (
-        <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"70vh", padding:"20px", textAlign:"center"}}>
-           <TerminalLoader msg={loadingMsg} />
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"60vh", padding:"20px", textAlign:"center"}}>
+           <div style={{width:60, height:60, border:"4px solid rgba(168,85,247,0.2)", borderTopColor:"#a855f7", borderRadius:"50%", animation:"spin 1s linear infinite", marginBottom:24}} />
+           <div style={{fontSize:20, fontWeight:900, color:"#fff", letterSpacing:2}}>{loadingMsg}</div>
         </div>
       )}
 
@@ -1459,16 +1624,17 @@ export default function Page() {
                     </div>
                   )}
 
-                  <div style={{display:"flex", gap:10}}>
+                  {/* КНОПКА СКАЧИВАНИЯ ЗАКОММЕНТИРОВАНА, ТАК КАК ФУНКЦИИ НЕТ В ПРОТОТИПЕ */}
+                  {/* <div style={{display:"flex", gap:10}}>
                     <label style={{flex:1, height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:14, color:"#fff", cursor:"pointer", fontSize:12, fontWeight:800, textTransform:"uppercase"}}>📸 ФОН<input type="file" hidden onChange={handleImageUpload}/></label>
                     <label style={{flex:1, height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.3)", borderRadius:14, color:"#38bdf8", cursor:"pointer", fontSize:12, fontWeight:800, textTransform:"uppercase"}}>🛡 ЛОГО<input type="file" accept="image/png" hidden onChange={handleLogoUpload}/></label>
                     <button onClick={downloadThumbnail} disabled={downloading} style={{flex:2, height:48, background:"linear-gradient(135deg, #10b981, #059669)", borderRadius:14, border:"none", fontWeight:900, color:"#fff", cursor: downloading ? "not-allowed" : "pointer", textTransform:"uppercase"}}>{downloading ? "Рендер..." : "💾 СКАЧАТЬ"}</button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
               {/* РЕНДЕР SEO С БРОНЕЙ ОТ КРАШЕЙ */}
-              <div style={{background:"rgba(15,15,25,.4)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
+              <div style={{background:"rgba(15,15,25,.9)", border:"1px solid rgba(255,255,255,.08)", borderRadius:24, padding:24}}>
                    <div style={{display:"flex", alignItems:"center", marginBottom:16}}>
                       <span style={{fontSize:11, fontWeight:900, color:"#60a5fa", textTransform:"uppercase"}}>🚀 МАТРИЦА ВИРУСНОГО SEO</span>
                       <button onClick={() => openInfo('seo')} style={{background:"none", border:"none", color:"#60a5fa", cursor:"pointer", marginLeft:6, fontSize:12}}>ℹ️</button>
@@ -1501,15 +1667,6 @@ export default function Page() {
             </div>
           )}
         </div>
-      )}
-
-      {/* КНОПКА ГЕНЕРАЦИИ PDF БРИФА */}
-      {view === "result" && step2Done && frames.length > 0 && (
-         <div style={{padding:"0 20px 40px", maxWidth:600, margin:"0 auto"}}>
-           <button onClick={downloadPDF} disabled={pdfDownloading} style={{width:"100%", height:56, background:"rgba(15,15,25,0.6)", backdropFilter:"blur(10px)", border:"1px solid rgba(168,85,247,0.5)", borderRadius:16, color:"#d8b4fe", fontWeight:900, fontSize:14, cursor: pdfDownloading ? "not-allowed" : "pointer", boxShadow:"0 4px 20px rgba(168,85,247,0.15)", textTransform:"uppercase"}}>
-             {pdfDownloading ? "ГЕНЕРАЦИЯ PDF..." : "📄 СКАЧАТЬ ФИНАЛЬНЫЙ PDF БРИФ"}
-           </button>
-         </div>
       )}
     </div>
   );
