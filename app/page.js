@@ -320,7 +320,7 @@ JSON FORMAT:
   "thumbnail_prompt_EN": "TALL VERTICAL 9:16 PORTRAIT ORIENTATION, extreme photorealistic..."
 }`;
 
-// --- ФУНКЦИИ АПИ ---
+// --- ЗАЩИЩЕННЫЕ ФУНКЦИИ АПИ ---
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
   try {
     const res = await fetch("/api/chat", { 
@@ -396,6 +396,7 @@ async function callVisionAPI(base64Image, sysPrompt) {
 }
 
 function cleanJSON(rawText) {
+  if (!rawText) return null;
   try {
     let cleanText = rawText.replace(/```json/gi, "").replace(/```/gi, "").trim();
     const startIdx = cleanText.indexOf('{'); 
@@ -782,6 +783,7 @@ export default function Page() {
       
       const framesForSEO = data1A.frames || [];
       const rawText1B = await callAPI(JSON.stringify(framesForSEO), 3000, SYS_STEP_1B);
+      
       let data1B = {}; 
       try { 
         data1B = cleanJSON(rawText1B) || {}; 
@@ -798,9 +800,18 @@ export default function Page() {
         setTtsContext(data1A.tts_director.context || ""); 
       }
       
+      // ЗАЩИТА МУЗЫКИ И SEO ОТ КРАШЕЙ РЕНДЕРА
+      let safeMusic = data1B.music_EN || "";
+      if (typeof safeMusic === 'object') safeMusic = JSON.stringify(safeMusic);
+      
+      let safeSeo = Array.isArray(data1B.seo_variants) ? data1B.seo_variants : [];
+      if (data1B.seo_variants && !Array.isArray(data1B.seo_variants)) {
+         if (typeof data1B.seo_variants === 'object') safeSeo = [data1B.seo_variants];
+      }
+
       setThumb(data1B.thumbnail || null); 
-      setMusic(data1B.music_EN || ""); 
-      setSeoVariants(data1B.seo_variants || []);
+      setMusic(safeMusic); 
+      setSeoVariants(safeSeo);
       setStep2Done(false); 
       
       rebuildRawText(data1A.frames || [], false); 
@@ -821,8 +832,8 @@ export default function Page() {
         generatedChars: data1A.characters_EN, 
         retention: data1A.retention, 
         thumb: data1B.thumbnail, 
-        seoVariants: data1B.seo_variants, 
-        music: data1B.music_EN, 
+        seoVariants: safeSeo, 
+        music: safeMusic, 
         step2Done: false, 
         ttsScene: data1A.tts_director?.scene, 
         ttsContext: data1A.tts_director?.context 
@@ -851,7 +862,14 @@ export default function Page() {
     setView("loading");
     
     try {
-      const storyboardLite = frames.map((f, i) => `Frame ${i+1}: Visual: ${f?.visual} | Chars: ${(f?.characters_in_frame||[]).join(",")}`).join("\n");
+      // ЗАЩИТА СБОРКИ СТОРИБОРДА ОТ ОШИБКИ JOIN()
+      const storyboardLite = frames.map((f, i) => {
+        let charsInFrame = f?.characters_in_frame;
+        if (Array.isArray(charsInFrame)) charsInFrame = charsInFrame.join(",");
+        else if (!charsInFrame) charsInFrame = "";
+        return `Frame ${i+1}: Visual: ${f?.visual} | Chars: ${charsInFrame}`;
+      }).join("\n");
+
       const charsDict = generatedChars.map(c => `${c?.id}: ${c?.ref_sheet_prompt}`).join("\n");
       
       let formatString = "TALL VERTICAL 9:16 PORTRAIT ORIENTATION";
@@ -1082,7 +1100,7 @@ export default function Page() {
                  </div>
               </div>
 
-              {/* НОВЫЙ БЛОК: ВИЗУАЛЬНЫЙ ХУК (ЗАМЕНА ЛОКАЦИИ) */}
+              {/* БЛОК: ВИЗУАЛЬНЫЙ ХУК */}
               <div className="block-card" style={{borderLeft:"3px solid #ef4444"}}>
                  <div className="block-title"><span style={{color:"#fca5a5"}}>2. ВИЗУАЛЬНЫЙ ХУК (0-3 СЕК)</span></div>
                  <div style={{fontSize:11, color:"#94a3b8", marginBottom:12}}>Как мы бьем по глазам зрителя в самом первом кадре видео:</div>
@@ -1146,7 +1164,7 @@ export default function Page() {
                 ← НАЗАД В НАСТРОЙКИ
               </button>
 
-              {/* НОВЫЙ БЛОК: РЕЖИССУРА И ДИНАМИКА */}
+              {/* БЛОК: РЕЖИССУРА И ДИНАМИКА */}
               <div className="block-card" style={{borderLeft:"3px solid #8b5cf6"}}>
                  <div className="block-title"><span style={{color:"#c4b5fd"}}>🎬 РЕЖИССУРА И ДИНАМИКА</span></div>
                  
@@ -1202,7 +1220,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* НОВЫЙ АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ */}
+      {/* АНИМИРОВАННЫЙ ТЕРМИНАЛ ИИ (ЗАГРУЗКА) */}
       {view === "loading" && (
         <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"70vh", padding:"20px", textAlign:"center"}}>
            <TerminalLoader msg={loadingMsg} />
@@ -1412,7 +1430,7 @@ export default function Page() {
                 </div>
                 <div style={{padding:20}}>
 
-                  {/* НОВЫЙ БЛОК: ПРОМПТ ДЛЯ ФОНА ОБЛОЖКИ */}
+                  {/* ПРОМПТ ДЛЯ ФОНА ОБЛОЖКИ */}
                   {step2Done && thumb?.prompt_EN && (
                     <div style={{background:"rgba(220,38,38,0.1)", border:"1px dashed #ef4444", borderRadius:16, padding:16, marginBottom:20}}>
                       <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
@@ -1522,16 +1540,16 @@ export default function Page() {
                    {seoVariants && seoVariants.length > 0 ? (
                      <div style={{display:"flex", flexDirection:"column", gap:16}}>
                        {seoVariants.map((s, i) => {
-                         const safeTags = Array.isArray(s.tags) ? s.tags.join(" ") : (typeof s.tags === 'string' ? s.tags : "");
+                         const safeTags = Array.isArray(s?.tags) ? s.tags.join(" ") : (typeof s?.tags === 'string' ? s.tags : "");
                          return (
                            <div key={i} style={{background: SEO_COLORS[i%3].bg, border:`1px solid ${SEO_COLORS[i%3].border}`, padding:16, borderRadius:16}}>
                               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
                                 <div style={{fontSize:11, color:SEO_COLORS[i%3].title, fontWeight:900, letterSpacing:1}}>ВАРИАНТ {i+1}</div>
                               </div>
-                              <div style={{fontSize:14, color:"#fff", fontWeight:900, marginBottom:8}}>📌 ЗАГОЛОВОК:<br/><span style={{fontWeight:800}}>{s.title}</span></div>
-                              <div style={{color:SEO_COLORS[i%3].text, fontSize:13, marginBottom:12, lineHeight:1.5}}>📝 ОПИСАНИЕ:<br/>{s.desc}</div>
+                              <div style={{fontSize:14, color:"#fff", fontWeight:900, marginBottom:8}}>📌 ЗАГОЛОВОК:<br/><span style={{fontWeight:800}}>{s?.title || ""}</span></div>
+                              <div style={{color:SEO_COLORS[i%3].text, fontSize:13, marginBottom:12, lineHeight:1.5}}>📝 ОПИСАНИЕ:<br/>{s?.desc || ""}</div>
                               <div style={{color:SEO_COLORS[i%3].title, fontSize:12, fontWeight:700, marginBottom:16}}>🏷 ТЕГИ:<br/>{safeTags}</div>
-                              <CopyBtn text={`${s.title}\n\n${s.desc}\n\n${safeTags}`} label="СКОПИРОВАТЬ ВАРИАНТ" fullWidth />
+                              <CopyBtn text={`${s?.title || ""}\n\n${s?.desc || ""}\n\n${safeTags}`} label="СКОПИРОВАТЬ ВАРИАНТ" fullWidth />
                            </div>
                          );
                        })}
