@@ -445,7 +445,7 @@ export default function Page() {
 
   // ─── СЕКРЕТНЫЙ ПАРОЛЬ ──────────────────────────────────────────────────────
   // Замени "neurocine_dev_2025" на свой пароль — никому не показывай!
-  const DEV_SECRET = "neurocine_dev_2025";
+  const DEV_SECRET = "adidogmen";
 
   const activateDevMode = () => {
     setTokens(999);
