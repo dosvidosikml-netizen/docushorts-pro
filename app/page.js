@@ -245,7 +245,10 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
       const res = await fetch("/api/chat", { 
         method: "POST",
         signal: controller.signal,
-        headers: { "Content-Type": "application/json" }, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...(process.env.NEXT_PUBLIC_APP_SECRET ? { "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET } : {})
+        }, 
         body: JSON.stringify({ 
           model: model,
           messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], 
@@ -276,7 +279,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
 async function warmupServer(onWaking) {
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 5000);
+    const t = setTimeout(() => ctrl.abort(), 10000);
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctrl.signal,
       headers: { "Content-Type": "application/json" },
@@ -287,7 +290,7 @@ async function warmupServer(onWaking) {
   } catch(e) {
     // Сервер спал — уведомляем пользователя и ждём пока проснётся
     if (onWaking) onWaking();
-    await sleep(8000); // Даём серверу время подняться
+    await sleep(20000); // Render cold start реально занимает 15-30 сек
   }
 }
 
@@ -295,7 +298,10 @@ async function callVisionAPI(base64Image, sysPrompt) {
   try {
     const res = await fetch("/api/chat", { 
       method: "POST", 
-      headers: { "Content-Type": "application/json" }, 
+      headers: { 
+        "Content-Type": "application/json",
+        ...(process.env.NEXT_PUBLIC_APP_SECRET ? { "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET } : {})
+      }, 
       body: JSON.stringify({ 
         model: "openai/gpt-4o-mini", // Дешевая и быстрая модель для зрения
         messages: [
@@ -499,11 +505,15 @@ export default function Page() {
   };
 
   const loadCustomPreset = () => {
-    const p = JSON.parse(localStorage.getItem("ds_custom_preset"));
-    if (p) {
-      setCovX(p.covX); setCovY(p.covY); setCovFont(p.covFont); setCovColor(p.covColor); setSizeHook(p.sizeHook); setSizeTitle(p.sizeTitle); setSizeCta(p.sizeCta); setCovDark(p.covDark);
-      if(p.logoX) setLogoX(p.logoX); if(p.logoY) setLogoY(p.logoY); if(p.logoSize) setLogoSize(p.logoSize); setActivePreset("custom");
-    } else { alert("У вас еще нет сохраненного стиля."); }
+    try {
+      const raw = localStorage.getItem("ds_custom_preset");
+      if (!raw) { alert("У вас еще нет сохраненного стиля."); return; }
+      const p = JSON.parse(raw);
+      if (p) {
+        setCovX(p.covX); setCovY(p.covY); setCovFont(p.covFont); setCovColor(p.covColor); setSizeHook(p.sizeHook); setSizeTitle(p.sizeTitle); setSizeCta(p.sizeCta); setCovDark(p.covDark);
+        if(p.logoX) setLogoX(p.logoX); if(p.logoY) setLogoY(p.logoY); if(p.logoSize) setLogoSize(p.logoSize); setActivePreset("custom");
+      } else { alert("У вас еще нет сохраненного стиля."); }
+    } catch(e) { alert("Ошибка загрузки стиля. Попробуйте сохранить заново."); }
   };
 
   const openInfo = (type) => {
@@ -775,6 +785,7 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       const totalPromptBatches = Math.ceil(frames.length / PROMPT_BATCH);
       let allPrompts = [];
       let thumbnailPromptRaw = "";
+      let finalBRolls = [];
 
       for (let batch = 0; batch < totalPromptBatches; batch++) {
         const bStart = batch * PROMPT_BATCH;
@@ -799,7 +810,8 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
         }
         // b_rolls берём из последнего батча
         if (isLastBatch) {
-          setBRolls(batchData.b_rolls || []);
+          finalBRolls = batchData.b_rolls || [];
+          setBRolls(finalBRolls);
         }
 
         if (batch < totalPromptBatches - 1) await sleep(300);
@@ -846,7 +858,6 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
         : cleanThumbPrompt + ", no text, no watermarks, no letters, no subtitles, (text:1.5), (watermark:1.5) —no";
 
       setFrames(updatedFrames); 
-      setBRolls(data.b_rolls || []); 
       setThumb({...thumb, prompt_EN: finalThumbPrompt}); 
       setStep2Done(true);
       
@@ -857,7 +868,7 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       setHistory(prev => {
          const next = [...prev];
          if(next.length > 0) { 
-           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: finalThumbPrompt}, seoVariants, music, bRolls: data.b_rolls, step2Done: true };
+           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: finalThumbPrompt}, seoVariants, music, bRolls: finalBRolls, step2Done: true };
            next[0].text = JSON.stringify(stateData); 
            localStorage.setItem("ds_history", JSON.stringify(next)); 
          }
@@ -887,28 +898,38 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
     }, 100);
   }
 
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   async function downloadPDF() {
     setPdfDownloading(true);
     const element = document.createElement('div');
     element.innerHTML = `
       <div style="font-family: Arial, sans-serif; padding: 40px; color: #111;">
         <h1 style="color: #a855f7;">🎬 DOCUSHORTS PRODUCER BRIEF</h1>
-        <h2>Тема: ${topic || "Без темы"}</h2><p><strong>Жанр:</strong> ${genre}</p><hr style="margin: 20px 0;" />
+        <h2>Тема: ${escapeHtml(topic) || "Без темы"}</h2><p><strong>Жанр:</strong> ${escapeHtml(genre)}</p><hr style="margin: 20px 0;" />
         <h3>🎵 Музыка (Suno AI Prompt):</h3>
-        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px;">${music || "Не сгенерировано"}</div>
+        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px;">${escapeHtml(music) || "Не сгенерировано"}</div>
         <hr style="margin: 20px 0;" />
         <h3>🎙 Настройки Диктора:</h3>
-        <p><strong>Голос:</strong> ${ttsVoice} | <strong>Скорость:</strong> ${ttsSpeed}x | <strong>Эмоция:</strong> Авто (теги в тексте)</p>
+        <p><strong>Голос:</strong> ${escapeHtml(ttsVoice)} | <strong>Скорость:</strong> ${escapeHtml(ttsSpeed)}x | <strong>Эмоция:</strong> Авто (теги в тексте)</p>
         <hr style="margin: 20px 0;" />
         <h3>📝 Раскадровка:</h3>
         ${frames.map((f, i) => `
           <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <strong style="color: #ef4444; font-size: 16px;">Кадр ${i+1} [${f.timecode}]</strong><br/>
-            <div style="margin-top: 8px; font-size: 14px;"><b>👁 Визуал:</b> ${f.visual}</div>
-            <div style="margin-top: 6px; color: #d97706; font-size: 14px;"><b>🔊 SFX:</b> ${f.sfx || "-"}</div>
-            ${f.text_on_screen ? `<div style="margin-top: 6px; color: #ec4899; font-size: 14px;"><b>🔤 Титр:</b> ${f.text_on_screen}</div>` : ''}
-            <div style="margin-top: 6px; color: #7c3aed; font-style: italic; font-size: 15px;"><b>🎙 Диктор:</b> «${f.voice}»</div>
-            ${step2Done ? `<div style="margin-top: 10px; padding: 10px; background: #f8fafc; font-size: 12px; color: #475569; font-family: monospace;"><b>Video Prompt (Grok Super):</b> ${f.vidPrompt_EN}</div>` : ''}
+            <strong style="color: #ef4444; font-size: 16px;">Кадр ${i+1} [${escapeHtml(f.timecode)}]</strong><br/>
+            <div style="margin-top: 8px; font-size: 14px;"><b>👁 Визуал:</b> ${escapeHtml(f.visual)}</div>
+            <div style="margin-top: 6px; color: #d97706; font-size: 14px;"><b>🔊 SFX:</b> ${escapeHtml(f.sfx) || "-"}</div>
+            ${f.text_on_screen ? `<div style="margin-top: 6px; color: #ec4899; font-size: 14px;"><b>🔤 Титр:</b> ${escapeHtml(f.text_on_screen)}</div>` : ''}
+            <div style="margin-top: 6px; color: #7c3aed; font-style: italic; font-size: 15px;"><b>🎙 Диктор:</b> «${escapeHtml(f.voice)}»</div>
+            ${step2Done ? `<div style="margin-top: 10px; padding: 10px; background: #f8fafc; font-size: 12px; color: #475569; font-family: monospace;"><b>Video Prompt (Grok Super):</b> ${escapeHtml(f.vidPrompt_EN)}</div>` : ''}
           </div>
         `).join('')}
       </div>`;
