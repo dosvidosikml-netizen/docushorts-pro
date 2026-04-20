@@ -603,15 +603,42 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       else if (sec <= 60) wordLimitRule = "СТРОГО 130-150 слов. Опиши атмосферу подробно, минимум 4-5 длинных абзацев. Меньше 12 предложений КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО!";
       else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов. Обязательно длинные, детализированные абзацы.`;
 
-      const sysTxt = `You are 'Director-X'. Напиши текст диктора на РУССКОМ ЯЗЫКЕ. Без слова "Диктор:". Жанр: ${genre}.
-ОГРАНИЧЕНИЯ:
-1. WIKIPEDIA BAN: КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ скучные исторические вступления ("В начале 17 века..."). Начинай с жесткого хука в лоб.
-2. NO META-TEXT: ЗАПРЕЩЕНО писать мета-комментарии. Просто пиши сам рассказ!
-3. ОБЪЕМ: ${wordLimitRule}. Это критически важно!
-4. ПРАВИЛО ЭКВАТОРА: В середине текста вставь неожиданный поворот в сюжете.
-5. ПРАВИЛО ФИНАЛА: Текст логически завершен, последняя фраза - байт на коммент. ${finalTwist ? `Интрига: ${finalTwist}` : ""}
+      const sysTxt = `You are 'Director-X' — elite viral documentary writer. Write voiceover in ${lang === "RU" ? "RUSSIAN" : "ENGLISH"}. Genre: ${genre}. Output ONLY valid JSON: { "script": "..." }
 
-ВЫДАЙ СТРОГО JSON ОБЪЕКТ: { "script": "твой сгенерированный текст" }`;
+═══ ВИРУСНЫЕ ЗАКОНЫ (НАРУШЕНИЕ = ПРОВАЛ) ═══
+
+LAW 1 — УДАР В ГОРЛО (HOOK):
+Первая фраза = немедленный шок. Формула: [ЦИФРА/ФАКТ] + [ПАРАДОКС/УГРОЗА].
+БАН ВСТУПЛЕНИЙ: "В начале...", "Однажды...", "История знает...", "Мало кто знает...", "В те времена...", "Сегодня мы поговорим..."
+ПЛОХО: "В разгар битвы при Азенкуре, где 5000 английских солдат столкнулись с 25000..."
+ХОРОШО: "25 000 рыцарей. 5 000 голодных мужиков в грязи. И один приказ, который изменил всё."
+
+LAW 2 — ФИЗИКА ФАКТА:
+Каждое утверждение = физическая деталь или число. Зритель должен ВИДЕТЬ и ЧУВСТВОВАТЬ.
+БАН: "воздух был густ", "он был храбрым", "ситуация была напряженной", "трагические события"
+ПЛОХО: "рыцарь в тяжёлой броне упал"
+ХОРОШО: "рыцарь в доспехах весом 120 кг тонул в грязи — и уже не мог встать"
+
+LAW 3 — ЭМОЦИОНАЛЬНЫЙ ПЕРЕВОРОТ (ЭКВАТОР):
+В середине текста — ломай ожидание. Читатель думает X → ты показываешь -X.
+ФОРМУЛА: "Но они не знали..." / "Именно это их и убило." / "И тут произошло невозможное."
+
+LAW 4 — КАПСЛОК = ВИЗУАЛЬНЫЙ ЯКОРЬ:
+1-2 слова в каждом смысловом блоке пиши КАПСЛОКОМ. Это слово = картинка на экране.
+ПРИМЕР: "Французские рыцари начали ТОНУТЬ в грязи. Их добивали КРЕСТЬЯНЕ."
+
+LAW 5 — ФИНАЛ = КРЮЧОК НА КОММЕНТАРИЙ:
+Последняя фраза должна вызывать спор или желание дочитать до конца.
+БАН: риторические вопросы ("Так можно ли...?"), моральные выводы, резюме.
+ХОРОШО: "В тот день погибло 6000 французских дворян. Английских потерь — меньше ста. И никто до сих пор не объяснил — почему Генрих отдал приказ убить пленных."
+
+LAW 6 — ОБЪЁМ: ${wordLimitRule}. КРИТИЧНО — не нарушай!
+${finalTwist ? `LAW 7 — СКРЫТЫЙ ТВИСТ В ФИНАЛЕ: ${finalTwist}` : ""}
+
+ГЛОБАЛЬНЫЙ БАН-ЛИСТ (никогда не писать эти слова и фразы):
+"погрузимся", "давайте разберёмся", "это удивительно", "невероятно", "поразительно",
+"история умалчивает", "мало кто знает", "на самом деле", "интересный факт",
+"можно ли выиграть", "таким образом", "подведём итог", любые риторические вопросы в финале.`;
       
       const manualChars = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
       const text = await callAPI(`Тема: ${topic}\nПерсонажи: ${manualChars}`, 3000, sysTxt);
@@ -624,6 +651,41 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       }
       setHooksList([]);
     } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
+  }
+
+  async function handleBoostScript() {
+    if (!script.trim()) return alert("Сначала напишите или вставьте текст сценария!");
+    setBusy(true); setLoadingMsg("⚡ Усиливаем текст по вирусным законам..."); setView("loading");
+    try {
+      const sec = DURATION_SECONDS[dur] || 60;
+      let wordLimitRule = "";
+      if (sec <= 15) wordLimitRule = "СТРОГО от 30 до 40 слов";
+      else if (sec <= 40) wordLimitRule = "СТРОГО от 70 до 90 слов";
+      else if (sec <= 60) wordLimitRule = "СТРОГО 130-150 слов";
+      else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов`;
+
+      const boostSys = `You are 'Director-X' — elite viral documentary rewriter. Output ONLY valid JSON: { "script": "..." }
+
+Your task: REWRITE the provided script keeping ALL the facts and story beats, but applying these VIRAL LAWS:
+
+LAW 1 — ХУК: Если первая фраза начинается с контекста — замени на формулу [ЦИФРА] + [ПАРАДОКС]. Удар в лоб без вступления.
+LAW 2 — ФИЗИКА: Замени все абстракции на физические детали. "Было тяжело" → конкретный вес/число/ощущение.
+LAW 3 — ПЕРЕВОРОТ: В середине текста усиль или добавь эмоциональный слом.
+LAW 4 — КАПСЛОК: Выдели 1-2 ключевых слова в каждом абзаце КАПСЛОКОМ как визуальный якорь.
+LAW 5 — ФИНАЛ: Если конец — риторический вопрос или мораль, замени на провокационный факт-крючок.
+
+СОХРАНИ: все факты, хронологию, персонажей, общий смысл истории.
+ЗАМЕНИ: слабые глаголы, абстрактные описания, вводные фразы, скучные переходы.
+ОБЪЁМ: ${wordLimitRule} — сохрани примерно тот же объём.
+
+БАН-ЛИСТ: "погрузимся", "давайте", "мало кто знает", "невероятно", "удивительно", "таким образом", "подведём итог".`;
+
+      const text = await callAPI(`ОРИГИНАЛЬНЫЙ ТЕКСТ ДЛЯ ПЕРЕРАБОТКИ:\n\n${script}`, 3500, boostSys);
+      const data = cleanJSON(text);
+      if (data && data.script) {
+        setScript(data.script.replace(/Диктор:\s*/gi, "").trim());
+      }
+    } catch(e) { alert("🚨 ОШИБКА УСИЛЕНИЯ: " + e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleAddSEOVariant() {
@@ -662,7 +724,15 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
         setLoadingMsg("✍️ Генерируем текст диктора...");
         const maxWords = Math.floor(sec * 2.2);
         let volRule = maxWords > 100 ? `MUST be ~${maxWords} words. Write 4-5 detailed paragraphs. DO NOT WRITE SHORT TEXT.` : `MUST be under ${maxWords} words.`;
-        const rawVoiceText = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. NO MARKDOWN (**). ${volRule} Logical ending required. DO NOT WRITE "Narrator:". NO "Wikipedia" intros, start with a shock. OUTPUT STRICTLY JSON: { "script": "text here" }`);
+        const rawVoiceText = await callAPI(`Тема: ${topic}`, 3000, `You are elite viral documentary writer. Write voiceover in ${lang === "RU" ? "Russian" : "English"}. Genre: ${genre}. OUTPUT ONLY JSON: { "script": "..." }
+
+HOOK LAW: First sentence = [NUMBER/FACT] + [PARADOX]. NEVER start with context, intro, or background. BANNED OPENERS: "Once upon a time", "At the beginning", "Few people know", "History knows", "В начале", "Однажды", "Мало кто знает".
+PHYSICS LAW: Every claim has a physical anchor (weight, size, count, sound). No abstractions.
+CAPS LAW: 1-2 words per block in CAPS = visual anchor for the editor.
+TWIST LAW: Mid-text emotional inversion — break the expected narrative with "But they didn't know..." / "И тут произошло невозможное."
+FINALE LAW: Last sentence = controversy bait. No rhetorical questions. No moral summary. No conclusions.
+VOLUME: ${volRule}
+BANNED WORDS: "погрузимся", "давайте", "мало кто знает", "история знает", "невероятно", "удивительно", "таким образом", "интересный факт", "можно ли".`);
         const parsedVoice = cleanJSON(rawVoiceText);
         currentScript = (parsedVoice.script || rawVoiceText).trim();
         setScript(currentScript);
@@ -1167,9 +1237,10 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
                 </div>
               )}
               <textarea rows={5} value={script} onChange={e=>setScript(e.target.value)} placeholder="Вставьте текст или нажмите 'Написать'..." style={{width:"100%",background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,padding:16,fontSize:14,color:"#cbd5e1",marginBottom:14,resize:"none",lineHeight:1.6,fontFamily:"inherit"}}/>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <button onClick={handleDraftText} disabled={busy||!topic.trim()} style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#fff",padding:"12px",borderRadius:12,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all .2s"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,.1)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,.05)";}}>✍️ Написать текст</button>
-                <button onClick={()=>setShowTTS(!showTTS)} style={{background:"rgba(14,165,233,.08)",border:`1px ${showTTS?"solid":"dashed"} rgba(14,165,233,.3)`,color:"#7dd3fc",padding:"12px",borderRadius:12,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>⚙️ Голос (TTS)</button>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                <button onClick={handleDraftText} disabled={busy||!topic.trim()} style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"#fff",padding:"12px 8px",borderRadius:12,fontSize:11,fontWeight:700,cursor:busy||!topic.trim()?"not-allowed":"pointer",transition:"all .2s",opacity:busy||!topic.trim()?0.5:1}} onMouseEnter={e=>{if(!busy&&topic.trim())e.currentTarget.style.background="rgba(255,255,255,.1)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,.05)";}}>✍️ Написать</button>
+                <button onClick={handleBoostScript} disabled={busy||!script.trim()} style={{background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.4)",color:"#fbbf24",padding:"12px 8px",borderRadius:12,fontSize:11,fontWeight:800,cursor:busy||!script.trim()?"not-allowed":"pointer",transition:"all .2s",opacity:busy||!script.trim()?0.4:1}} title="Переписывает слабый текст по вирусным законам, сохраняя все факты" onMouseEnter={e=>{if(!busy&&script.trim())e.currentTarget.style.background="rgba(245,158,11,.22)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(245,158,11,.1)";}}>⚡ Усилить</button>
+                <button onClick={()=>setShowTTS(!showTTS)} style={{background:"rgba(14,165,233,.08)",border:`1px ${showTTS?"solid":"dashed"} rgba(14,165,233,.3)`,color:"#7dd3fc",padding:"12px 8px",borderRadius:12,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>⚙️ Голос</button>
               </div>
               {showTTS&&(
                 <div style={{marginTop:14,padding:18,background:"rgba(0,0,0,.4)",borderRadius:14,border:"1px solid rgba(14,165,233,.3)"}}>
