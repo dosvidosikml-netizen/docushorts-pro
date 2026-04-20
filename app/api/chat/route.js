@@ -1,5 +1,17 @@
 export async function POST(req) {
   try {
+    // Защита от прямого вызова API извне приложения
+    const appSecret = process.env.APP_SECRET;
+    if (appSecret) {
+      const clientToken = req.headers.get("X-App-Token");
+      if (clientToken !== appSecret) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
     const body = await req.json();
 
     const messages = body.messages || [];
