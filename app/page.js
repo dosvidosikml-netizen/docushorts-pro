@@ -227,23 +227,43 @@ JSON FORMAT:
 }`;
 
 // --- ФУНКЦИИ АПИ ---
-async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct") {
-  try {
-    const res = await fetch("/api/chat", { 
-      method: "POST", 
-      headers: { "Content-Type": "application/json" }, 
-      body: JSON.stringify({ 
-        model: model,
-        messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], 
-        max_tokens: maxTokens 
-      }) 
-    });
-    const textRes = await res.text();
-    let data;
-    try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON: ${textRes.substring(0, 100)}`); }
-    if (!res.ok || data.error) throw new Error(data.error || "Ошибка API");
-    return data.text || "";
-  } catch (e) { throw e; }
+// Утилита: пауза
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// callAPI с таймаутом 45 сек и авто-ретраем 1 раз
+async function callAPI(content, maxTokens = 4000, sysPrompt, model = "meta-llama/llama-3.3-70b-instruct", retries = 1) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 сек таймаут
+    try {
+      const res = await fetch("/api/chat", { 
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ 
+          model: model,
+          messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], 
+          max_tokens: maxTokens 
+        }) 
+      });
+      clearTimeout(timeoutId);
+      const textRes = await res.text();
+      let data;
+      try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON: ${textRes.substring(0, 120)}`); }
+      if (!res.ok || data.error) throw new Error(data.error || `Ошибка API (${res.status})`);
+      return data.text || "";
+    } catch (e) {
+      clearTimeout(timeoutId);
+      const isTimeout = e.name === "AbortError";
+      const isNetwork = e.message.includes("fetch") || e.message.includes("network") || e.message.includes("Failed");
+      if ((isTimeout || isNetwork) && attempt < retries) {
+        await sleep(2000); // Ждём 2 сек перед ретраем
+        continue;
+      }
+      if (isTimeout) throw new Error("⏱ Сервер не успел ответить за 45 сек. Попробуйте уменьшить длительность видео или повторите.");
+      throw e;
+    }
+  }
 }
 
 async function callVisionAPI(base64Image, sysPrompt) {
@@ -599,7 +619,7 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       const sec = DURATION_SECONDS[dur] || 60;
       
       if (!currentScript) {
-        setLoadingMsg("Генерируем текст диктора...");
+        setLoadingMsg("✍️ Генерируем текст диктора...");
         const maxWords = Math.floor(sec * 2.2);
         let volRule = maxWords > 100 ? `MUST be ~${maxWords} words. Write 4-5 detailed paragraphs. DO NOT WRITE SHORT TEXT.` : `MUST be under ${maxWords} words.`;
         const rawVoiceText = await callAPI(`Тема: ${topic}`, 3000, `Write only voiceover text in ${lang === "RU" ? "Russian" : "English"}. NO MARKDOWN (**). ${volRule} Logical ending required. DO NOT WRITE "Narrator:". NO "Wikipedia" intros, start with a shock. OUTPUT STRICTLY JSON: { "script": "text here" }`);
@@ -608,20 +628,33 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
         setScript(currentScript);
       }
       
-      setLoadingMsg("Шаг 1/2: Пишем раскадровку и ДНК...");
-      const targetFrames = Math.floor(sec / 3);
+      // ЗАЩИТА ОТ ПЕРЕГРУЗКИ: ограничиваем кол-во кадров
+      // 60 кадров = падение. Лимит: 25 кадров макс (75 сек)
+      const rawTargetFrames = Math.floor(sec / 3);
+      const targetFrames = Math.min(rawTargetFrames, 25);
+      if (rawTargetFrames > 25) {
+        setLoadingMsg(`⚠️ Видео ${dur} = ${rawTargetFrames} кадров. Генерируем первые 25 для стабильности...`);
+        await sleep(1500);
+      }
+
+      setLoadingMsg("🎬 Шаг 1/2: Пишем раскадровку и ДНК персонажей...");
       const preGeneratedChars = generatedChars.length > 0 ? JSON.stringify(generatedChars) : JSON.stringify(chars);
       const studioInfo = studioMode === "MANUAL" ? `ВВОДНЫЕ СТУДИИ: Локация [${studioLoc}], Стиль [${studioStyle}]. НЕ МЕНЯЙ ИХ!` : "ВВОДНЫЕ СТУДИИ: Автоматически.";
       
+      // Для длинных видео уменьшаем max_tokens шага 1B чтобы не упасть
+      const step1ATokens = targetFrames <= 10 ? 4000 : targetFrames <= 20 ? 5000 : 6000;
+      
       const req1A = `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\n${studioInfo}\nПЕРСОНАЖИ ВВОДНЫЕ: ${preGeneratedChars}. СЦЕНАРИЙ: ${currentScript}. \nВЫДАЙ СТРОГО JSON! СТРОГО 3 СЕКУНДЫ НА СЦЕНУ. РОВНО ${targetFrames} КАДРОВ. ПРАВИЛО ФИНАЛА: Не обрывай текст на полуслове!`;
       
-      const text1A = await callAPI(req1A, 6000, SYS_STEP_1A);
+      const text1A = await callAPI(req1A, step1ATokens, SYS_STEP_1A);
       const data1A = cleanJSON(text1A);
       
-      setLoadingMsg("Шаг 2/2: Генерируем SEO и обложку...");
-      const req1B = `STORYBOARD:\n${JSON.stringify(data1A.frames)}\n\nGenerate SEO, Music tags, and Thumbnail concept.`;
+      setLoadingMsg("📊 Шаг 2/2: Генерируем SEO, музыку и обложку...");
+      // Передаём только первые 10 кадров для SEO — не нужно всё
+      const framesForSEO = (data1A.frames || []).slice(0, 10);
+      const req1B = `STORYBOARD:\n${JSON.stringify(framesForSEO)}\n\nGenerate SEO, Music tags, and Thumbnail concept.`;
       
-      const text1B = await callAPI(req1B, 3000, SYS_STEP_1B);
+      const text1B = await callAPI(req1B, 2000, SYS_STEP_1B);
       const data1B = cleanJSON(text1B);
 
       setFrames(data1A.frames || []); 
@@ -1084,9 +1117,17 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       )}
 
       {view === "loading" && (
-        <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"60vh", padding:"20px", textAlign:"center"}}>
-           <div style={{width:60, height:60, border:"4px solid rgba(168,85,247,0.2)", borderTopColor:"#a855f7", borderRadius:"50%", animation:"spin 1s linear infinite", marginBottom:24}} />
-           <div style={{fontSize:20, fontWeight:900, color:"#fff", letterSpacing:2}}>{loadingMsg}</div>
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"60vh", padding:"30px 20px", textAlign:"center"}}>
+           <div style={{width:64, height:64, border:"4px solid rgba(168,85,247,0.2)", borderTopColor:"#a855f7", borderRadius:"50%", animation:"spin 1s linear infinite", marginBottom:28}} />
+           <div style={{fontSize:17, fontWeight:900, color:"#fff", letterSpacing:1, marginBottom:12, lineHeight:1.4}}>{loadingMsg}</div>
+           <div style={{fontSize:12, color:"#6b7280", marginBottom:32}}>Обычно занимает 15–40 секунд...</div>
+           <div style={{background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)", borderRadius:14, padding:"12px 18px", maxWidth:300, marginBottom:28}}>
+             <div style={{fontSize:11, color:"#fcd34d", fontWeight:700, marginBottom:4}}>💡 Совет пока ждёшь</div>
+             <div style={{fontSize:11, color:"#fef3c7", lineHeight:1.5}}>Если генерация часто падает — уменьши длительность видео до «До 60 сек» или «30–45 сек»</div>
+           </div>
+           <button onClick={() => { setBusy(false); setView("form"); }} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:12, padding:"10px 24px", color:"#9ca3af", fontSize:12, cursor:"pointer", fontWeight:700}}>
+             ✕ Отмена
+           </button>
         </div>
       )}
 
