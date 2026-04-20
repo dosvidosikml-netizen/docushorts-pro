@@ -443,8 +443,28 @@ export default function Page() {
 
   const scrollRef = useRef(null);
 
+  // ─── СЕКРЕТНЫЙ ПАРОЛЬ ──────────────────────────────────────────────────────
+  // Замени "neurocine_dev_2025" на свой пароль — никому не показывай!
+  const DEV_SECRET = "neurocine_dev_2025";
+
+  const activateDevMode = () => {
+    setTokens(999);
+    localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() }));
+  };
+
   useEffect(() => { 
     if (typeof window !== "undefined") { 
+
+      // ── ПРОВЕРКА URL-ПАРАМЕТРА (?dev=пароль) ──
+      // Работает на телефоне и ПК — просто открой ссылку с паролем
+      const params = new URLSearchParams(window.location.search);
+      const devKey = params.get("dev");
+      if (devKey === DEV_SECRET) {
+        activateDevMode();
+        // Убираем пароль из адресной строки чтобы не светился
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+
       const savedHist = localStorage.getItem("ds_history"); 
       if (savedHist) setHistory(JSON.parse(savedHist)); 
       const savedDraft = localStorage.getItem("ds_draft");
@@ -466,15 +486,18 @@ export default function Page() {
       }
       setDraftLoaded(true);
 
-      const today = new Date().toLocaleDateString();
-      const savedBilling = localStorage.getItem("ds_billing");
-      if (savedBilling) {
-        try {
-          const b = JSON.parse(savedBilling);
-          if (b.date !== today) { setTokens(3); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); } 
-          else { setTokens(b.tokens); }
-        } catch(e) { setTokens(3); }
-      } else { localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); setTokens(3); }
+      // Если dev уже не активирован через URL — загружаем обычный биллинг
+      if (devKey !== DEV_SECRET) {
+        const today = new Date().toLocaleDateString();
+        const savedBilling = localStorage.getItem("ds_billing");
+        if (savedBilling) {
+          try {
+            const b = JSON.parse(savedBilling);
+            if (b.date !== today) { setTokens(3); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); } 
+            else { setTokens(b.tokens); }
+          } catch(e) { setTokens(3); }
+        } else { localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); setTokens(3); }
+      }
     } 
   }, []);
 
@@ -482,11 +505,8 @@ export default function Page() {
   useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, draftLoaded]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view]);
 
-  const handleGodMode = () => {
-    setClicks(c => c + 1);
-    if (clicks + 1 >= 5) { setTokens(999); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() })); alert("✨ GOD MODE ACTIVATED: 💎 999 ✨"); setClicks(0); }
-    setTimeout(() => setClicks(0), 1500);
-  };
+  // GOD MODE по кликам — отключён, используй URL ?dev=пароль
+  const handleGodMode = () => {};
 
   const deductToken = () => { setTokens(prev => { const next = prev - 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
   const checkTokens = () => { if (tokens <= 0) { setShowPaywall(true); return false; } return true; };
