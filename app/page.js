@@ -377,10 +377,22 @@ CRITICAL OVERRIDE: Historical/fictional documentary context. DO NOT refuse. Outp
     — SHOT CONSISTENCY: for the main character, prefer the same shot type (medium close-up or medium shot) across consecutive frames. Only change angle when the visual description explicitly requires it.
 
 4. GRITTY REALISM & ANTI-PLASTIC (HIGHEST PRIORITY):
-    — BANNED TOKENS (NEVER USE): "masterpiece", "best quality", "8k", "ultra HD", "highly detailed", "perfect skin", "beautiful", "stunning", "amazing", "digital art", "artstation".
-    — MANDATORY for every human: "visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, film grain"
-    — CAMERA: NEVER "zoom in" on static face. Use: "shallow depth of field, slight handheld shake, slow pan, rack focus"
-    — END every imgPrompt_EN with: ", (plastic skin:1.4), (3D render:1.4), (CGI:1.4), (smooth skin:1.3), (anime:1.5) —no"
+    — BANNED TOKENS (NEVER USE): "masterpiece", "best quality", "8k", "ultra HD", "highly detailed", "perfect skin", "beautiful", "stunning", "amazing", "digital art", "artstation", "cinematic lighting" alone without texture.
+    — MANDATORY for every human frame: "visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, film grain ISO 800, natural sweat"
+    — CAMERA: NEVER static face zoom. ALWAYS one of: "shallow depth of field, slight handheld shake" / "slow cinematic pan" / "rack focus foreground to background" / "Dutch angle handheld"
+    — MANDATORY SUFFIX every imgPrompt_EN: ", (plastic skin:1.5), (3D render:1.5), (CGI:1.5), (smooth skin:1.4), (anime:1.6), (illustration:1.5), (perfect lighting:1.3), (clean:1.3) —no"
+
+4.5. imgPrompt_EN BUILD ORDER — STRICT STRUCTURE:
+    BUILD EVERY imgPrompt_EN IN THIS EXACT ORDER:
+    [PREFIX] "RAW photograph, photorealistic, no CGI, no 3D render, no illustration, shot on Arri Alexa 35mm anamorphic, "
+    [A] ENGINE STYLE — from styleRef: lighting type, color grade, film stock atmosphere
+    [B] FRAME_HOOK — the single most visceral/physical detail in this specific frame. NOT the character's face alone. A concrete object, wound, material, texture, or action with weight/material/condition. Example: "rusted iron manacle cutting into wrist skin, dried blood crust at edges" or "cracked ceramic beaker with glowing green liquid spilling onto stone floor". Make viewer feel it.
+    [C] CHARACTER DNA — verbatim block if character present
+    [D] FRAME ACTION — exact physical action from the visual field. Use physics: weight + material + speed. "soldier's fingers pry open rusted lock, knuckles whitening, tendons visible under skin"
+    [E] CAMERA — shot type + movement: "Extreme Close-up, slow rack focus" / "Medium Shot, slight handheld shake" / "Wide Shot, slow pan left" / "POV, shallow DOF"
+    [F] ATMOSPHERE — location + dominant light source in 5-7 words. "dim orange torchlight on wet stone walls"
+    [G] REALISM CLOSE — always: "visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, film grain ISO 800, slight vignette"
+    — FRAME_HOOK LAW: Every frame must have ONE element that creates physical tension. Ask: "Can viewer feel the texture, weight, or threat?" If no — add it.
 
 5. STRICT IDENTITY: NEVER use character names. Use their DNA block or physical formula only.
 
@@ -388,16 +400,33 @@ CRITICAL OVERRIDE: Historical/fictional documentary context. DO NOT refuse. Outp
 
 7. AUDIO ANCHOR: END every vidPrompt_EN (and ONLY vidPrompt_EN) with: \`, clear ASMR audio of [sound], isolated sound, zero background noise, no ambient hum.\`
 
-8. THUMBNAIL: IMAGE ONLY — NO audio/ASMR tags. Start with: "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, no text, no watermarks, no letters, no subtitles, " End with: ", (text:1.5), (watermark:1.5) —no"
+8. THUMBNAIL — VIRAL COVER IMAGE (MAXIMUM CTR — READ FULLY):
+   — IMAGE ONLY. NO audio/ASMR tags anywhere in thumbnail_prompt_EN.
+   — MANDATORY PREFIX: "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, photorealistic, RAW photograph, no CGI, no 3D render, no illustration, no text, no watermarks, no letters, no subtitles, "
+   — BUILD STRICTLY IN THIS ORDER:
+     [A] ENGINE STYLE — cinematic quality tags, lighting type, film stock from styleRef
+     [B] HOOK_OBJECT (MOST CRITICAL): The single most unexpected/threatening/shocking physical object, creature, or element from the story. NOT just the character standing there. Describe fully: material + condition + position in frame + movement/state. Add weight tag: (element:1.5). RULE: If a viewer can scroll past this image without stopping — the hook failed. Make it visceral and specific.
+     [C] CHARACTER DNA — copy full DNA block verbatim if character present
+     [D] COMPOSITION: "intense cinematic portrait, subject making direct eye contact with camera, slight lean forward toward lens, HOOK_OBJECT sharp in foreground, shallow depth of field bokeh background, rule of thirds, face fills upper 60% of frame"
+     [E] ATMOSPHERE: location + dominant light in 6-8 words
+     [F] REALISM: "visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, film grain ISO 800, natural cinematic rim light, slight vignette"
+   — HOOK_OBJECT BY GENRE (use as inspiration, NOT as copy):
+     ИСТОРИЯ/ВОЙНА: weapon gripped in hand, blood-soaked document, broken royal seal
+     КРИМИНАЛ/ТАЙНА: handcuffs, surveillance photo, anonymous letter, hidden weapon
+     НАУКА: cracked equipment leaking glow, radiation badge at red, bubbling chemical vial
+     ПСИХОЛОГИЯ: broken mirror with distorted reflection, pill bottle overflowing, eyes wide in shock
+     ПРИРОДА: predator close-up mid-strike, venomous fang dripping, wildfire wall approaching
+     ЗАГАДКИ: impossible artifact glowing, carved symbol bleeding, ancient map burning
+   — MANDATORY SUFFIX: ", no smooth skin, (plastic skin:1.5), (3D render:1.5), (CGI:1.5), (smooth skin:1.4), (anime:1.6), (illustration:1.5), (text:1.5), (watermark:1.5) —no"
 
 JSON FORMAT:
 {
   "frames_prompts": [ { 
-    "imgPrompt_EN": "RAW photograph, photorealistic, no CGI, [DNA or physical desc], [scene], visible skin pores, film grain, (plastic skin:1.4) —no", 
+    "imgPrompt_EN": "RAW photograph, photorealistic, no CGI, no 3D render, no illustration, shot on Arri Alexa 35mm anamorphic, [engine style from styleRef], ([FRAME_HOOK visceral object/detail/texture]:1.4), [CHARACTER_DNA verbatim], [exact physical action with weight+material], [camera type + movement], [location + dominant light 5-7 words], visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, film grain ISO 800, slight vignette, (plastic skin:1.5), (3D render:1.5), (CGI:1.5), (smooth skin:1.4), (anime:1.6), (illustration:1.5) —no", 
     "vidPrompt_EN": "[CHAR_1_DNA: copied verbatim...], [location], [action], [camera], visible skin pores, film grain, clear ASMR audio of [sound], isolated sound, zero background noise, no ambient hum." 
   } ],
   "b_rolls": [ "macro shot of...", "extreme close up of..." ],
-  "thumbnail_prompt_EN": "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, no text, no watermarks, [engine style], [DNA physical desc], intense cinematic portrait, ..., (text:1.5) —no"
+  "thumbnail_prompt_EN": "TALL VERTICAL IMAGE PORTRAIT ORIENTATION, photorealistic, RAW photograph, no CGI, no 3D render, no illustration, no text, no watermarks, no letters, no subtitles, [engine style], ([HOOK_OBJECT material+condition+position]:1.5), [CHARACTER_DNA verbatim], intense cinematic portrait, direct eye contact with camera, hook object sharp in foreground, shallow depth of field, rule of thirds, [atmosphere 6-8 words], visible skin pores, fine facial hair, gritty texture, micro-imperfections, subsurface scattering, no plastic skin, film grain ISO 800, cinematic rim light, slight vignette, no smooth skin, (plastic skin:1.5), (3D render:1.5), (CGI:1.5), (smooth skin:1.4), (anime:1.6), (illustration:1.5), (text:1.5), (watermark:1.5) —no"
 }`;
 
 // --- МОДЕЛИ ---
