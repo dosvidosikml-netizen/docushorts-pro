@@ -87,37 +87,160 @@ const DemonCanvas = () => {
     let af;
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     window.addEventListener("resize", resize); resize();
-    const embers = Array.from({length: 90}, () => ({
-      x: Math.random() * window.innerWidth,
-      y: window.innerHeight + Math.random() * 300,
-      r: Math.random() * 2.2 + 0.4,
-      speed: Math.random() * 1.4 + 0.4,
-      drift: (Math.random() - 0.5) * 0.7,
-      alpha: Math.random() * 0.85 + 0.15,
-      hue: Math.random() * 35 + 5,
-    }));
-    let t = 0;
+
+    // ── Состояние ──
+    let bx = canvas.width / 2, by = canvas.height / 2;
+    let bvx = 5, bvy = -6;
+    const GROUND = 0.78;
+    let jx = canvas.width * 0.2;
+    let sx = canvas.width * 0.75;
+    let jackFacing = 1, shepFacing = -1;
+    let frame = 0;
+
+    // Следы лап
+    const paws = [];
+    // Вспышки
+    const bursts = [];
+
+    const spawnBurst = (x, y) => {
+      bursts.push({ x, y, life: 1.0 });
+    };
+
     const render = () => {
-      t++;
-      ctx.fillStyle = "#06000c"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // pulsing glow
-      const grd = ctx.createRadialGradient(canvas.width/2, canvas.height*0.75, 0, canvas.width/2, canvas.height*0.75, canvas.height*0.55);
-      const p = 0.13 + Math.sin(t*0.025)*0.05;
-      grd.addColorStop(0, `rgba(190,15,15,${p})`); grd.addColorStop(0.5, `rgba(80,0,0,${p*0.4})`); grd.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grd; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // embers
-      embers.forEach(e => {
-        e.y -= e.speed; e.x += e.drift;
-        if (e.y < -10) { e.y = canvas.height + 10; e.x = Math.random() * canvas.width; }
-        ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
-        ctx.fillStyle = `hsla(${e.hue},100%,62%,${e.alpha*(0.55+Math.sin(t*0.06+e.x)*0.45)})`; ctx.fill();
+      frame++;
+      const W = canvas.width, H = canvas.height;
+      const groundY = H * GROUND;
+
+      // Фон
+      ctx.fillStyle = "#06000c";
+      ctx.fillRect(0, 0, W, H);
+
+      // Мягкий фиолетовый градиент снизу
+      const grd = ctx.createRadialGradient(W/2, H*0.9, 0, W/2, H*0.9, H*0.5);
+      grd.addColorStop(0, "rgba(80,0,120,0.18)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, W, H);
+
+      // ── Физика мяча ──
+      bvy += 0.38;
+      bx += bvx; by += bvy;
+      if (bx < 20)      { bx = 20;    bvx = Math.abs(bvx) * 0.85; }
+      if (bx > W - 50)  { bx = W-50;  bvx = -Math.abs(bvx) * 0.85; }
+      if (by < 30)      { by = 30;    bvy = Math.abs(bvy) * 0.8; }
+      if (by > groundY) { by = groundY; bvy = -Math.abs(bvy) * 0.82; bvx *= 0.93; spawnBurst(bx, by); }
+      bvx *= 0.997;
+      if (Math.abs(bvx) < 0.8 && Math.abs(bvy) < 0.8) { bvx = (Math.random()-0.5)*12; bvy = -9-Math.random()*4; }
+
+      // ── Собаки ──
+      const jTarget = bx - 25;
+      const jspd = 3.8 + Math.abs(bvx)*0.35;
+      if (jx < jTarget - 4) { jx += jspd; jackFacing = 1; }
+      else if (jx > jTarget + 4) { jx -= jspd; jackFacing = -1; }
+
+      const sTarget = bx + 35;
+      const sspd = 3.0 + Math.abs(bvx)*0.25;
+      if (sx < sTarget - 4) { sx += sspd; shepFacing = 1; }
+      else if (sx > sTarget + 4) { sx -= sspd; shepFacing = -1; }
+      if (sx < jx + 75) sx = jx + 75;
+
+      // Удары
+      const jDist = Math.hypot(bx - jx, by - groundY);
+      const sDist = Math.hypot(bx - sx, by - groundY);
+      if (jDist < 75 && frame % 38 === 0) {
+        const ang = Math.atan2(by - groundY, bx - jx);
+        bvx = Math.cos(ang) * (9+Math.random()*5);
+        bvy = Math.sin(ang) * (9+Math.random()*5) - 5;
+        spawnBurst(bx, by);
+      }
+      if (sDist < 75 && frame % 55 === 10) {
+        const ang = Math.atan2(by - groundY, bx - sx);
+        bvx = Math.cos(ang) * (8+Math.random()*5);
+        bvy = Math.sin(ang) * (8+Math.random()*5) - 4;
+        spawnBurst(bx, by);
+      }
+
+      // Следы каждые 20 кадров
+      if (frame % 20 === 0) {
+        paws.push({ x: jx, y: groundY + 8, facing: jackFacing, life: 1.0 });
+        if (Math.abs(sx - jx) > 90) paws.push({ x: sx, y: groundY + 8, facing: shepFacing, life: 1.0 });
+      }
+
+      // ── Рисуем следы ──
+      paws.forEach((p, i) => {
+        p.life -= 0.012;
+        ctx.globalAlpha = p.life * 0.4;
+        ctx.font = "14px serif";
+        ctx.save();
+        if (p.facing < 0) { ctx.scale(-1,1); ctx.fillText("🐾", -p.x - 14, p.y); }
+        else ctx.fillText("🐾", p.x, p.y);
+        ctx.restore();
       });
+      for (let i = paws.length-1; i >= 0; i--) { if (paws[i].life <= 0) paws.splice(i,1); }
+
+      // ── Вспышки ──
+      bursts.forEach((b, i) => {
+        b.life -= 0.06;
+        ctx.globalAlpha = b.life * 0.9;
+        ctx.font = `${16 + (1-b.life)*20}px serif`;
+        const emojis = ["✨","💫","⭐"];
+        ctx.fillText(emojis[i % 3], b.x, b.y - (1-b.life)*40);
+      });
+      for (let i = bursts.length-1; i >= 0; i--) { if (bursts[i].life <= 0) bursts.splice(i,1); }
+
+      ctx.globalAlpha = 1;
+
+      // ── Мяч ──
+      ctx.save();
+      ctx.translate(bx + 20, by + 20);
+      ctx.rotate(frame * bvx * 0.04);
+      ctx.font = "36px serif";
+      ctx.fillText("⚽", -18, 14);
+      ctx.restore();
+
+      // ── Джек-рассел ──
+      ctx.save();
+      ctx.font = "clamp(36px, 8vw, 56px) serif";
+      const jBounce = Math.abs(bvx) > 2 ? Math.sin(frame * 0.35) * 5 : 0;
+      ctx.translate(jx + (jackFacing < 0 ? 52 : 0), groundY - 4 + jBounce);
+      ctx.scale(jackFacing, 1);
+      ctx.fillText("🐕", 0, 0);
+      ctx.restore();
+
+      // ── Немецкая овчарка ──
+      ctx.save();
+      ctx.font = "clamp(40px, 9vw, 62px) serif";
+      const sBounce = Math.abs(bvx) > 2 ? Math.sin(frame * 0.28 + 1) * 4 : 0;
+      ctx.translate(sx + (shepFacing < 0 ? 60 : 0), groundY + sBounce);
+      ctx.scale(shepFacing, 1);
+      ctx.fillText("🐕‍🦺", 0, 0);
+      ctx.restore();
+
       af = requestAnimationFrame(render);
     };
+
+    // Клик — бросить мяч
+    const onClick = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      const dx = cx - bx, dy = cy - by;
+      const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+      bvx = (dx/dist)*13; bvy = (dy/dist)*13-3;
+      spawnBurst(cx, cy);
+    };
+    canvas.addEventListener("click", onClick);
+    canvas.addEventListener("touchstart", onClick);
+
     render();
-    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(af); };
+    return () => {
+      window.removeEventListener("resize", resize);
+      canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("touchstart", onClick);
+      cancelAnimationFrame(af);
+    };
   }, []);
-  return <canvas ref={ref} style={{position:"absolute",inset:0,width:"100%",height:"100%"}} />;
+  return <canvas ref={ref} style={{position:"absolute",inset:0,width:"100%",height:"100%",cursor:"crosshair"}} />;
 };
 
 const LockedOverlay = ({ onUnlock }) => {
@@ -146,9 +269,9 @@ const LockedOverlay = ({ onUnlock }) => {
       <DemonCanvas />
       {/* Силуэт и текст */}
       <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none",gap:0}}>
-        <div style={{fontSize:"clamp(90px,22vw,210px)",lineHeight:1,userSelect:"none",animation:"demonPulse 3s ease-in-out infinite",filter:"drop-shadow(0 0 50px rgba(220,20,20,0.8)) drop-shadow(0 0 100px rgba(160,0,0,0.5))"}}>😈</div>
-        <div style={{marginTop:28,fontSize:"clamp(13px,3.5vw,20px)",fontWeight:900,letterSpacing:"0.35em",color:"rgba(220,45,45,0.85)",textTransform:"uppercase",textShadow:"0 0 24px rgba(220,20,20,0.9)",fontFamily:"monospace",animation:"demonPulse 3s ease-in-out infinite 0.5s"}}>СКОРО ОТКРОЕТСЯ</div>
-        <div style={{marginTop:10,fontSize:"clamp(9px,2vw,12px)",letterSpacing:"0.22em",color:"rgba(140,25,25,0.55)",fontFamily:"monospace"}}>NEUROCINE.ONLINE</div>
+        <div style={{fontSize:"clamp(70px,16vw,160px)",lineHeight:1,userSelect:"none",animation:"demonPulse 3s ease-in-out infinite",filter:"drop-shadow(0 0 30px rgba(168,85,247,0.6))"}}>🐕‍🦺🐕</div>
+        <div style={{marginTop:28,fontSize:"clamp(13px,3.5vw,20px)",fontWeight:900,letterSpacing:"0.35em",color:"rgba(168,85,247,0.9)",textTransform:"uppercase",textShadow:"0 0 24px rgba(168,85,247,0.8)",fontFamily:"monospace",animation:"demonPulse 3s ease-in-out infinite 0.5s"}}>СКОРО ОТКРОЕТСЯ</div>
+        <div style={{marginTop:10,fontSize:"clamp(9px,2vw,12px)",letterSpacing:"0.22em",color:"rgba(168,85,247,0.35)",fontFamily:"monospace"}}>NEUROCINE.ONLINE</div>
       </div>
 
       {/* PIN-терминал */}
