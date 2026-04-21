@@ -1,29 +1,84 @@
+// ─── Rate Limiter (in-memory, per IP) ────────────────────────────────────────
+const rateLimitMap = new Map();
+const RATE_LIMIT_MAX = 15;
+const RATE_LIMIT_WINDOW = 60_000;
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// ─── Whitelist разрешённых моделей ───────────────────────────────────────────
+const ALLOWED_MODELS = new Set([
+  "meta-llama/llama-3.3-70b-instruct",
+  "meta-llama/llama-3.1-8b-instruct",
+  "google/gemma-3-27b-it",
+  "mistralai/mistral-7b-instruct",
+  "deepseek/deepseek-r1-distill-llama-70b",
+  "anthropic/claude-sonnet-4-6",
+  "anthropic/claude-sonnet-4-5",
+  "google/gemini-2.5-pro-preview",
+  "google/gemini-2.5-pro-exp-03-25",
+  "openai/gpt-4o-mini",
+]);
+
+const MAX_MESSAGE_LENGTH = 32_000;
+
 export async function POST(req) {
   try {
-    // Защита от прямого вызова API извне приложения
+    // 1. Rate limiting по IP
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+
+    if (!checkRateLimit(ip)) {
+      return new Response(
+        JSON.stringify({ error: "Слишком много запросов. Подождите минуту." }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 2. Защита от прямого вызова API извне приложения
     const appSecret = process.env.APP_SECRET;
     if (appSecret) {
       const clientToken = req.headers.get("X-App-Token");
       if (clientToken !== appSecret) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
         });
       }
     }
 
     const body = await req.json();
-
     const messages = body.messages || [];
-    // Увеличен лимит: 5000 обрезал JSON на полуслове → cleanJSON падал → краш
-    const maxTokens = Math.min(body.max_tokens || 4000, 8000);
-    
-    const model = body.model || "meta-llama/llama-3.3-70b-instruct";
 
-    // Таймаут увеличен с 25 до 55 сек:
-    // Шаг 1A (20 кадров) реально занимает 30-45 сек — 25 сек убивал запрос слишком рано
+    // 3. Валидация длины входных данных
+    if (JSON.stringify(messages).length > MAX_MESSAGE_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: "Входные данные слишком большие." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // 4. Whitelist моделей
+    const requestedModel = body.model || "meta-llama/llama-3.3-70b-instruct";
+    const model = ALLOWED_MODELS.has(requestedModel)
+      ? requestedModel
+      : "meta-llama/llama-3.3-70b-instruct";
+
+    const maxTokens = Math.min(body.max_tokens || 4000, 8000);
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000);
+    const timeoutId = setTimeout(() => controller.abort(), 55_000);
 
     let response;
     try {
@@ -31,56 +86,57 @@ export async function POST(req) {
         method: "POST",
         signal: controller.signal,
         headers: {
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "HTTP-Referer": "https://neurocine.online",
           "X-Title": "NeuroCine",
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: model, 
-          messages: messages,
+          model,
+          messages,
           max_tokens: maxTokens,
           temperature: 0.2,
-          response_format: { type: "json_object" }
-        })
+          response_format: { type: "json_object" },
+        }),
       });
     } finally {
       clearTimeout(timeoutId);
     }
 
-    // Читаем текст до парсинга — чтобы не падать на HTML-ошибках
     const rawText = await response.text();
-    
     let data;
     try {
       data = JSON.parse(rawText);
     } catch (e) {
-      throw new Error(`OpenRouter вернул не-JSON ответ. Статус: ${response.status}. Попробуйте снова.`);
+      throw new Error(
+        `OpenRouter вернул не-JSON ответ. Статус: ${response.status}. Попробуйте снова.`
+      );
     }
-    
+
     if (!response.ok) {
-      throw new Error(data.error?.message || `Ошибка API OpenRouter (${response.status})`);
+      throw new Error(
+        data.error?.message || `Ошибка API OpenRouter (${response.status})`
+      );
     }
 
     const text = data.choices?.[0]?.message?.content;
     if (!text) {
       throw new Error("OpenRouter вернул пустой ответ. Попробуйте снова.");
     }
-    
-    return new Response(JSON.stringify({ text }), { 
-      headers: { "Content-Type": "application/json" } 
-    });
 
+    return new Response(JSON.stringify({ text }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("API Error:", error);
-    
-    const message = error.name === "AbortError" 
-      ? "Сервер не успел ответить за 55 сек. Попробуйте уменьшить длительность видео или повторите."
-      : (error.message || "Внутренняя ошибка сервера");
-    
-    return new Response(JSON.stringify({ error: message }), { 
-      status: 500, 
-      headers: { "Content-Type": "application/json" } 
+    const message =
+      error.name === "AbortError"
+        ? "Сервер не успел ответить за 55 сек. Попробуйте уменьшить длительность видео или повторите."
+        : error.message || "Внутренняя ошибка сервера";
+
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
     });
   }
 }
