@@ -420,8 +420,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
         method: "POST",
         signal: controller.signal,
         headers: { 
-          "Content-Type": "application/json",
-          ...(process.env.NEXT_PUBLIC_APP_SECRET ? { "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET } : {})
+          "Content-Type": "application/json"
         }, 
         body: JSON.stringify({ 
           model: model,
@@ -473,8 +472,7 @@ async function callVisionAPI(base64Image, sysPrompt) {
     const res = await fetch("/api/chat", { 
       method: "POST", 
       headers: { 
-        "Content-Type": "application/json",
-        ...(process.env.NEXT_PUBLIC_APP_SECRET ? { "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET } : {})
+        "Content-Type": "application/json"
       }, 
       body: JSON.stringify({ 
         model: "openai/gpt-4o-mini", // Дешевая и быстрая модель для зрения
@@ -516,6 +514,19 @@ function CopyBtn({ text, label="Копировать", small=false, fullWidth=fa
   );
 }
 
+// Разрешаем только безопасные теги — никакого XSS
+function sanitizeHtml(html) {
+  return html
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // Возвращаем только <b> и <br/> — всё остальное уже заэскейплено
+    .replace(/&lt;b&gt;/g, "<b>")
+    .replace(/&lt;\/b&gt;/g, "</b>")
+    .replace(/&lt;br\s*\/&gt;/g, "<br/>")
+    .replace(/&lt;br&gt;/g, "<br/>");
+}
+
 const InfoModal = ({ isOpen, onClose, title, content }) => {
   if (!isOpen) return null;
   return (
@@ -525,7 +536,7 @@ const InfoModal = ({ isOpen, onClose, title, content }) => {
           <h3 style={{color:"#d8b4fe", fontSize:16, fontWeight:900, textTransform:"uppercase"}}>{title}</h3>
           <button onClick={onClose} style={{background:"none", border:"none", color:"#9ca3af", fontSize:20, cursor:"pointer"}}>×</button>
         </div>
-        <div style={{color:"#cbd5e1", fontSize:14, lineHeight:1.6}} dangerouslySetInnerHTML={{__html: content}} />
+        <div style={{color:"#cbd5e1", fontSize:14, lineHeight:1.6}} dangerouslySetInnerHTML={{__html: sanitizeHtml(content)}} />
       </div>
     </div>
   );
@@ -617,9 +628,16 @@ export default function Page() {
 
   const scrollRef = useRef(null);
 
-  // ─── СЕКРЕТНЫЙ ПАРОЛЬ ──────────────────────────────────────────────────────
-  // Замени "neurocine_dev_2025" на свой пароль — никому не показывай!
-  const DEV_SECRET = "adidogmen";
+  // ─── DEV MODE ──────────────────────────────────────────────────────────────
+  // Пароль хранится ТОЛЬКО в process.env.DEV_KEY на сервере (не здесь!)
+  // Создай app/api/check-dev/route.js:
+  //   export async function GET(req) {
+  //     const key = new URL(req.url).searchParams.get("key");
+  //     if (key && key === process.env.DEV_KEY) {
+  //       return Response.json({ ok: true });
+  //     }
+  //     return Response.json({ ok: false }, { status: 403 });
+  //   }
 
   const activateDevMode = () => {
     setTokens(999);
@@ -629,14 +647,17 @@ export default function Page() {
   useEffect(() => { 
     if (typeof window !== "undefined") { 
 
-      // ── ПРОВЕРКА URL-ПАРАМЕТРА (?dev=пароль) ──
-      // Работает на телефоне и ПК — просто открой ссылку с паролем
+      // ── ПРОВЕРКА URL-ПАРАМЕТРА (?dev=пароль) — проверка на СЕРВЕРЕ ──
       const params = new URLSearchParams(window.location.search);
       const devKey = params.get("dev");
-      if (devKey === DEV_SECRET) {
-        activateDevMode();
-        // Убираем пароль из адресной строки чтобы не светился
+      if (devKey) {
+        // Убираем пароль из адресной строки немедленно
         window.history.replaceState({}, "", window.location.pathname);
+        // Проверяем через сервер — пароль в коде не хранится
+        fetch(`/api/check-dev?key=${encodeURIComponent(devKey)}`)
+          .then(r => r.json())
+          .then(d => { if (d.ok) activateDevMode(); })
+          .catch(() => {});
       }
 
       const savedHist = localStorage.getItem("ds_history"); 
@@ -663,8 +684,8 @@ export default function Page() {
       }
       setDraftLoaded(true);
 
-      // Если dev уже не активирован через URL — загружаем обычный биллинг
-      if (devKey !== DEV_SECRET) {
+      // Если dev не активирован через URL — загружаем обычный биллинг
+      {
         const today = new Date().toLocaleDateString();
         const savedBilling = localStorage.getItem("ds_billing");
         if (savedBilling) {
