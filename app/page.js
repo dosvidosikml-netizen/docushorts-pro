@@ -411,10 +411,26 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // callAPI с таймаутом 90 сек (Render Free засыпает и просыпается 50+ сек)
 // и авто-ретраем 1 раз
+// Фразы-признаки отказа модели — если встречаем, переключаемся на фолбэк
+const REFUSAL_PHRASES = [
+  "i'm not able", "i am not able", "i cannot", "i can't",
+  "i'm unable", "i am unable", "sorry, i", "i apologize",
+  "as an ai", "i must decline", "не могу", "не в состоянии",
+  "отказываюсь", "извините, я"
+];
+
+function isRefusal(text) {
+  const lower = text.toLowerCase();
+  return REFUSAL_PHRASES.some(p => lower.includes(p));
+}
+
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, retries = 1) {
+  const FALLBACK_MODEL = MODEL_FAST; // Llama — не цензурирует
+  
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const currentModel = attempt === 0 ? model : FALLBACK_MODEL;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 сек — с запасом на cold start
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const res = await fetch("/api/chat", { 
         method: "POST",
@@ -423,7 +439,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
           "Content-Type": "application/json"
         }, 
         body: JSON.stringify({ 
-          model: model,
+          model: currentModel,
           messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], 
           max_tokens: maxTokens 
         }) 
@@ -433,7 +449,16 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
       let data;
       try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON: ${textRes.substring(0, 120)}`); }
       if (!res.ok || data.error) throw new Error(data.error || `Ошибка API (${res.status})`);
-      return data.text || "";
+      
+      const responseText = data.text || "";
+      
+      // Если модель отказала — автоматически повторяем на Llama
+      if (isRefusal(responseText) && attempt < retries) {
+        await sleep(1000);
+        continue;
+      }
+      
+      return responseText;
     } catch (e) {
       clearTimeout(timeoutId);
       const isTimeout = e.name === "AbortError";
