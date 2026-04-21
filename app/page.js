@@ -411,26 +411,10 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // callAPI с таймаутом 90 сек (Render Free засыпает и просыпается 50+ сек)
 // и авто-ретраем 1 раз
-// Фразы-признаки отказа модели — если встречаем, переключаемся на фолбэк
-const REFUSAL_PHRASES = [
-  "i'm not able", "i am not able", "i cannot", "i can't",
-  "i'm unable", "i am unable", "sorry, i", "i apologize",
-  "as an ai", "i must decline", "не могу", "не в состоянии",
-  "отказываюсь", "извините, я"
-];
-
-function isRefusal(text) {
-  const lower = text.toLowerCase();
-  return REFUSAL_PHRASES.some(p => lower.includes(p));
-}
-
 async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, retries = 1) {
-  const FALLBACK_MODEL = MODEL_FAST; // Llama — не цензурирует
-  
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const currentModel = attempt === 0 ? model : FALLBACK_MODEL;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 сек — с запасом на cold start
     try {
       const res = await fetch("/api/chat", { 
         method: "POST",
@@ -439,7 +423,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
           "Content-Type": "application/json"
         }, 
         body: JSON.stringify({ 
-          model: currentModel,
+          model: model,
           messages: [{ role: "system", content: sysPrompt }, { role: "user", content }], 
           max_tokens: maxTokens 
         }) 
@@ -449,16 +433,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
       let data;
       try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON: ${textRes.substring(0, 120)}`); }
       if (!res.ok || data.error) throw new Error(data.error || `Ошибка API (${res.status})`);
-      
-      const responseText = data.text || "";
-      
-      // Если модель отказала — автоматически повторяем на Llama
-      if (isRefusal(responseText) && attempt < retries) {
-        await sleep(1000);
-        continue;
-      }
-      
-      return responseText;
+      return data.text || "";
     } catch (e) {
       clearTimeout(timeoutId);
       const isTimeout = e.name === "AbortError";
@@ -1184,7 +1159,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         : "PIPELINE_MODE = T2V (Direct). 'vidPrompt_EN' = [DNA_BLOCK] + [Location] + [Action] + [Camera].";
 
       // БАТЧ-ГЕНЕРАЦИЯ промптов по 10 кадров
-      const PROMPT_BATCH = 10;
+      const PROMPT_BATCH = 5; // 10 кадров × длинные DNA = JSON обрывался на 15000 символах
       const totalPromptBatches = Math.ceil(frames.length / PROMPT_BATCH);
       let allPrompts = [];
       let thumbnailPromptRaw = "";
@@ -1204,7 +1179,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
 
         const batchReq = `PIPELINE RULE:\n${pipelineDirective}\n\nSTORYBOARD (frames ${bStart+1}–${bEnd}):\n${batchStoryboard}\n\nCHARACTERS:\n${charsDict}\n\nLOCATION:\n${locRef}${isLastBatch ? textToRender : ""}\n\nGenerate exactly ${batchFrames.length} prompts.${isLastBatch ? "\nAlso generate thumbnail_prompt_EN." : "\nSkip thumbnail_prompt_EN."}`;
 
-        const batchText = await callAPI(batchReq, 4000, SYS_STEP_2, MODEL_FAST);
+        const batchText = await callAPI(batchReq, 6000, SYS_STEP_2, MODEL_FAST);
         const batchData = cleanJSON(batchText);
 
         allPrompts = [...allPrompts, ...(batchData.frames_prompts || [])];
