@@ -1042,6 +1042,7 @@ export default function Page() {
            if (d.studioStyle) setStudioStyle(d.studioStyle);
            if (d.ttsVoice) setTtsVoice(d.ttsVoice);
            if (d.ttsSpeed) setTtsSpeed(d.ttsSpeed);
+           if (d.ttsStudioData) setTtsStudioData(d.ttsStudioData);
          } catch(e){}
       }
       setDraftLoaded(true);
@@ -1062,7 +1063,7 @@ export default function Page() {
   }, []);
 
   useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
-  useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, draftLoaded]);
+  useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData, draftLoaded]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view]);
 
   // GOD MODE по кликам — отключён, используй URL ?dev=пароль
@@ -1607,7 +1608,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       setTab("storyboard"); 
       setView("result");
       
-      const stateData = { frames: data1A.frames, generatedChars: data1A.characters_EN, locRef: data1A.location_ref_EN, styleRef: data1A.style_ref_EN, retention: data1A.retention, thumb: data1B.thumbnail, seoVariants: data1B.seo_variants, music: data1B.music_EN, step2Done: false };
+      const stateData = { frames: data1A.frames, generatedChars: data1A.characters_EN, locRef: data1A.location_ref_EN, styleRef: data1A.style_ref_EN, retention: data1A.retention, thumb: data1B.thumbnail, seoVariants: data1B.seo_variants, music: data1B.music_EN, step2Done: false, ttsStudioData };
       const newHistory = [{ id: Date.now(), topic: topic || "Генерация", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData), format: vidFormat }, ...history].slice(0, 10);
       setHistory(newHistory); localStorage.setItem("ds_history", JSON.stringify(newHistory));
       
@@ -1739,7 +1740,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       setHistory(prev => {
          const next = [...prev];
          if(next.length > 0) { 
-           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: finalThumbPrompt}, seoVariants, music, bRolls: finalBRolls, step2Done: true };
+           const stateData = { frames: updatedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: finalThumbPrompt}, seoVariants, music, bRolls: finalBRolls, step2Done: true, ttsStudioData };
            next[0].text = JSON.stringify(stateData); 
            localStorage.setItem("ds_history", JSON.stringify(next)); 
          }
@@ -1964,7 +1965,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                     <div style={{fontSize:11,color:"#6b7280"}}>{item.time}</div>
                   </div>
                   <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>{const d=JSON.parse(item.text);setFrames(d.frames||[]);setRetention(d.retention||null);setThumb(d.thumb||null);setSeoVariants(d.seoVariants||[]);setMusic(d.music||"");setGeneratedChars(d.generatedChars||[]);setLocRef(d.locRef||"");setStyleRef(d.styleRef||"");setBRolls(d.bRolls||[]);setStep2Done(d.step2Done||false);if(d.thumb){setCovTitle(d.thumb.title||"");setCovHook(d.thumb.hook||"");setCovCta(d.thumb.cta||"СМОТРЕТЬ");applyPreset("netflix");}rebuildRawText(d.frames||[],d.step2Done);setShowHistory(false);setView("result");}} style={{background:"#10b981",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontSize:11,fontWeight:800,cursor:"pointer"}}>ОТКРЫТЬ</button>
+                    <button onClick={()=>{const d=JSON.parse(item.text);setFrames(d.frames||[]);setRetention(d.retention||null);setThumb(d.thumb||null);setSeoVariants(d.seoVariants||[]);setMusic(d.music||"");setGeneratedChars(d.generatedChars||[]);setLocRef(d.locRef||"");setStyleRef(d.styleRef||"");setBRolls(d.bRolls||[]);setStep2Done(d.step2Done||false);if(d.ttsStudioData)setTtsStudioData(d.ttsStudioData);if(d.thumb){setCovTitle(d.thumb.title||"");setCovHook(d.thumb.hook||"");setCovCta(d.thumb.cta||"СМОТРЕТЬ");applyPreset("netflix");}rebuildRawText(d.frames||[],d.step2Done);setShowHistory(false);setView("result");}} style={{background:"#10b981",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontSize:11,fontWeight:800,cursor:"pointer"}}>ОТКРЫТЬ</button>
                     <button onClick={()=>deleteFromHistory(item.id)} style={{background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"8px 14px",color:"#ef4444",fontSize:11,fontWeight:800,cursor:"pointer"}}>✕</button>
                   </div>
                 </div>
