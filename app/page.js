@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { SYS_SCENE_ENGINE, buildSceneUserPrompt } from "../engine/sceneEngine";
 import { SYS_PROMPT_ENGINE, buildPromptUserPrompt } from "../engine/promptEngine";
+import { SYS_CHARACTER_ENGINE, buildCharacterUserPrompt } from "../engine/characterEngine";
 
 const T = {
   ru: {
     title: "NeuroCine Studio",
-    subtitle: "Сцены и промпты",
+    subtitle: "Сцены, промпты и персонажи",
     scriptLabel: "Сценарий",
     scriptPlaceholder: "Вставь сценарий или идею...",
     modeLabel: "Режим",
@@ -17,10 +18,14 @@ const T = {
     generating: "Генерация...",
     buildPrompts: "Сгенерировать промпты",
     buildingPrompts: "Сборка промптов...",
+    buildCharacters: "Сгенерировать персонажей",
+    buildingCharacters: "Сборка персонажей...",
     noScenes: "Сцены пока не сгенерированы",
     noPrompts: "Промпты пока не сгенерированы",
+    noCharacters: "Персонажи пока не сгенерированы",
     resultTitle: "Сцены",
     promptsTitle: "Промпты",
+    charactersTitle: "Персонажи",
     errorTitle: "Ошибка",
     modeShorts: "Шортс",
     modeCinematic: "Кино",
@@ -42,10 +47,15 @@ const T = {
     imgPrompt: "Image prompt",
     vidPrompt: "Video prompt",
     negative: "Negative prompt",
+    role: "Роль",
+    age: "Возраст",
+    look: "Внешность",
+    outfit: "Одежда",
+    dna: "DNA lock",
   },
   en: {
     title: "NeuroCine Studio",
-    subtitle: "Scenes and prompts",
+    subtitle: "Scenes, prompts and characters",
     scriptLabel: "Script",
     scriptPlaceholder: "Paste your script or idea...",
     modeLabel: "Mode",
@@ -55,10 +65,14 @@ const T = {
     generating: "Generating...",
     buildPrompts: "Generate prompts",
     buildingPrompts: "Building prompts...",
+    buildCharacters: "Generate characters",
+    buildingCharacters: "Building characters...",
     noScenes: "No scenes generated yet",
     noPrompts: "No prompts generated yet",
+    noCharacters: "No characters generated yet",
     resultTitle: "Scenes",
     promptsTitle: "Prompts",
+    charactersTitle: "Characters",
     errorTitle: "Error",
     modeShorts: "Shorts",
     modeCinematic: "Cinematic",
@@ -80,6 +94,11 @@ const T = {
     imgPrompt: "Image prompt",
     vidPrompt: "Video prompt",
     negative: "Negative prompt",
+    role: "Role",
+    age: "Age",
+    look: "Look",
+    outfit: "Outfit",
+    dna: "DNA lock",
   },
 };
 
@@ -110,10 +129,14 @@ export default function Page() {
   const [script, setScript] = useState("");
   const [projectMode, setProjectMode] = useState("shorts");
   const [durationTotal, setDurationTotal] = useState(60);
+
+  const [characters, setCharacters] = useState([]);
   const [scenes, setScenes] = useState([]);
   const [prompts, setPrompts] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [loadingCharacters, setLoadingCharacters] = useState(false);
   const [error, setError] = useState("");
 
   const t = useMemo(() => T[uiLanguage] || T.ru, [uiLanguage]);
@@ -146,10 +169,31 @@ export default function Page() {
       return JSON.parse(str);
     } catch {
       const match = String(str).match(/\{[\s\S]*\}/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
+      if (match) return JSON.parse(match[0]);
       return {};
+    }
+  }
+
+  async function generateCharacters() {
+    if (!script.trim()) {
+      setError(t.emptyScript);
+      return;
+    }
+
+    try {
+      setLoadingCharacters(true);
+      setError("");
+      setCharacters([]);
+
+      const prompt = buildCharacterUserPrompt({ script });
+      const raw = await callAPI(prompt, SYS_CHARACTER_ENGINE);
+      const data = cleanJSON(raw);
+
+      setCharacters(Array.isArray(data?.characters) ? data.characters : []);
+    } catch (e) {
+      setError(e?.message || "Unknown error");
+    } finally {
+      setLoadingCharacters(false);
     }
   }
 
@@ -169,7 +213,7 @@ export default function Page() {
         script,
         mode: MODE_TO_ENGINE[projectMode],
         total: DURATION_MAP[durationTotal],
-        characters: [],
+        characters,
       });
 
       const raw = await callAPI(prompt, SYS_SCENE_ENGINE);
@@ -191,7 +235,12 @@ export default function Page() {
       setError("");
       setPrompts([]);
 
-      const prompt = buildPromptUserPrompt({ scenes });
+      const scenesWithLocks = scenes.map((scene) => ({
+        ...scene,
+        character_locks: characters,
+      }));
+
+      const prompt = buildPromptUserPrompt({ scenes: scenesWithLocks });
       const raw = await callAPI(prompt, SYS_PROMPT_ENGINE);
       const data = cleanJSON(raw);
 
@@ -241,14 +290,7 @@ export default function Page() {
             <div style={{ color: "#a1a1aa", marginTop: 4 }}>{t.subtitle}</div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ color: "#a1a1aa", fontSize: 13 }}>{t.langLabel}</span>
             <button
               onClick={() => setUiLanguage("ru")}
@@ -343,15 +385,9 @@ export default function Page() {
                       border: "1px solid rgba(255,255,255,0.12)",
                     }}
                   >
-                    <option value="shorts" style={{ color: "#000" }}>
-                      {t.modeShorts}
-                    </option>
-                    <option value="cinematic" style={{ color: "#000" }}>
-                      {t.modeCinematic}
-                    </option>
-                    <option value="long" style={{ color: "#000" }}>
-                      {t.modeLong}
-                    </option>
+                    <option value="shorts" style={{ color: "#000" }}>{t.modeShorts}</option>
+                    <option value="cinematic" style={{ color: "#000" }}>{t.modeCinematic}</option>
+                    <option value="long" style={{ color: "#000" }}>{t.modeLong}</option>
                   </select>
                 </div>
 
@@ -378,20 +414,33 @@ export default function Page() {
                       border: "1px solid rgba(255,255,255,0.12)",
                     }}
                   >
-                    <option value={60} style={{ color: "#000" }}>
-                      {t.dur60}
-                    </option>
-                    <option value={180} style={{ color: "#000" }}>
-                      {t.dur180}
-                    </option>
-                    <option value={600} style={{ color: "#000" }}>
-                      {t.dur600}
-                    </option>
+                    <option value={60} style={{ color: "#000" }}>{t.dur60}</option>
+                    <option value={180} style={{ color: "#000" }}>{t.dur180}</option>
+                    <option value={600} style={{ color: "#000" }}>{t.dur600}</option>
                   </select>
                 </div>
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  onClick={generateCharacters}
+                  disabled={loadingCharacters}
+                  style={{
+                    padding: "14px 18px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(16,185,129,0.45)",
+                    background: loadingCharacters
+                      ? "rgba(16,185,129,0.2)"
+                      : "linear-gradient(135deg, #059669, #10b981)",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: 15,
+                    cursor: loadingCharacters ? "default" : "pointer",
+                  }}
+                >
+                  {loadingCharacters ? `⏳ ${t.buildingCharacters}` : `🧬 ${t.buildCharacters}`}
+                </button>
+
                 <button
                   onClick={generateScenes}
                   disabled={loading}
@@ -452,30 +501,49 @@ export default function Page() {
 
           <section style={{ ...cardStyle(), padding: 16 }}>
             <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 14 }}>
+              {t.charactersTitle}
+            </div>
+
+            {!characters.length ? (
+              <div style={{ padding: 16, borderRadius: 14, background: "rgba(255,255,255,0.03)", color: "#a1a1aa" }}>
+                {t.noCharacters}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 14 }}>
+                {characters.map((char, index) => (
+                  <div
+                    key={char.id || index}
+                    style={{ ...cardStyle("rgba(16,185,129,0.18)"), padding: 14 }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>
+                      {char.id || `CHAR_${index + 1}`} — {char.name || "-"}
+                    </div>
+                    <div style={{ display: "grid", gap: 8, fontSize: 14 }}>
+                      <div><b>{t.role}:</b> {char.role || "-"}</div>
+                      <div><b>{t.age}:</b> {char.age || "-"}</div>
+                      <div><b>{t.look}:</b> {char.look || "-"}</div>
+                      <div><b>{t.outfit}:</b> {char.outfit || "-"}</div>
+                      <div><b>{t.dna}:</b> {char.dna_lock || "-"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section style={{ ...cardStyle(), padding: 16 }}>
+            <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 14 }}>
               {t.resultTitle}
             </div>
 
             {!scenes.length ? (
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 14,
-                  background: "rgba(255,255,255,0.03)",
-                  color: "#a1a1aa",
-                }}
-              >
+              <div style={{ padding: 16, borderRadius: 14, background: "rgba(255,255,255,0.03)", color: "#a1a1aa" }}>
                 {t.noScenes}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 14 }}>
                 {scenes.map((scene, index) => (
-                  <div
-                    key={scene.id || index}
-                    style={{
-                      ...cardStyle("rgba(255,255,255,0.1)"),
-                      padding: 14,
-                    }}
-                  >
+                  <div key={scene.id || index} style={{ ...cardStyle("rgba(255,255,255,0.1)"), padding: 14 }}>
                     <div
                       style={{
                         display: "flex",
@@ -525,26 +593,13 @@ export default function Page() {
             </div>
 
             {!prompts.length ? (
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 14,
-                  background: "rgba(255,255,255,0.03)",
-                  color: "#a1a1aa",
-                }}
-              >
+              <div style={{ padding: 16, borderRadius: 14, background: "rgba(255,255,255,0.03)", color: "#a1a1aa" }}>
                 {t.noPrompts}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 14 }}>
                 {prompts.map((item, index) => (
-                  <div
-                    key={item.scene_id || index}
-                    style={{
-                      ...cardStyle("rgba(59,130,246,0.18)"),
-                      padding: 14,
-                    }}
-                  >
+                  <div key={item.scene_id || index} style={{ ...cardStyle("rgba(59,130,246,0.18)"), padding: 14 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>
                       {item.scene_id || `prompt_${index + 1}`}
                     </div>
