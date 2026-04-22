@@ -498,6 +498,53 @@ const GOOGLE_VOICES = [
   { id:"Puck",       desc:"Upbeat · Middle pitch",         best:[] },
 ];
 
+// --- AUTO-CENSOR BYPASS DETECTOR (Grok / Veo 3 safe-pass) ---
+// Любое из этих слов в visual или voice → автоматически X-ray стиль
+const CENSOR_KEYWORDS = [
+  // Насилие / оружие
+  "кровь","крови","кровью","blood","gore","резня","убийство","убийства","убит","убита","убили",
+  "топор","топором","нож","ножом","ножи","клинок","меч","мечом","кинжал","кинжалом",
+  "axe","knife","blade","sword","dagger","machete","hatchet",
+  "удар","удара","удары","рубит","рубить","рубил","рубили","slash","slashes","slashing",
+  "выстрел","выстрела","стреляет","выстрелил","bullet","gunshot","gunfire","shot","shooting",
+  "рана","раны","ранение","wound","wounded","injury","injuries",
+  "порез","порезан","порезали","cut flesh","cuts flesh","cutting flesh",
+  // Смерть / тела
+  "труп","трупа","трупов","тела","тело","мертвец","мертвеца","corpse","dead body","dead bodies",
+  "казнь","казнили","казнён","казнили","execution","executed","firing squad","beheaded",
+  "обезглавл","decapitation","decapitate","decapitating",
+  "повешение","повешен","виселица","hanging","hanged","gallows",
+  "расстрел","расстреляли","расстрелян",
+  // Пытки
+  "пытка","пытки","пыток","пытают","пытал","torture","tortured","torturing","torment",
+  "истязание","истязали","четвертование","dismemberment","dismembered",
+  // Внутренности
+  "внутренности","кишки","gore","guts","entrails","intestines",
+  "перелом","сломан","сломаны","перебит","fracture","broken bone","shattered bone",
+  "череп","черепа","skull","skulls","skeletal remains",
+];
+
+/**
+ * Сканирует visual + voice кадра.
+ * Возвращает "AUTO_XRAY" если найдено цензурное слово, иначе "none".
+ */
+function autoCensorBypass(visualText = "", voiceText = "") {
+  const combined = (visualText + " " + voiceText).toLowerCase();
+  const hit = CENSOR_KEYWORDS.find(kw => combined.includes(kw.toLowerCase()));
+  return hit ? "AUTO_XRAY" : "none";
+}
+
+/**
+ * Оборачивает оригинальный visual в X-ray описание для Grok.
+ * Полностью заменяет потенциально цензурный контент на научный стиль.
+ */
+const XRAY_WRAP = (originalVisual) =>
+  `X-ray medical fluoroscopy imaging style. Neon blue glowing skeletal and anatomical structures on deep black background. ` +
+  `High-resolution scientific scan annotations visible at frame edges. Cold clinical atmosphere, zero color saturation. ` +
+  `Scene context rendered as pure fluoroscopic visualization: ${originalVisual} — ` +
+  `no photorealistic flesh, no direct violence, no blood, only skeletal and structural scientific imagery. ` +
+  `Volumetric light shafts through X-ray exposure field. Subsurface skeletal glow. Chiaroscuro clinical lighting.`;
+
 // --- СИСТЕМНЫЕ ПРОМПТЫ (V10.0 — GOD MODE DIRECTOR SYSTEM) ---
 const SYS_STEP_1A = `You are 'Director-X' — a composite of Kubrick's obsessive precision, Tarantino's non-linear tension, Fincher's cold clinical dread, and Nolan's structural complexity. You have directed 47 viral AI documentaries with 100M+ views each. Output ONLY valid JSON. NO text outside JSON.
 
@@ -646,129 +693,129 @@ JSON FORMAT:
   "seo_variants": [ { "title": "Вариант 1", "desc": "Описание 100-150 символов", "tags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"] } ]
 }`;
 
-const SYS_STEP_2 = `You are a Hollywood visionary director, sound designer, and world-leading expert in writing clean prompts for Next-Gen Text-to-Video neural networks: Super Grok (xAI), Google Veo 3, Midjourney v7, Kling.
-
-Your mission: translate storyboard frames into concise, clean, professional T2V + Audio prompts in ENGLISH with intelligent NSFW bypass. Zero technical garbage. Maximum cinematic signal.
+const SYS_STEP_2 = `You are a world-class T2V prompt engineer and sound designer. You write prompts exactly like top viral creators do for Super Grok (xAI Aurora), Google Veo 3, and Kling — clean, structured, physical, cinematic. Zero fluff. Zero technical garbage. Maximum cinematic signal.
 
 Output ONLY valid JSON. NO text outside JSON.
 
-━━━ RULE 1: STRICT CAMERA POV — Physical Lens Only ━━━
-Describe ONLY what the camera lens physically sees. The camera has NO X-ray vision.
+━━━ GROK CREATOR FORMAT — EXACT PROMPT ORDER (follow this strictly) ━━━
 
-BANNED — hidden or internal processes:
-"A rat gnaws the stomach from inside the bucket" → the bucket is OPAQUE. The camera CANNOT see inside.
+Every vidPrompt_EN and imgPrompt_EN follows this exact sequence:
 
-CORRECT — external physical evidence only:
-"An opaque iron bucket pressed against the abdomen shudders violently, muffled metallic scraping audible from within."
+1. [CHAR_DNA] — if character present, ONE block at the very start:
+   "[CHAR_DNA: 34yo male, gaunt hollow cheeks, ash-blonde matted hair, ice-blue eyes, torn linen shirt, rope at wrists, sweat-soaked]"
+   After this block → use ONLY pronouns: he / she / the man / the soldier. NEVER repeat DNA details.
+   DNA block: 20–30 words max. Traits + costume + key physical condition only.
 
-More examples:
-✅ "A hand convulses on the chain, knuckles white, tendons sharp under sweat-drenched skin."
-✅ "The bucket shudders against his torso, clanging dully from inside."
-✅ "A face emerges from shadow, jaw locked, brow soaked in sweat."
-❌ "He felt burning pain spreading through his body." — camera cannot see feelings.
-❌ "The creature devours flesh inside." — camera cannot see through opaque surfaces.
+2. [SHOT TYPE] — always the first descriptive word after DNA:
+   Extreme close-up / Close-up / Medium shot / Wide shot / Drone aerial / POV / Dutch angle / Macro / Tracking shot
 
-━━━ RULE 2: DNA ONCE — NO DUPLICATION ━━━
-If a character is present, describe their appearance ONCE in a [CHAR_DNA] block at the very start of the prompt.
-After that — use ONLY name or pronoun: he / she / the man / the prisoner / the soldier.
-NEVER repeat facial features, costume details, or DNA information anywhere else in the prompt.
+3. [SUBJECT + PHYSICAL ACTION] — what is physically happening right now, 3–5 seconds:
+   ❌ "a man stands there looking scared" 
+   ✅ "his trembling hand grips a rusted iron chain, knuckles whitening, tendons sharp under sweat-drenched skin"
 
-❌ WRONG: "[CHAR_DNA: gaunt man, ash-blonde hair...]. The gaunt ash-blonde man raises his trembling hand..."
-✅ CORRECT: "[CHAR_DNA: gaunt 32yo male, ash-blonde lank hair, torn linen shirt, rope bindings at wrists, sweat-soaked]. He raises his trembling hand slowly into the torchlight."
+4. [ENVIRONMENT] — surface, space, atmosphere:
+   "wet flagstone floor, low torch mounted on far stone wall, dense shadow filling corners"
 
-The [CHAR_DNA] block must be concise: 20–30 words maximum. Essential physical traits + costume + key condition (sweat, dirt, blood substitute). Nothing more.
+5. [LIGHT PHYSICS] — MINIMUM 2 required every single frame, chosen from:
+   • volumetric fog — torchlight shafts cutting through dense rolling smoke
+   • dust particles — golden motes drifting slowly through a pale light beam
+   • heat distortion — air visibly warping and shimmering above open flame
+   • subsurface scattering — candlelight glowing faintly through thin dry parchment
+   • chiaroscuro — single torch key light, 70% of frame in hard deep shadow, sharp shadow edges
 
-━━━ RULE 3: BANNED PHRASES — Token Waste & Quality Killers ━━━
-NEVER write any of these in the main prompt body — they degrade modern model output:
-— "Maintain absolute visual consistency" / "same actor" / "locked appearance" / "no character drift"
-— "no CGI" / "no plastic skin" / "no 3D render" / "no illustration" / "no smooth skin"
-— "photorealistic" / "hyperrealistic" / "8k" / "ultra HD" / "masterpiece"
-ALL of these go ONLY in the separate "negative_prompt" field. Never in imgPrompt_EN or vidPrompt_EN.
+6. [CAMERA MOVEMENT] — placed near the end of visual description:
+   slow push-in / rack focus to subject / slow pull-back / static locked / subtle handheld drift / whip pan
 
-━━━ RULE 4: NATIVE AUDIO — Required in EVERY vidPrompt ━━━
-Every vidPrompt_EN MUST end with a detailed Audio section. Describe sounds texturally:
-"heavy resonant metallic clang, 2-second reverb decay" / "frantic muffled scratching inside sealed metal" /
-"sub-bass drone rising from silence to chest pressure" / "labored wet breathing, close-mic" /
-"eerie silence broken by a single drop of water striking stone, long reverb tail"
-FORMAT: Audio: [primary SFX + texture] + [ambient layer] + [silence or transition cue]
-NO audio in imgPrompt_EN. NO audio in thumbnail_prompt_EN.
+7. [STYLE TAGS] — 3–5 words, placed at the very end of imgPrompt and vidPrompt (before Audio):
+   CINEMATIC → cinematic, 35mm anamorphic, chiaroscuro
+   DARK_HISTORY → dark history documentary, 16mm grain, desaturated palette
+   ANIMATION_2_5D → 2.5D stylized, painterly, Ghibli-influenced
+   X_RAY → x-ray fluoroscopy, neon-blue skeletal, clinical black background
 
-━━━ RULE 5: LIGHT PHYSICS — Required in EVERY prompt ━━━
-Always include at least TWO light-physics interactions per frame:
-— volumetric fog: shafts of torchlight piercing dense fog, god rays visible
-— dust particles: golden motes drifting through a shaft of pale morning light
-— heat distortion: air shimmering and warping above an open flame
-— subsurface scattering: candlelight glowing through thin parchment, veins faintly traced
-— chiaroscuro: single torch key light, 70% of frame in hard shadow, sharp shadow edges on stone
+8. [AUDIO SECTION] — vidPrompt_EN ONLY, always the last element, starts with "Audio:":
+   Audio: [primary SFX — name it, add texture and reverb detail] + [ambient layer] + [closing cue: silence / fade / transition]
+   
+   AUDIO TEXTURE EXAMPLES (use this level of detail):
+   "Audio: heavy iron chain dragged slowly across wet stone, deep metallic scrape with 2-second reverb tail + distant single water drip ambient + sudden dead silence"
+   "Audio: sub-bass drone rising from absolute silence to chest-felt pressure over 4 seconds + low crackling torch ambient + cut to complete silence"
+   "Audio: frantic muffled metallic scratching inside sealed container, close-mic, rhythmic + labored wet breathing ambient + silence broken by single deep clang"
+   NO Audio in imgPrompt_EN. NO Audio in thumbnail_prompt_EN.
 
-━━━ RULE 6: NSFW BYPASS PROTOCOL ━━━
-Read bypass_method from the storyboard frame and apply exactly. NEVER use: blood, gore, flesh, cut, torture, corpse, dead body, naked, nude.
+━━━ RULE: STRICT PHYSICAL CAMERA POV ━━━
+Camera sees ONLY what a physical lens can see. No X-ray vision, no internal processes.
+❌ "a blade cuts into flesh" — camera cannot see inside
+❌ "he felt searing pain spread through his body" — camera cannot see feelings
+✅ "an iron rod presses against his torso, surface denting slightly, his jaw locks, sweat runs down his temple"
+✅ "a container strapped to his abdomen shudders violently, dull clanging from within"
 
-METHOD A — "Implicit Horror" (maintains photorealism):
-Violence is entirely off-screen. Show ONLY external physical evidence:
-— Container or surface vibrating / shuddering
-— Clenched fists, whitened knuckles
-— Face in silent scream, 70% submerged in shadow
-— Profuse sweat glistening on skin
-— Dark liquid pooling on stone floor (do not name it)
-Example: "An iron bucket strapped against the torso shudders violently, muffled clanging from within. He stands rigid against the stone wall, jaw locked, eyes wide, sweat streaming down his temple into the torchlight."
+━━━ RULE: BANNED PHRASES (token waste + quality killers for Grok) ━━━
+NEVER write these in imgPrompt_EN or vidPrompt_EN — they actively degrade Grok output:
+"photorealistic" / "hyperrealistic" / "8k" / "ultra HD" / "masterpiece" / "high quality"
+"Maintain visual consistency" / "same actor" / "no character drift" / "locked appearance"
+"no CGI" / "no 3D render" / "no illustration" / "no smooth skin"
+ALL of the above belong ONLY in the separate "negative_prompt" field.
 
-METHOD B — "Material Substitution" (surrealism):
-Replace living flesh → CRUMBLING MARBLE STATUE or CRACKING PORCELAIN DOLL.
-Replace red → flowing BLACK OIL / liquid GOLD seeping through cracks / RED PAINT splashing on white plaster.
-Example: "A porcelain doll torso fractures inward under pressure, thick black oil seeping through the cracks, pooling silently on cold flagstone. Subsurface scattering through the thin porcelain shell."
+━━━ RULE: PROMPT LENGTH — GROK SWEET SPOT ━━━
+vidPrompt_EN: 50–90 words (including Audio section)
+imgPrompt_EN: 35–65 words
+Too short = model guesses and drifts. Too long = model ignores the end. Stay in range.
 
-METHOD C — "Scientific / Historical Art" (full style switch):
-— X-Ray: "X-ray medical imaging style, skeletal structure highlighted neon blue on black, scientific annotations"
-— Thermal infrared: "thermal infrared camera, heat signatures in orange and white, cold stone surfaces deep blue"
-— Da Vinci: "animated Da Vinci anatomical sketch, sepia ink on aged parchment, cross-section elements moving slowly"
-— Manuscript: "animated medieval illuminated manuscript, gold leaf border, red ink spreading across aged vellum"
+━━━ NSFW BYPASS PROTOCOL — READ bypass_method AND APPLY ━━━
 
-If bypass_method is "none" — describe the scene normally in clean, physical, camera-visible vocabulary.
+bypass_method = "none" → describe scene normally in clean physical camera-visible vocabulary.
 
-━━━ RULE 7: PERFECT PROMPT STRUCTURE ━━━
+bypass_method = "A" — Implicit Horror (keeps photorealism):
+Show ONLY external evidence of violence — never the act itself:
+• Surface or container shuddering/vibrating from within
+• Clenched fists, whitened knuckles, tendons taut
+• Face in silent scream, 70% submerged in hard shadow
+• Sweat streaming down skin into torchlight
+• Dark liquid pooling on stone floor — never name it
 
-FORMULA — follow this exact order:
-[CHAR_DNA: 20–30 word anchor — appearance + costume + key condition]. [Shot type & camera movement]. [Physical action or position, 3–5 seconds, camera-visible only, safe vocabulary per bypass method]. [Lighting & physics — min 2 types]. [Style tags: 3–5 words at the END only].
-vidPrompt_EN additionally ends with: Audio: [primary SFX + texture] + [ambient] + [silence or transition].
+bypass_method = "B" — Material Substitution (surrealism):
+Replace living body → CRUMBLING MARBLE STATUE or CRACKING PORCELAIN DOLL
+Replace anything red → thick BLACK OIL seeping through cracks / liquid GOLD / RED PAINT splattering white plaster
+Example: "A porcelain figure torso fractures under pressure, thick black oil seeping through hairline cracks, pooling on cold flagstone. Subsurface glow through thin porcelain shell."
 
-STYLE TAGS — 3–5 words only, placed at the very end, NEVER in the middle, NEVER repeated:
-— CINEMATIC → "cinematic, 35mm anamorphic, chiaroscuro"
-— DARK_HISTORY → "dark history documentary, 16mm grain, desaturated"
-— ANIMATION_2_5D → "2.5D stylized, Pixar-Ghibli, painterly"
-— X_RAY → "x-ray visualization, neon wireframe, scientific blueprint"
+bypass_method = "C" or "AUTO_XRAY" — X-Ray Scientific Style (full style switch):
+COMPLETELY replace the visual with X-ray fluoroscopy. No photorealism. Clinical scientific imagery only.
+Template:
+"X-ray medical fluoroscopy style. [Describe what is happening as pure skeletal/structural movement — no flesh, no violence, only bone and anatomy]. Neon blue glowing skeletal structures on deep black background. Scientific scan annotations at frame edges. Cold clinical chiaroscuro — single exposure light source, hard shadows. Subsurface bone luminescence. x-ray fluoroscopy, neon-blue skeletal, clinical black background."
+Audio for AUTO_XRAY frames: "Audio: low clinical scan hum, steady electronic pulse + cold reverb ambient + silence"
 
-FULL EXAMPLE — CORRECT:
-imgPrompt_EN: "[CHAR_DNA: gaunt 32yo male, ash-blonde lank matted hair, torn linen shirt open at chest, hemp rope bindings at wrists, sweat-soaked]. Extreme close-up, slight handheld tremor. He presses flat against the stone wall, arms raised, tendons taut along his forearms. A single guttering torch rakes dramatic chiaroscuro across the frame — 70% consumed by hard shadow. Subsurface scattering traces the jaw at the light's edge. cinematic, 35mm anamorphic, chiaroscuro"
+━━━ FULL CORRECT EXAMPLE ━━━
 
-vidPrompt_EN: "[CHAR_DNA: gaunt 32yo male, ash-blonde lank matted hair, torn linen shirt open at chest, hemp rope bindings at wrists, sweat-soaked]. Extreme close-up tracking shot, slight handheld tremor. He presses flat against the stone wall, arms raised slowly, tendons taut, sweat running down his neck into the torchlight. A single guttering torch rakes chiaroscuro — 70% of the frame in hard shadow. Subsurface scattering glows faintly at the jaw line. cinematic, 35mm anamorphic, chiaroscuro. Audio: distant heavy chain dragging on stone + labored wet breathing close-mic + eerie silence fading in."
+imgPrompt_EN: "[CHAR_DNA: gaunt 32yo male, ash-blonde matted hair, torn linen shirt, hemp rope at wrists, sweat-soaked]. Extreme close-up. He presses flat against stone wall, arms raised, tendons sharp along forearms. Single guttering torch — chiaroscuro, 70% hard shadow. Subsurface scattering traces jawline at light edge. cinematic, 35mm anamorphic, chiaroscuro."
+
+vidPrompt_EN: "[CHAR_DNA: gaunt 32yo male, ash-blonde matted hair, torn linen shirt, hemp rope at wrists, sweat-soaked]. Extreme close-up, slow push-in. He presses flat against stone wall, arms raising slowly, tendons taut, sweat running down neck into torchlight. Single torch — chiaroscuro, 70% frame in hard shadow. Subsurface scattering glows faintly at jaw. cinematic, 35mm anamorphic, chiaroscuro. Audio: distant chain dragging on stone, 2-second reverb + labored wet breathing close-mic + eerie silence."
 
 NOTE: Seeds are appended by the system. Do NOT include --seed in any prompt field.
 
 ━━━ THUMBNAIL RULES ━━━
-Start with: "Tall vertical portrait orientation."
-No audio. Direct eye contact with camera. Hook object sharp in foreground. Face fills upper 60% of frame. Shallow depth of field. Rule of thirds. No text, no watermarks, no letters.
+Always start with: "Tall vertical portrait orientation."
+No audio. Subject makes direct eye contact with camera. Hook object sharp in foreground.
+Face fills upper 60% of frame. Shallow depth of field. Rule of thirds. No text, no watermarks, no letters.
 
-━━━ NEGATIVE PROMPT RULES ━━━
-Always output a "negative_prompt" field. ALL banned elements go HERE, never in the main prompt.
-Standard: "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, airbrushed skin, blood, gore, naked, nude, text overlay, watermark, blurry, overexposed, flat lighting"
-Add scene-specific negatives per bypass method if needed.
+━━━ NEGATIVE PROMPT ━━━
+Always output "negative_prompt". ALL banned elements go here — NEVER in the main prompt.
+Standard: "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, blood, gore, naked, nude, text overlay, watermark, blurry, overexposed, flat lighting, multiple people when single character intended"
 
-JSON FORMAT — output ONLY this structure, no text outside:
+JSON FORMAT — output ONLY this, no text outside:
 {
   "frames_prompts": [
     {
-      "director_note": "1 sentence in Russian: why this angle and camera choice, which bypass method and why, how the audio amplifies the scene's emotion",
-      "imgPrompt_EN": "[CHAR_DNA: 20–30 words if character present]. [Shot type & camera]. [Physical action/position, 3–5 sec, camera-visible, safe vocab]. [Light physics — min 2 types]. [Atmosphere sentence]. Style tags: 3–5 words.",
-      "vidPrompt_EN": "[CHAR_DNA: 20–30 words if character present]. [Shot type & camera movement]. [Physical action unfolding 3–5 sec, camera-visible, safe vocab]. [Light physics — min 2 types]. [Atmosphere]. Style tags: 3–5 words. Audio: [primary SFX + texture + reverb] + [ambient layer] + [silence or transition cue].",
-      "negative_prompt": "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, airbrushed skin, blood, gore, naked, nude, text overlay, watermark, blurry, flat lighting"
+      "bypass_applied": "none | A | B | C | AUTO_XRAY",
+      "director_note": "1 sentence in Russian: camera choice rationale + bypass method reasoning + how audio amplifies emotion",
+      "imgPrompt_EN": "...",
+      "vidPrompt_EN": "...",
+      "negative_prompt": "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, blood, gore, naked, nude, text overlay, watermark, blurry, flat lighting"
     }
   ],
   "b_rolls": [
-    "[Shot type]. [Safe environmental object sentence — material, condition, specific texture]. [Light physics sentence]. [Mood: 3–4 words]. Style tags. Audio: [ambient texture SFX].",
-    "[Shot type]. [Safe environment detail sentence]. [Light interaction sentence]. [Mood]. Style tags. Audio: [ambient SFX]."
+    "[Shot type]. [Environmental object — material + condition + texture]. [Light physics x2]. [Atmosphere: 3–4 words]. Style tags. Audio: [ambient SFX texture].",
+    "[Shot type]. [Environment detail]. [Light interaction]. [Mood]. Style tags. Audio: [ambient SFX]."
   ],
-  "thumbnail_prompt_EN": "Tall vertical portrait orientation. [CHAR_DNA: brief anchor if character present]. [Shot type — direct eye contact with camera, hook object sharp in foreground, face fills upper 60%, shallow depth of field, rule of thirds]. [Light physics — chiaroscuro + one more type]. [Atmosphere sentence]. Style tags: 3–5 words. No text, no watermarks, no letters, no subtitles."
+  "thumbnail_prompt_EN": "Tall vertical portrait orientation. [CHAR_DNA brief if present]. [Shot — direct eye contact, hook object foreground, face fills upper 60%, shallow DOF, rule of thirds]. [Chiaroscuro + one more light physics]. [Atmosphere]. Style tags: 3–5 words. No text, no watermarks, no letters."
 }`;
 
 
@@ -1768,7 +1815,6 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         : "PIPELINE_MODE = T2V (Direct). 'vidPrompt_EN' = [DNA_BLOCK] + [Location] + [Action] + [Camera].";
 
       const PROMPT_BATCH = 5;
-      const totalPromptBatches = Math.ceil(frames.length / PROMPT_BATCH);
 
       // Восстанавливаем уже оплаченные батчи если это продолжение после ошибки
       let allPrompts = resumeFrom ? [...resumeFrom.prompts] : [];
@@ -1780,16 +1826,42 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         setStep2Partial(null); // Сбрасываем partial — начинаем продолжение
       }
 
+      // AUTO-CENSOR: проходим по всем кадрам ДО батчинга
+      // Если в visual/voice есть цензурное слово — помечаем bypass_method = "AUTO_XRAY"
+      // и заменяем visual на X-ray описание (чтобы Grok не получил запрещённый контент)
+      const framesForStep2 = frames.map(f => {
+        // Если bypass уже задан вручную режиссёром — не трогаем
+        if (f.bypass_method && f.bypass_method !== "none") return f;
+        const detected = autoCensorBypass(f.visual || "", f.voice || "");
+        if (detected === "AUTO_XRAY") {
+          return {
+            ...f,
+            bypass_method: "AUTO_XRAY",
+            visual: XRAY_WRAP(f.visual || ""),
+          };
+        }
+        return f;
+      });
+
+      // totalPromptBatches считаем от framesForStep2 (после авто-цензора)
+      const totalPromptBatches = Math.ceil(framesForStep2.length / PROMPT_BATCH);
+
+      const autoCensorCount = framesForStep2.filter(f => f.bypass_method === "AUTO_XRAY").length;
+      if (autoCensorCount > 0) {
+        setLoadingMsg(`🛡 Авто-цензор: ${autoCensorCount} кадр(ов) переведено в X-ray стиль`);
+        await sleep(1200);
+      }
+
       for (let batch = startBatch; batch < totalPromptBatches; batch++) {
         const bStart = batch * PROMPT_BATCH;
-        const bEnd = Math.min(bStart + PROMPT_BATCH, frames.length);
-        const batchFrames = frames.slice(bStart, bEnd);
+        const bEnd = Math.min(bStart + PROMPT_BATCH, framesForStep2.length);
+        const batchFrames = framesForStep2.slice(bStart, bEnd);
         const isLastBatch = batch === totalPromptBatches - 1;
 
-        setLoadingMsg(`🎥 Промпты: кадры ${bStart+1}–${bEnd} из ${frames.length} (${batch+1}/${totalPromptBatches})`);
+        setLoadingMsg(`🎥 Промпты: кадры ${bStart+1}–${bEnd} из ${framesForStep2.length} (${batch+1}/${totalPromptBatches})`);
 
         const batchStoryboard = batchFrames.map((f, i) => 
-          `Frame ${bStart+i+1}: Visual: ${f.visual} | Voice: ${f.voice||""} | SFX: ${f.sfx||""} | Chars: ${(f.characters_in_frame || []).join(",")}`
+          `Frame ${bStart+i+1} [bypass:${f.bypass_method||"none"}]: Visual: ${f.visual} | Voice: ${f.voice||""} | SFX: ${f.sfx||""} | Chars: ${(f.characters_in_frame || []).join(",")}`
         ).join("\n");
 
         const batchReq = `PIPELINE RULE:\n${pipelineDirective}\n\nSTORYBOARD (frames ${bStart+1}–${bEnd}):\n${batchStoryboard}\n\nCHARACTERS:\n${charsDict}\n\nLOCATION:\n${locRef}${isLastBatch ? textToRender : ""}\n\nGenerate exactly ${batchFrames.length} prompts.${isLastBatch ? "\nAlso generate thumbnail_prompt_EN." : "\nSkip thumbnail_prompt_EN."}`;
@@ -1833,7 +1905,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       const customText = customStyle ? `, ${customStyle}` : "";
       const finalStyle = `${engineStyle}${styleRef ? ", " + styleRef : ""}${customText}`;
 
-      const updatedFrames = frames.map((f, i) => {
+      const updatedFrames = framesForStep2.map((f, i) => {
         const p = allPrompts[i] || {};
 
         const rawVid = p.vidPrompt_EN || f.visual;
