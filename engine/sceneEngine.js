@@ -68,8 +68,9 @@ ACTION: 2-4s
 BUILD: 3-5s
 ATMOSPHERE: 4-6s
 DIALOGUE: 4-6s
+Allow up to 10s if needed.
 
-Scenes must be continuous
+Scenes must be continuous.
 
 OUTPUT:
 { "scenes": [ ... ] }
@@ -79,18 +80,26 @@ export function buildSceneUserPrompt({
   script,
   mode = "shorts",
   total = 60,
-  characters = []
+  characters = [],
 }) {
   const chars = characters?.length
-    ? characters.map(c => `${c.name}: ${c.look}`).join("\\n")
+    ? characters
+        .map(
+          (c) =>
+            `${c.id || c.name || "CHAR"}: ${c.look || c.desc || c.outfit || ""}`
+        )
+        .join("\\n")
     : "none";
 
   return `
 Script:
 ${script}
 
-Mode: ${mode}
-Duration: ${total}
+Project mode:
+${mode}
+
+Total duration:
+${total}
 
 Characters:
 ${chars}
