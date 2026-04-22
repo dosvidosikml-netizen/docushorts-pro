@@ -12,7 +12,7 @@ const TEXT = {
     appSub: "AI видео-студия",
     script: "Сценарий",
     scriptPlaceholder: "Вставь сценарий или идею...",
-    character: "Персонаж",
+    character: "Персонажи",
     reference: "Reference",
     scenes: "Сцены",
     prompts: "Промпты",
@@ -44,14 +44,16 @@ const TEXT = {
     tabReference: "Reference",
     male: "Мужской",
     female: "Женский",
-    saveCharacter: "Обновить персонажа",
+    saveCharacter: "Обновить персонажей",
+    addCharacter: "Добавить персонажа",
+    removeCharacter: "Удалить",
   },
   en: {
     appTitle: "NeuroCine Studio",
     appSub: "AI video studio",
     script: "Script",
     scriptPlaceholder: "Paste your script or idea...",
-    character: "Character",
+    character: "Characters",
     reference: "Reference",
     scenes: "Scenes",
     prompts: "Prompts",
@@ -83,9 +85,21 @@ const TEXT = {
     tabReference: "Reference",
     male: "Male",
     female: "Female",
-    saveCharacter: "Update character",
+    saveCharacter: "Update characters",
+    addCharacter: "Add character",
+    removeCharacter: "Remove",
   },
 };
+
+function makeFormCharacter(index = 1) {
+  return {
+    id: `char_${index}`,
+    name: `Character ${index}`,
+    gender: "male",
+    age: 28,
+    style: "black tactical jacket, cinematic look",
+  };
+}
 
 export default function Page() {
   const [lang, setLang] = useState("ru");
@@ -101,12 +115,9 @@ export default function Page() {
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [error, setError] = useState("");
 
-  const [characterForm, setCharacterForm] = useState({
-    name: "Alex",
-    gender: "male",
-    age: 28,
-    style: "black tactical jacket, cinematic look",
-  });
+  const [characterForms, setCharacterForms] = useState([
+    { ...makeFormCharacter(1), name: "Alex" },
+  ]);
 
   const [characters, setCharacters] = useState([
     buildCharacterDNA({
@@ -152,15 +163,31 @@ export default function Page() {
     }
   }
 
-  function updateCharacter() {
-    const next = buildCharacterDNA({
-      name: characterForm.name,
-      gender: characterForm.gender,
-      age: Number(characterForm.age),
-      style: characterForm.style,
-    });
+  function addCharacter() {
+    setCharacterForms((prev) => [...prev, makeFormCharacter(prev.length + 1)]);
+  }
 
-    setCharacters([next]);
+  function removeCharacter(id) {
+    setCharacterForms((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  function updateCharacterField(id, field, value) {
+    setCharacterForms((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  }
+
+  function updateCharacters() {
+    const next = characterForms.map((c) =>
+      buildCharacterDNA({
+        name: c.name,
+        gender: c.gender,
+        age: Number(c.age),
+        style: c.style,
+      })
+    );
+
+    setCharacters(next);
     setReference(null);
     setScenes([]);
     setPrompts([]);
@@ -341,67 +368,69 @@ export default function Page() {
             <div style={styles.cardSide}>
               <div style={styles.cardTitle}>{t.character}</div>
 
-              <div style={styles.formGrid}>
-                <label style={styles.label}>
-                  <span>{t.name}</span>
-                  <input
-                    value={characterForm.name}
-                    onChange={(e) =>
-                      setCharacterForm((p) => ({ ...p, name: e.target.value }))
-                    }
-                    style={styles.input}
-                  />
-                </label>
-
-                <label style={styles.label}>
-                  <span>{t.gender}</span>
-                  <select
-                    value={characterForm.gender}
-                    onChange={(e) =>
-                      setCharacterForm((p) => ({ ...p, gender: e.target.value }))
-                    }
-                    style={styles.input}
-                  >
-                    <option value="male">{t.male}</option>
-                    <option value="female">{t.female}</option>
-                  </select>
-                </label>
-
-                <label style={styles.label}>
-                  <span>{t.age}</span>
-                  <input
-                    type="number"
-                    value={characterForm.age}
-                    onChange={(e) =>
-                      setCharacterForm((p) => ({ ...p, age: e.target.value }))
-                    }
-                    style={styles.input}
-                  />
-                </label>
-
-                <label style={styles.label}>
-                  <span>{t.style}</span>
-                  <textarea
-                    value={characterForm.style}
-                    onChange={(e) =>
-                      setCharacterForm((p) => ({ ...p, style: e.target.value }))
-                    }
-                    style={{ ...styles.input, minHeight: 90, resize: "vertical" }}
-                  />
-                </label>
-
-                <button onClick={updateCharacter} style={styles.secondaryBtn}>
+              <div style={styles.actions}>
+                <button onClick={addCharacter} style={styles.secondaryBtn}>
+                  ➕ {t.addCharacter}
+                </button>
+                <button onClick={updateCharacters} style={styles.secondaryBlueBtn}>
                   🧬 {t.saveCharacter}
                 </button>
               </div>
 
-              <div style={styles.metaPreview}>
-                {characters.map((c, i) => (
-                  <div key={i} style={styles.metaBlock}>
-                    <div><b>{t.name}:</b> {c.name}</div>
-                    <div><b>{t.gender}:</b> {c.gender}</div>
-                    <div><b>{t.age}:</b> {c.age}</div>
-                    <div><b>{t.style}:</b> {c.style}</div>
+              <div style={styles.formGrid}>
+                {characterForms.map((c, idx) => (
+                  <div key={c.id} style={styles.characterCard}>
+                    <div style={styles.sceneHead}>
+                      <div style={styles.sceneId}>{c.name || `Character ${idx + 1}`}</div>
+                      {characterForms.length > 1 ? (
+                        <button
+                          onClick={() => removeCharacter(c.id)}
+                          style={styles.removeBtn}
+                        >
+                          {t.removeCharacter}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <label style={styles.label}>
+                      <span>{t.name}</span>
+                      <input
+                        value={c.name}
+                        onChange={(e) => updateCharacterField(c.id, "name", e.target.value)}
+                        style={styles.input}
+                      />
+                    </label>
+
+                    <label style={styles.label}>
+                      <span>{t.gender}</span>
+                      <select
+                        value={c.gender}
+                        onChange={(e) => updateCharacterField(c.id, "gender", e.target.value)}
+                        style={styles.input}
+                      >
+                        <option value="male">{t.male}</option>
+                        <option value="female">{t.female}</option>
+                      </select>
+                    </label>
+
+                    <label style={styles.label}>
+                      <span>{t.age}</span>
+                      <input
+                        type="number"
+                        value={c.age}
+                        onChange={(e) => updateCharacterField(c.id, "age", e.target.value)}
+                        style={styles.input}
+                      />
+                    </label>
+
+                    <label style={styles.label}>
+                      <span>{t.style}</span>
+                      <textarea
+                        value={c.style}
+                        onChange={(e) => updateCharacterField(c.id, "style", e.target.value)}
+                        style={{ ...styles.input, minHeight: 90, resize: "vertical" }}
+                      />
+                    </label>
                   </div>
                 ))}
               </div>
@@ -624,6 +653,7 @@ const styles = {
     gap: 10,
     flexWrap: "wrap",
     marginTop: 14,
+    marginBottom: 14,
   },
   primaryBtn: {
     padding: "14px 18px",
@@ -656,6 +686,14 @@ const styles = {
     display: "grid",
     gap: 12,
   },
+  characterCard: {
+    padding: 12,
+    borderRadius: 14,
+    background: "#0f172a",
+    border: "1px solid #334155",
+    display: "grid",
+    gap: 10,
+  },
   label: {
     display: "grid",
     gap: 6,
@@ -670,16 +708,6 @@ const styles = {
     background: "rgba(255,255,255,0.04)",
     color: "#fff",
     boxSizing: "border-box",
-  },
-  metaPreview: {
-    marginTop: 14,
-    paddingTop: 14,
-    borderTop: "1px solid rgba(255,255,255,0.08)",
-  },
-  metaBlock: {
-    display: "grid",
-    gap: 8,
-    color: "#e4e4e7",
   },
   empty: {
     padding: 16,
@@ -728,5 +756,13 @@ const styles = {
     whiteSpace: "pre-wrap",
     lineHeight: 1.5,
     color: "#e4e4e7",
+  },
+  removeBtn: {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(239,68,68,0.35)",
+    background: "rgba(239,68,68,0.1)",
+    color: "#fca5a5",
+    fontWeight: 700,
   },
 };
