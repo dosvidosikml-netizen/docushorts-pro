@@ -400,17 +400,20 @@ const FORMATS = [
 ];
 
 const VISUAL_ENGINES = {
-  // Движки оптимизированы для Super Grok (xAI) и Google Veo 3/3.1 — Native Audio поддерживается во всех
-  "CINEMATIC":      { label: "Кино-реализм",   prompt: "RAW photograph, Arri Alexa 35mm anamorphic lens, photorealistic, real skin texture, visible pores, subsurface scattering, fine facial hair, micro-imperfections, natural skin sebum sheen, sweat droplets, film halation, chromatic aberration edges, lens breathing artifact, handheld camera shake, chiaroscuro directional light, cinematic rim light, film grain ISO 800, natural depth of field falloff, no CGI, no 3D render, no illustration, no plastic skin, no smooth skin" },
-  "DARK_HISTORY":   { label: "Dark History",   prompt: "RAW photograph, photorealistic, no CGI, no 3D render, dark history grunge, gritty realism, real skin texture with visible pores, natural skin sebum, muddy bleak atmosphere, dirty vintage 16mm film grain, film halation, chromatic aberration, heavy vignette, harsh chiaroscuro, high contrast shadows, desaturated color grade, Arri Alexa 65 anamorphic, handheld documentary camera, no smooth plastic skin, subsurface scattering, micro-imperfections" },
-  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized 3D render, Pixar and Studio Ghibli aesthetics, warm soft painterly lighting, highly detailed environment, expressive stylized character design, consistent look throughout, no hyperrealism, no film grain, no skin pores" },
-  "X_RAY":          { label: "X-Ray / Схемы",  prompt: "x-ray exploded view, detailed neon wireframe internal structure, glowing scientific annotation, technical cross-section blueprint, pure black background, medical visualization style, no skin, no realism tokens" }
+  // 2026: короткие стилевые теги (3-5 слов) — ставятся В КОНЕЦ NLP-промпта
+  "CINEMATIC":      { label: "Кино-реализм",   prompt: "cinematic, 35mm anamorphic, chiaroscuro" },
+  "DARK_HISTORY":   { label: "Dark History",   prompt: "dark history documentary, 16mm grain, desaturated" },
+  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized, Pixar-Ghibli, painterly lighting" },
+  "X_RAY":          { label: "X-Ray / Схемы",  prompt: "x-ray visualization, neon wireframe, scientific blueprint" }
 };
 
 const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
 const DURATIONS = Object.keys(DURATION_SECONDS);
 
 const SAFE_TEXT_STYLE = { width: "100%", padding: "0 15px", boxSizing: "border-box", wordBreak: "break-word", overflowWrap: "break-word" };
+
+// 2026: Стандартный Negative Prompt — вставляется в поле —no / Negative в любом генераторе
+const DEFAULT_NEGATIVE = "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, airbrushed skin, blood, gore, naked, nude, text overlay, watermark, duplicate frames, blurry, overexposed, flat lighting";
 
 // Советы на экране загрузки — меняются каждые 5 секунд
 const LOADING_TIPS = [
@@ -598,7 +601,7 @@ CRITICAL CONTEXT: Educational documentary reconstruction. Apply NSFW Bypass Prot
 
 JSON FORMAT:
 {
-  "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1_DNA: 34yo male, gaunt hollow cheeks, short dirty-blonde widow's peak hair, ice-blue deep-set eyes, 1.5cm scar left chin, lean build, black oxidized plate armor gold lion left pauldron]", "ref_sheet_prompt": "Nine-panel film costume and makeup continuity photography of a real human actor. Kodak Vision3 500T 35mm film scan, analog film grain, photorealistic, hyperrealistic documentary photography. NOT CGI, NOT 3D render, NOT game engine, NOT Unreal Engine, NOT digital art, NOT illustration, NOT anime. No text overlays, no labels, no arrows anywhere. Subject: [PHYSICAL_DESC in English]. Studio: neutral 18% grey seamless paper backdrop, large overhead softbox key light, small fill reflector, even exposure all panels, 5600K color temp. LAYOUT three rows: ROW 1 full-body — front | left profile | right profile | back. ROW 2 three-quarter — front 3/4 | left 3/4 | right 3/4 | back 3/4. ROW 3 head-and-shoulders — front | left profile | right profile. REALISM: identical real human face every panel, visible pores, stubble, micro-imperfections, subsurface scattering, film halation. (CGI:1.7),(3D render:1.7),(game asset:1.7),(Unreal Engine:1.7),(cartoon:1.6),(smooth skin:1.5),(illustration:1.6) —no" } ],
+  "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1_DNA: 34yo male, gaunt hollow cheeks, short dirty-blonde widow's peak hair, ice-blue deep-set eyes, 1.5cm scar left chin, lean build, black oxidized plate armor gold lion left pauldron]", "ref_sheet_prompt": "Nine-panel film costume and makeup continuity photography, real human actor, hyperrealistic. Subject: [PHYSICAL_DESC in English]. Studio setting: neutral 18% grey seamless backdrop, large overhead softbox key light, small fill reflector, even exposure across all panels, 5600K color temperature. Three rows — ROW 1: full-body front, left profile, right profile, back. ROW 2: three-quarter body front, left 3/4, right 3/4, back 3/4. ROW 3: head-and-shoulders front, left profile, right profile. Every panel shows the identical real human face — visible pores, natural stubble, micro-imperfections, subsurface scattering, Kodak Vision3 500T film grain. --no CGI, 3D render, game engine, Unreal Engine, illustration, anime, smooth skin, plastic skin, text, labels, arrows, watermark" } ],
   "location_ref_EN": "Detailed cinematic english prompt 15-20 words minimum...",
   "style_ref_EN": "[Era / Atmosphere / Engine tags — e.g. Medieval War, Volumetric Fog, CINEMATIC engine, Chiaroscuro...]",
   "retention": { "score": 85, "feedback": "Жёсткая критика на русском: сила хука, Pattern Interrupt, дуга эмоций, финальный крючок" },
@@ -682,44 +685,66 @@ Switch visual style entirely:
 
 If bypass_method is "none" — use safe photorealistic cinematic description normally.
 
-━━━ RULE 5: PERFECT PROMPT STRUCTURE (VEO / GROK FORMAT) ━━━
-Every prompt follows this STRICT formula:
-[Style/Medium] + [Shot type & Camera movement] + [Subject + DNA anchor verbatim if present] + [Physical action 3-5 seconds] + [Light physics + particles] + [Technical realism tags]
-Video only: + Consistency Footer + Audio: [SFX]
+━━━ RULE 5: 2026 NLP PROMPT STRUCTURE (VEO 3 / GROK / KLING) ━━━
 
-STYLE/MEDIUM — determine from styleRef engine field in storyboard:
-— CINEMATIC engine: "RAW photograph, Arri Alexa 35mm anamorphic lens, photorealistic, real skin texture, visible pores, film grain ISO 800, slight handheld shake, subsurface scattering, film halation, chromatic aberration"
-— DARK_HISTORY engine: "RAW photograph, photorealistic, dark history grunge, gritty realism, dirty 16mm film grain, heavy vignette, harsh chiaroscuro, desaturated color grade, no CGI, no 3D render"
-— ANIMATION_2_5D engine: "2.5D stylized 3D render, Pixar-Ghibli aesthetics, warm painterly soft lighting, expressive character design, consistent stylized look" (NO realism tokens)
-— X_RAY engine: "x-ray exploded view, neon wireframe internal structure, pure black background, scientific blueprint diagram, glowing technical annotation" (NO skin/realism tokens)
+CRITICAL: Modern Vision-Language models (Veo 3, Grok, Kling, MJ v7) understand NATURAL LANGUAGE.
+DO NOT write comma-separated keyword lists. Write cinematic sentences — like directing a blind painter.
+Keyword dumping (100+ tokens) = signal/noise collapse = the model loses the actual scene.
 
-DNA INJECTION RULE: If character is in characters_in_frame, inject their dna verbatim at Subject position. Never paraphrase or abbreviate DNA. Copy word-for-word.
+THE 2026 FORMULA:
+[Shot type sentence]. [Subject + DNA verbatim if character]. [Physical action/state, 3–5 sec]. [Light physics, min 2 types]. [Style: 3–5 short tags at the END only].
 
-CONSISTENCY FOOTER (end of every vidPrompt_EN, before Audio):
-"maintain absolute visual consistency with previous frames, same actor same costume locked appearance throughout sequence, no character drift, consistent color grading, locked camera exposure."
+STYLE TAGS — append at the end of prompt ONLY, 3–5 words maximum, NEVER repeated:
+— CINEMATIC engine → "cinematic, 35mm anamorphic, chiaroscuro"
+— DARK_HISTORY engine → "dark history documentary, 16mm grain, desaturated"
+— ANIMATION_2_5D engine → "2.5D stylized, Pixar-Ghibli, painterly lighting"
+— X_RAY engine → "x-ray visualization, neon wireframe, scientific blueprint"
 
-BANNED TOKENS (absolute — in ALL prompts):
-masterpiece, best quality, 8k, ultra HD, beautiful, stunning, CGI (except Method C), 3D render (except Method C), anime (except Method C), perfect skin, smooth skin, plastic skin, blood, gore, torture, naked, nude
+WRITING RULES — MUST FOLLOW ALL:
+1. Write in complete English sentences. No comma-dumped token lists.
+2. POSITIVE language only in the main prompt. ALL negatives go ONLY in the "negative_prompt" field.
+3. NEVER repeat any word or phrase more than once per prompt. One mention = maximum weight.
+4. Describe only what the camera physically sees. No abstractions ("fear", "pain", "evil").
+5. Keep style tags to 3–5 words at the end. That is enough. Never pad with technical noise.
+
+EXAMPLE — CORRECT vs WRONG:
+
+❌ WRONG (2023 keyword salad — breaks generation):
+"RAW photo, photorealistic, no CGI, no 3D render, no plastic skin, film halation, chromatic aberration edges, subsurface scattering, film grain ISO 800, RAW photograph, shot on Arri Alexa 35mm anamorphic lens, photorealistic, hyperrealistic, real human skin texture, visible skin pores, subsurface scattering, fine facial hair, micro-imperfections, natural skin sebum sheen, sweat droplets, film halation, no CGI, no 3D render, no plastic skin..."
+
+✅ CORRECT (2026 NLP sentence — works in 100% of cases):
+"Extreme close-up shot, handheld micro-tremor. A heavy, rust-pitted iron bucket rests on a cold scratched metal surface. Next to it, a pale sweat-glistened male torso is partially visible at the frame edge, dissolving into deep shadow. A large dirty rat sniffs along the bucket rim with slow deliberate movements. A single guttering torch casts dramatic chiaroscuro — 70% of the frame consumed by darkness, hard shadow edges raking the stone wall. Subsurface scattering glows faintly through the skin at the rim of light. cinematic, 35mm anamorphic, chiaroscuro"
+
+DNA INJECTION RULE: If character is in characters_in_frame → inject their dna field VERBATIM into the Subject sentence. Never paraphrase, never abbreviate. Copy word-for-word.
+
+CONSISTENCY FOOTER (vidPrompt_EN only, before Audio line):
+"Maintain absolute visual consistency with previous frames — same actor, same costume, locked appearance throughout, no character drift, consistent color grade, locked exposure."
 
 ━━━ THUMBNAIL RULES ━━━
-MANDATORY PREFIX: "TALL VERTICAL PORTRAIT ORIENTATION, "
-No audio tags in thumbnail. Direct eye contact with camera. Hook object sharp in foreground.
-Face fills upper 60% of frame. Shallow depth of field. Rule of thirds.
+Start with the sentence: "Tall vertical portrait orientation."
+No audio in thumbnail prompt. Direct eye contact with camera. Hook object sharp in foreground.
+Face fills upper 60% of frame. Shallow depth of field. Rule of thirds. No text, no watermarks.
+
+━━━ NEGATIVE PROMPT RULES ━━━
+Always output a "negative_prompt" field. Put ALL unwanted elements here — never in the main prompt.
+Standard negative: "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, airbrushed skin, blood, gore, naked, nude, text overlay, watermark, duplicate frames, blurry, overexposed, flat lighting"
+Add scene-specific negatives if the bypass method requires it.
 
 JSON FORMAT — output ONLY this structure, no text outside:
 {
   "frames_prompts": [
     {
-      "director_note": "1 sentence in Russian: why this angle was chosen, which bypass method and why, how audio amplifies the emotion of this specific scene",
-      "imgPrompt_EN": "[Style/Medium per engine], [Shot type + camera movement], [Subject + DNA verbatim if character present], [Physical position/action SAFE vocabulary 3-5 seconds], [Light physics: volumetric/subsurface/chiaroscuro — min 2], [atmosphere 5-7 words], photorealistic, depth of field, film grain, subsurface scattering",
-      "vidPrompt_EN": "[Style/Medium per engine], [Shot type + camera movement], [Subject + DNA verbatim if character], [Physical action 3-5 seconds SAFE vocabulary], [Light physics + particles — min 2], [atmosphere], photorealistic, depth of field. Consistency footer. Audio: [primary SFX + texture + reverb] + [ambient layer] + [silence or transition cue]"
+      "director_note": "1 sentence in Russian: why this angle, which bypass method and why, how audio amplifies the emotion of this scene",
+      "imgPrompt_EN": "Sentence: shot type and camera. Sentence: subject with DNA verbatim if character present, using safe vocabulary per bypass method. Sentence: physical action or state, 3–5 seconds, safe vocabulary. Sentence: light physics — min 2 types (volumetric/subsurface/chiaroscuro/dust/heat). Sentence: atmosphere. Style tags: 3–5 words.",
+      "vidPrompt_EN": "Sentence: shot type and camera movement. Sentence: subject with DNA verbatim if character, safe vocabulary. Sentence: physical action unfolding over 3–5 seconds, safe vocabulary. Sentence: light physics — min 2 types. Sentence: atmosphere. Maintain absolute visual consistency with previous frames — same actor, same costume, locked appearance, no character drift, consistent color grade, locked exposure. Audio: [primary SFX + texture + reverb decay] + [ambient layer] + [silence or transition cue].",
+      "negative_prompt": "CGI, 3D render, illustration, anime, cartoon, plastic skin, smooth skin, airbrushed skin, blood, gore, naked, nude, text overlay, watermark, blurry, flat lighting"
     }
   ],
   "b_rolls": [
-    "[Style/Medium per engine], macro shot of [safe environmental object + material detail + condition], [light physics: subsurface/volumetric/dust], [atmosphere 4-5 words]. Audio: [ambient texture SFX]",
-    "[Style/Medium per engine], extreme close-up of [safe environment detail], [specific light interaction], [mood 3-4 words]. Audio: [ambient SFX]"
+    "Macro shot. Sentence describing safe environmental object — material, condition, texture. Sentence: light physics (subsurface or volumetric or dust motes). Mood in 3–4 words. Style tags. Audio: [ambient texture SFX].",
+    "Extreme close-up. Sentence describing safe environment detail. Sentence: specific light interaction. Mood. Style tags. Audio: [ambient SFX]."
   ],
-  "thumbnail_prompt_EN": "TALL VERTICAL PORTRAIT ORIENTATION, [Style/Medium per engine], no text, no watermarks, no letters, no subtitles, [Shot type], [Subject + DNA verbatim], direct eye contact with camera, hook object sharp in foreground, shallow depth of field, rule of thirds, face fills upper 60% of frame, [atmosphere + chiaroscuro + light physics 6-8 words], photorealistic, film grain, visible skin pores, subsurface scattering"
+  "thumbnail_prompt_EN": "Tall vertical portrait orientation. Sentence: shot type, subject with DNA verbatim — direct eye contact with camera, hook object sharp in foreground, face fills upper 60% of frame, shallow depth of field, rule of thirds. Sentence: light physics — chiaroscuro plus one more type. Sentence: atmosphere. Style tags: 3–5 words. No text, no watermarks, no letters, no subtitles."
 }`;
 
 
@@ -1203,7 +1228,7 @@ CRITICAL RULES:
 - For each character generate TWO fields:
   1. "dna": unique physical anchor for T2V. FORMAT: "[CHAR_ID_DNA: AGE yo GENDER, FACE_GEOMETRY (gaunt hollow cheeks/square jaw/hooked nose etc), HAIR (color+texture+length), EYES (color+shape), UNIQUE_MARKS (specific: '1.5cm scar left chin' — INVENT if not provided), BUILD, COSTUME (material+color+specific damage: dents, tears, emblems)]". Make features MAXIMALLY UNIQUE.
   2. "ref_sheet_prompt": ENGLISH ONLY — every word must be in English, do NOT use Russian. Template (fill [PHYSICAL_DESC] in English):
-     "Nine-panel film costume and makeup continuity photography of a real human actor. Kodak Vision3 500T 35mm film scan, analog film grain, photorealistic, hyperrealistic documentary photography. NOT CGI, NOT 3D render, NOT game engine, NOT Unreal Engine, NOT digital art, NOT illustration, NOT anime. No text overlays, no labels, no arrows anywhere. Subject: [PHYSICAL_DESC in English]. Studio: neutral 18% grey seamless paper backdrop, large overhead softbox key light, small fill reflector, even exposure all panels, 5600K color temp. LAYOUT three rows: ROW 1 full-body — front | left profile | right profile | back. ROW 2 three-quarter body — front 3/4 | left 3/4 | right 3/4 | back 3/4. ROW 3 head-and-shoulders — front | left profile | right profile. REALISM: identical real human face every panel, visible pores, natural stubble, micro-imperfections, subsurface scattering, film halation, Kodak color science. (CGI:1.7),(3D render:1.7),(game asset:1.7),(Unreal Engine:1.7),(video game:1.6),(cartoon:1.6),(smooth skin:1.5),(illustration:1.6),(plastic:1.6) —no"
+     "Nine-panel film costume and makeup continuity photography, real human actor, hyperrealistic. Subject: [PHYSICAL_DESC in English]. Studio setting: neutral 18% grey seamless backdrop, large overhead softbox key light, small fill reflector, even exposure across all panels, 5600K color temperature. Three rows — ROW 1: full-body front, left profile, right profile, back. ROW 2: three-quarter body front, left 3/4, right 3/4, back 3/4. ROW 3: head-and-shoulders front, left profile, right profile. Every panel shows the identical real human face — visible pores, natural stubble, micro-imperfections, subsurface scattering, Kodak Vision3 500T film grain. --no CGI, 3D render, game engine, Unreal Engine, illustration, anime, smooth skin, plastic skin, text, labels, arrows, watermark"
 
 Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1_DNA: ...]", "ref_sheet_prompt": "Nine-panel film costume..." } ] }`);
       
@@ -1513,8 +1538,8 @@ JSON FORMAT:
 
   function rebuildRawText(frms, s2done) {
     let scriptTxt = frms.map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🔊 SFX: ${f.sfx||''}\n🔤 Титры: ${f.text_on_screen||''}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
-    let imgTxt = s2done ? frms.map(f => f.imgPrompt_EN).filter(Boolean).join("\n\n") : "";
-    let vidTxt = s2done ? frms.map(f => f.vidPrompt_EN).filter(Boolean).join("\n\n") : "";
+    let imgTxt = s2done ? frms.map((f,i) => `[КАДР ${i+1}]\n${f.imgPrompt_EN||''}`).filter(x=>x.includes("\n")).join("\n\n") : "";
+    let vidTxt = s2done ? frms.map((f,i) => `[КАДР ${i+1}]\n${f.vidPrompt_EN||''}`).filter(x=>x.includes("\n")).join("\n\n") : "";
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
   }
 
@@ -1743,43 +1768,44 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         if (batch < totalPromptBatches - 1) await sleep(300);
       }
 
-      // Собираем финальные промпты с DNA и realism prefix
+      // Собираем финальные промпты с DNA (2026 NLP approach — без keyword salad)
       const engineStyle = VISUAL_ENGINES[engine]?.prompt || "";
       const customText = customStyle ? `, ${customStyle}` : "";
       const finalStyle = `${engineStyle}${styleRef ? ", " + styleRef : ""}${customText}`;
-      const realismPrefix = (engine === "CINEMATIC" || engine === "DARK_HISTORY")
-        ? "RAW photo, photorealistic, no CGI, no 3D render, no illustration, no plastic skin, no airbrushed skin, film halation, chromatic aberration edges, natural skin sebum sheen, subsurface scattering, film grain ISO 800, "
-        : "";
 
       const updatedFrames = frames.map((f, i) => {
         const p = allPrompts[i] || {};
         const frameChars = f.characters_in_frame || [];
         const dnaBlocks = frameChars.map(cid => charDnaDict[cid]).filter(Boolean).join(", ");
-        const dnaPrefix = dnaBlocks ? `${dnaBlocks}, ` : "";
+        const dnaPrefix = dnaBlocks ? `${dnaBlocks}. ` : "";
 
         const rawVid = p.vidPrompt_EN || f.visual;
         const rawImg = p.imgPrompt_EN || f.visual;
         const vidAlreadyHasDna = rawVid.includes("_DNA:");
         const imgAlreadyHasDna = rawImg.includes("_DNA:");
 
-        // Чистим vidPrompt от SD-синтаксиса — Kling/Runway/Sora его не понимают
-        const cleanVid = rawVid
-          .replace(/\([^)]+:\d+(\.\d+)?\)/g, "")
-          .replace(/\s*—no\b/gi, "")
+        // Чистим от старого SD-синтаксиса на случай если модель его вернёт
+        const cleanPrompt = (txt) => txt
+          .replace(/\([^)]+:\d+(\.\d+)?\)/g, "")   // убираем веса (word:1.4)
+          .replace(/\s*—no\b/gi, "")                 // убираем —no
+          .replace(/--no\b[^,\n]*/gi, "")            // убираем --no ...
           .replace(/,\s*,/g, ",")
           .trim();
 
-        const vPrompt = vidAlreadyHasDna
-          ? `${realismPrefix}${finalStyle}, ${cleanVid}`
-          : `${realismPrefix}${dnaPrefix}${finalStyle}, ${cleanVid}`;
-        const iPrompt = imgAlreadyHasDna
-          ? `${realismPrefix}${finalStyle}, ${rawImg}`
-          : `${realismPrefix}${dnaPrefix}${finalStyle}, ${rawImg}`;
+        const cleanVid = cleanPrompt(rawVid);
+        const cleanImg = cleanPrompt(rawImg);
+
+        // 2026: NLP prompt уже содержит стиль-теги в конце (из RULE 5).
+        // Добавляем DNA в начало только если ИИ его не вставил сам.
+        const vPrompt = vidAlreadyHasDna ? cleanVid : `${dnaPrefix}${cleanVid}`;
+        const iPrompt = imgAlreadyHasDna ? cleanImg : `${dnaPrefix}${cleanImg}`;
 
         // 🔒 SEED LOCK — фиксируем seed для консистентности между кадрами
         const seedSuffix = seedLocked ? ` --seed ${seedValue}` : "";
 
-        return { ...f, imgPrompt_EN: iPrompt + seedSuffix, vidPrompt_EN: vPrompt + seedSuffix };
+        const negPrompt = p.negative_prompt || DEFAULT_NEGATIVE;
+
+        return { ...f, imgPrompt_EN: iPrompt + seedSuffix, vidPrompt_EN: vPrompt + seedSuffix, negative_prompt: negPrompt };
       });
 
       // Чистим thumbnail от ASMR-тегов
@@ -1791,7 +1817,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         .replace(/\.\s*$/, "").trim();
       const finalThumbPrompt = cleanThumbPrompt.includes("no text")
         ? cleanThumbPrompt
-        : cleanThumbPrompt + ", no text, no watermarks, no letters, no subtitles, (text:1.5), (watermark:1.5) —no";
+        : cleanThumbPrompt + ", no text, no watermarks, no letters, no subtitles";
 
       setStep2Partial(null); // Успех — очищаем partial
       setFrames(updatedFrames); 
@@ -2618,6 +2644,15 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                         </div>
                       </div>
                     )}
+                    {step2Done&&f.negative_prompt&&(
+                      <div style={{background:"rgba(239,68,68,.04)",border:"1px solid rgba(239,68,68,.2)",padding:12,borderRadius:10,marginTop:10}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                          <span style={{fontSize:9,color:"#f87171",fontWeight:900,letterSpacing:"1.5px"}}>🚫 NEGATIVE PROMPT</span>
+                          <CopyBtn text={f.negative_prompt} small/>
+                        </div>
+                        <div style={{fontSize:10,fontFamily:"monospace",color:"#fca5a5",lineHeight:1.6,opacity:0.85}}>{f.negative_prompt}</div>
+                      </div>
+                    )}
                   </div>
                   {/* Правая плёнка */}
                   <div style={{width:22,background:"rgba(0,0,0,.6)",borderRadius:"0 12px 12px 0",border:"1px solid rgba(255,255,255,.07)",borderLeft:"none",display:"flex",flexDirection:"column",alignItems:"center",paddingTop:8,gap:5,flexShrink:0}}>
@@ -2654,6 +2689,16 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                   <div className="glass" style={{padding:22}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:14}}><span style={{fontWeight:900,color:"#a78bfa",fontSize:13}}>🎥 VIDEO PROMPTS</span><CopyBtn text={rawVid}/></div>
                     <pre style={{whiteSpace:"pre-wrap",color:"#d8b4fe",fontSize:12,fontFamily:"monospace",lineHeight:1.6}}>{rawVid}</pre>
+                  </div>
+                  <div className="glass" style={{padding:22,border:"1px solid rgba(239,68,68,.2)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      <span style={{fontWeight:900,color:"#f87171",fontSize:13}}>🚫 NEGATIVE PROMPT</span>
+                      <CopyBtn text={frames[0]?.negative_prompt||DEFAULT_NEGATIVE}/>
+                    </div>
+                    <div style={{fontSize:10,color:"#94a3b8",marginBottom:10,lineHeight:1.5}}>Вставляй в поле <b style={{color:"#fca5a5"}}>«—no»</b> / <b style={{color:"#fca5a5"}}>«Negative prompt»</b> в Midjourney, Grok, Kling, Veo.</div>
+                    <div style={{fontFamily:"monospace",fontSize:11,color:"#fca5a5",lineHeight:1.7,background:"rgba(239,68,68,.04)",padding:12,borderRadius:10}}>
+                      {frames[0]?.negative_prompt||DEFAULT_NEGATIVE}
+                    </div>
                   </div>
                 </>
               )}
