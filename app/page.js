@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SYS_SCENE_ENGINE, buildSceneUserPrompt } from "@/engine/sceneEngine";
+import { SYS_SCENE_ENGINE, buildSceneUserPrompt } from "../engine/sceneEngine";
 
 export default function Page() {
   const [input, setInput] = useState("");
