@@ -852,7 +852,13 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
       clearTimeout(timeoutId);
       const textRes = await res.text();
       let data;
-      try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON: ${textRes.substring(0, 120)}`); }
+      try { data = JSON.parse(textRes); } catch (e) { 
+        const isHtml = textRes.trimStart().startsWith("<!DOCTYPE") || textRes.trimStart().startsWith("<html");
+        const msg = isHtml 
+          ? `Сервер недоступен (вернул HTML страницу ошибки). Проверьте деплой /api/chat и попробуйте ещё раз.`
+          : `Сервер вернул не JSON: ${textRes.substring(0, 120)}`;
+        throw new Error(msg); 
+      }
       if (!res.ok || data.error) throw new Error(data.error || `Ошибка API (${res.status})`);
       return data.text || "";
     } catch (e) {
@@ -1219,6 +1225,7 @@ export default function Page() {
   };
 
   const deductToken = () => { setTokens(prev => { const next = prev - 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
+  const refundToken = () => { setTokens(prev => { const next = prev + 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
   const checkTokens = () => { if (tokens <= 0) { setShowPaywall(true); return false; } return true; };
   const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); localStorage.setItem("ds_history", JSON.stringify(next)); return next; }); };
   const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
@@ -1731,15 +1738,8 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
           : `${SYS_STEP_1A}\nIMPORTANT: Continuation batch ${batch+1}/${totalBatches}. Output JSON with ONLY "frames" array. Reuse existing characters_EN. Timecodes start from ${timecodeStart} sec.`;
 
         let batchText, batchData;
-        try {
-          batchText = await callAPI(batchReq, 5000, batchSys, MODEL_STD);
-          batchData = cleanJSON(batchText);
-        } catch(fastErr) {
-          // Fallback: повторяем через Llama если Claude не ответил
-          setLoadingMsg(`🔄 Батч ${batch+1}/${totalBatches}: переключаемся на резервную модель...`);
-          batchText = await callAPI(batchReq, 5000, batchSys, MODEL_FAST);
-          batchData = cleanJSON(batchText);
-        }
+        batchText = await callAPI(batchReq, 5000, batchSys, MODEL_STD);
+        batchData = cleanJSON(batchText);
 
         if (isFirstBatch) {
           data1A = batchData;
@@ -1797,6 +1797,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
   async function handleStep2(resumeFrom = null) {
     if (!checkTokens()) return;
     setBusy(true); setView("loading");
+    let tokenDeducted = false;
 
     // Прогреваем сервер — между Шагом 1 и 2 пользователь изучает раскадровку,
     // за это время Render Free успевает заснуть снова (< 15 мин без запросов)
@@ -1871,21 +1872,13 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
           // 150 сек таймаут для тяжёлых промпт-батчей, 2 ретрая
           const batchText = await callAPI(batchReq, 6000, SYS_STEP_2, MODEL_STD, 2, 150000);
           batchData = cleanJSON(batchText);
-        } catch(fastErr) {
-          // Fallback: пробуем Llama если Claude не ответил
-          let batchTextFallback;
-          try {
-            setLoadingMsg(`🔄 Батч ${batch+1}/${totalPromptBatches}: переключаемся на резервную модель...`);
-            batchTextFallback = await callAPI(batchReq, 6000, SYS_STEP_2, MODEL_FAST, 1, 150000);
-            batchData = cleanJSON(batchTextFallback);
-          } catch(batchErr) {
+        } catch(batchErr) {
           // Батч упал — сохраняем УЖЕ ОПЛАЧЕННЫЙ прогресс и сообщаем пользователю
           setStep2Partial({ prompts: allPrompts, fromBatch: batch, totalBatches: totalPromptBatches, thumbRaw: thumbnailPromptRaw, brolls: finalBRolls });
           setBusy(false);
           setView("result");
           alert(`⚠️ Шаг 2 прерван на батче ${batch+1}/${totalPromptBatches} (кадры ${bStart+1}–${bEnd}).\n\n✅ Кадры 1–${bStart} уже готовы и сохранены.\n❌ Кадры ${bStart+1}–${frames.length} не обработаны.\n\n💡 Нажмите кнопку "▶ ПРОДОЛЖИТЬ" чтобы дообработать оставшиеся кадры без повторной оплаты готовых.\n\nОшибка: ${batchErr.message}`);
           return;
-          }
         }
 
         allPrompts = [...allPrompts, ...(batchData.frames_prompts || [])];
@@ -1952,6 +1945,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       setStep2Done(true);
       
       rebuildRawText(updatedFrames, true); 
+      tokenDeducted = true;
       deductToken(); // Токен списывается ТОЛЬКО здесь — только при полном успехе
       setView("result");
 
@@ -1964,7 +1958,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
          }
          return next;
       });
-    } catch(e) { alert(`🚨 ОШИБКА ШАГА 2: ${e.message}\n\n💡 Попробуйте ещё раз — уже оплаченные батчи не повторятся.`); setView("result"); } finally { setBusy(false); }
+    } catch(e) { if (tokenDeducted) refundToken(); alert(`🚨 ОШИБКА ШАГА 2: ${e.message}\n\n💡 Попробуйте ещё раз — уже оплаченные батчи не повторятся.`); setView("result"); } finally { setBusy(false); }
   }
 
   function handleImageUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setBgImage(ev.target.result); reader.readAsDataURL(file); }
