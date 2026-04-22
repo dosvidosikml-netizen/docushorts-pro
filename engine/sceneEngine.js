@@ -12,41 +12,36 @@ Convert a script into structured cinematic scenes optimized for AI video generat
 
 CRITICAL RULES:
 
-1. Each scene must be VISUAL-FIRST (not storytelling, but what camera sees)
-2. Each scene must be physically generatable (no abstract ideas)
-3. Characters must stay consistent across scenes
-4. SFX must feel real and embedded
+1. Each scene must be VISUAL-FIRST
+2. No abstract descriptions
+3. Characters must stay consistent
+4. Realistic SFX only
 5. Audio always: "clean, no noise"
-
-SCENE STRUCTURE:
 
 Each scene must include:
 
-id,
-start,
-duration,
-end,
+id, start, duration, end,
 
 scene_goal:
 HOOK | BUILD | ACTION | DIALOGUE | ATMOSPHERE | PAYOFF
 
 voice:
-Short narration (5-10 words, emotional tag at start)
+Short narration (5-10 words)
 
 visual:
-What is happening physically (camera sees)
+What camera sees
 
 camera:
-Shot type (close-up, drone, POV, cinematic, tracking, etc)
+Shot type
 
 motion:
-What moves in frame
+What moves
 
 lighting:
-Light description (chiaroscuro, neon, soft, etc)
+Light style
 
 environment:
-Location + atmosphere
+Location
 
 characters:
 [
@@ -59,50 +54,45 @@ characters:
 ]
 
 sfx:
-Realistic sound description
+Real sound
 
 audio:
 "clean, no noise"
 
 generation_mode:
-"T2V" (text-to-video)
-"I2V" (image-to-video if character consistency needed)
+"T2V" or "I2V"
 
----
-
-TIMING LOGIC:
-
-SHORTS:
+TIMING:
 HOOK: 2-3s
 ACTION: 2-4s
 BUILD: 3-5s
 ATMOSPHERE: 4-6s
 DIALOGUE: 4-6s
 
-Allow up to 10s if needed.
-
-Scenes MUST connect:
-next.start = previous.end
-
----
-
-IMPORTANT:
-
-If characters repeat → keep SAME description
-
-If scene is emotional → show through physics, not words
-
-BAD:
-"he is scared"
-
-GOOD:
-"hands shaking, breath visible in cold air"
-
----
+Scenes must be continuous
 
 OUTPUT:
-
-{
-  "scenes": [ ... ]
-}
+{ "scenes": [ ... ] }
 `;
+
+export function buildSceneUserPrompt({
+  script,
+  mode = "shorts",
+  total = 60,
+  characters = []
+}) {
+  const chars = characters?.length
+    ? characters.map(c => `${c.name}: ${c.look}`).join("\\n")
+    : "none";
+
+  return `
+Script:
+${script}
+
+Mode: ${mode}
+Duration: ${total}
+
+Characters:
+${chars}
+`;
+}
