@@ -56,6 +56,7 @@ const TEXT = {
     posY: "Позиция Y",
     bgPrompt: "Описание фона",
     preview: "Превью",
+    preset: "Пресет",
   },
   en: {
     appTitle: "NeuroCine Studio",
@@ -106,6 +107,234 @@ const TEXT = {
     posY: "Position Y",
     bgPrompt: "Background prompt",
     preview: "Preview",
+    preset: "Preset",
+  },
+};
+
+const COVER_PRESETS = {
+  netflix: {
+    label: "Netflix",
+    hookColor: "#e50914",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(229,9,20,0.95)",
+    titleSize: 34,
+    hookSize: 13,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 6px 20px rgba(0,0,0,0.9)",
+  },
+  mrbeast: {
+    label: "MrBeast",
+    hookColor: "#ffdd00",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(236,72,153,0.95)",
+    titleSize: 42,
+    hookSize: 16,
+    align: "center",
+    transform: "translate(-50%, -50%) rotate(-3deg)",
+    titleWeight: 900,
+    titleFont: "Impact, sans-serif",
+    titleStroke: "2px #000",
+    titleShadow: "5px 5px 0 #000, 0 0 20px rgba(0,0,0,0.7)",
+  },
+  tiktok: {
+    label: "TikTok",
+    hookColor: "#00f2ea",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(255,0,80,0.95)",
+    titleSize: 32,
+    hookSize: 14,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 0 20px rgba(0,242,234,0.35), 0 6px 20px rgba(0,0,0,0.8)",
+  },
+  truecrime: {
+    label: "True Crime",
+    hookColor: "#facc15",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(0,0,0,0.9)",
+    titleSize: 30,
+    hookSize: 12,
+    align: "left",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 18px rgba(0,0,0,0.9)",
+  },
+  history: {
+    label: "History",
+    hookColor: "#d4af37",
+    titleColor: "#f8fafc",
+    ctaBg: "rgba(180,83,9,0.9)",
+    titleSize: 36,
+    hookSize: 12,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Georgia, serif",
+    titleStroke: "none",
+    titleShadow: "0 6px 20px rgba(0,0,0,0.9)",
+  },
+  minimal: {
+    label: "Minimal",
+    hookColor: "#cbd5e1",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(51,65,85,0.9)",
+    titleSize: 26,
+    hookSize: 11,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 400,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 10px rgba(0,0,0,0.7)",
+  },
+  breakingnews: {
+    label: "Breaking News",
+    hookColor: "#ffffff",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(220,38,38,0.95)",
+    titleSize: 30,
+    hookSize: 12,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Arial Black, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 15px rgba(0,0,0,0.8)",
+  },
+  cyberpunk: {
+    label: "Cyberpunk",
+    hookColor: "#fef08a",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(236,72,153,0.95)",
+    titleSize: 40,
+    hookSize: 14,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Orbitron, Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "3px 3px 0 #ec4899, -3px -3px 0 #06b6d4, 0 0 20px rgba(0,0,0,0.8)",
+  },
+  natgeo: {
+    label: "NatGeo",
+    hookColor: "#facc15",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(250,204,21,0.9)",
+    titleSize: 30,
+    hookSize: 12,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 900,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 15px rgba(0,0,0,0.8)",
+  },
+  horror: {
+    label: "Horror",
+    hookColor: "#ffffff",
+    titleColor: "#ef4444",
+    ctaBg: "rgba(127,29,29,0.95)",
+    titleSize: 46,
+    hookSize: 14,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 400,
+    titleFont: "Creepster, Impact, serif",
+    titleStroke: "none",
+    titleShadow: "0 5px 20px #000",
+  },
+  podcast: {
+    label: "Podcast",
+    hookColor: "#a855f7",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(17,24,39,0.95)",
+    titleSize: 28,
+    hookSize: 12,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 800,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 14px rgba(0,0,0,0.8)",
+  },
+  science: {
+    label: "Science",
+    hookColor: "#0ea5e9",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(14,165,233,0.9)",
+    titleSize: 24,
+    hookSize: 11,
+    align: "left",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 800,
+    titleFont: "IBM Plex Sans, Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 14px rgba(0,0,0,0.8)",
+  },
+  retro: {
+    label: "Retro 80s",
+    hookColor: "#f472b6",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(56,189,248,0.95)",
+    titleSize: 40,
+    hookSize: 15,
+    align: "center",
+    transform: "translate(-50%, -50%) rotate(-4deg)",
+    titleWeight: 900,
+    titleFont: "Permanent Marker, Impact, sans-serif",
+    titleStroke: "1px #38bdf8",
+    titleShadow: "0 0 15px rgba(236,72,153,0.6), 0 4px 14px rgba(0,0,0,0.8)",
+  },
+  quote: {
+    label: "Quote",
+    hookColor: "#fbbf24",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(251,191,36,0.9)",
+    titleSize: 26,
+    hookSize: 30,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 400,
+    titleFont: "Georgia, serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 14px rgba(0,0,0,0.8)",
+  },
+  luxury: {
+    label: "Luxury",
+    hookColor: "#e7c873",
+    titleColor: "#fff8dc",
+    ctaBg: "rgba(180,140,40,0.95)",
+    titleSize: 34,
+    hookSize: 12,
+    align: "center",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 700,
+    titleFont: "Times New Roman, Georgia, serif",
+    titleStroke: "none",
+    titleShadow: "0 6px 20px rgba(0,0,0,0.9)",
+  },
+  documentarypro: {
+    label: "Documentary Pro",
+    hookColor: "#93c5fd",
+    titleColor: "#ffffff",
+    ctaBg: "rgba(30,41,59,0.95)",
+    titleSize: 28,
+    hookSize: 11,
+    align: "left",
+    transform: "translate(-50%, -50%)",
+    titleWeight: 800,
+    titleFont: "Inter, sans-serif",
+    titleStroke: "none",
+    titleShadow: "0 4px 14px rgba(0,0,0,0.8)",
   },
 };
 
@@ -134,12 +363,14 @@ export default function Page() {
   const [error, setError] = useState("");
 
   const [cover, setCover] = useState({
+    preset: "netflix",
     title: "ТВОЯ ИСТОРИЯ",
     subtitle: "КИНОШНЫЙ AI-РОЛИК",
     cta: "СМОТРИ ДО КОНЦА",
     posX: 50,
     posY: 58,
-    backgroundPrompt: "dark cinematic background, dramatic contrast, volumetric light, high tension",
+    backgroundPrompt:
+      "dark cinematic background, dramatic contrast, volumetric light, high tension",
   });
 
   const [characterForms, setCharacterForms] = useState([
@@ -156,6 +387,7 @@ export default function Page() {
   ]);
 
   const t = useMemo(() => TEXT[lang], [lang]);
+  const preset = COVER_PRESETS[cover.preset] || COVER_PRESETS.netflix;
 
   async function callAPI(content, system) {
     const res = await fetch("/api/chat", {
@@ -328,19 +560,34 @@ export default function Page() {
         </header>
 
         <nav style={styles.tabs}>
-          <button onClick={() => setActiveTab("studio")} style={{ ...styles.tabBtn, ...(activeTab === "studio" ? styles.tabBtnActive : {}) }}>
+          <button
+            onClick={() => setActiveTab("studio")}
+            style={{ ...styles.tabBtn, ...(activeTab === "studio" ? styles.tabBtnActive : {}) }}
+          >
             {t.tabStudio}
           </button>
-          <button onClick={() => setActiveTab("reference")} style={{ ...styles.tabBtn, ...(activeTab === "reference" ? styles.tabBtnActive : {}) }}>
+          <button
+            onClick={() => setActiveTab("reference")}
+            style={{ ...styles.tabBtn, ...(activeTab === "reference" ? styles.tabBtnActive : {}) }}
+          >
             {t.tabReference}
           </button>
-          <button onClick={() => setActiveTab("scenes")} style={{ ...styles.tabBtn, ...(activeTab === "scenes" ? styles.tabBtnActive : {}) }}>
+          <button
+            onClick={() => setActiveTab("scenes")}
+            style={{ ...styles.tabBtn, ...(activeTab === "scenes" ? styles.tabBtnActive : {}) }}
+          >
             {t.tabScenes}
           </button>
-          <button onClick={() => setActiveTab("prompts")} style={{ ...styles.tabBtn, ...(activeTab === "prompts" ? styles.tabBtnActive : {}) }}>
+          <button
+            onClick={() => setActiveTab("prompts")}
+            style={{ ...styles.tabBtn, ...(activeTab === "prompts" ? styles.tabBtnActive : {}) }}
+          >
             {t.tabPrompts}
           </button>
-          <button onClick={() => setActiveTab("cover")} style={{ ...styles.tabBtn, ...(activeTab === "cover" ? styles.tabBtnActive : {}) }}>
+          <button
+            onClick={() => setActiveTab("cover")}
+            style={{ ...styles.tabBtn, ...(activeTab === "cover" ? styles.tabBtnActive : {}) }}
+          >
             {t.tabCover}
           </button>
         </nav>
@@ -401,12 +648,20 @@ export default function Page() {
 
                     <label style={styles.label}>
                       <span>{t.name}</span>
-                      <input value={c.name} onChange={(e) => updateCharacterField(c.id, "name", e.target.value)} style={styles.input} />
+                      <input
+                        value={c.name}
+                        onChange={(e) => updateCharacterField(c.id, "name", e.target.value)}
+                        style={styles.input}
+                      />
                     </label>
 
                     <label style={styles.label}>
                       <span>{t.gender}</span>
-                      <select value={c.gender} onChange={(e) => updateCharacterField(c.id, "gender", e.target.value)} style={styles.input}>
+                      <select
+                        value={c.gender}
+                        onChange={(e) => updateCharacterField(c.id, "gender", e.target.value)}
+                        style={styles.input}
+                      >
                         <option value="male">{t.male}</option>
                         <option value="female">{t.female}</option>
                       </select>
@@ -414,12 +669,21 @@ export default function Page() {
 
                     <label style={styles.label}>
                       <span>{t.age}</span>
-                      <input type="number" value={c.age} onChange={(e) => updateCharacterField(c.id, "age", e.target.value)} style={styles.input} />
+                      <input
+                        type="number"
+                        value={c.age}
+                        onChange={(e) => updateCharacterField(c.id, "age", e.target.value)}
+                        style={styles.input}
+                      />
                     </label>
 
                     <label style={styles.label}>
                       <span>{t.style}</span>
-                      <textarea value={c.style} onChange={(e) => updateCharacterField(c.id, "style", e.target.value)} style={{ ...styles.input, minHeight: 90, resize: "vertical" }} />
+                      <textarea
+                        value={c.style}
+                        onChange={(e) => updateCharacterField(c.id, "style", e.target.value)}
+                        style={{ ...styles.input, minHeight: 90, resize: "vertical" }}
+                      />
                     </label>
                   </div>
                 ))}
@@ -502,6 +766,21 @@ export default function Page() {
 
               <div style={styles.formGrid}>
                 <label style={styles.label}>
+                  <span>{t.preset}</span>
+                  <select
+                    value={cover.preset}
+                    onChange={(e) => updateCoverField("preset", e.target.value)}
+                    style={styles.input}
+                  >
+                    {Object.entries(COVER_PRESETS).map(([key, value]) => (
+                      <option key={key} value={key}>
+                        {value.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label style={styles.label}>
                   <span>{t.coverTitle}</span>
                   <input
                     value={cover.title}
@@ -569,13 +848,42 @@ export default function Page() {
                 <div
                   style={{
                     ...styles.coverTextWrap,
+                    textAlign: preset.align,
                     left: `${cover.posX}%`,
                     top: `${cover.posY}%`,
+                    transform: preset.transform,
                   }}
                 >
-                  <div style={styles.coverHook}>{cover.subtitle}</div>
-                  <div style={styles.coverTitle}>{cover.title}</div>
-                  <div style={styles.coverCta}>{cover.cta}</div>
+                  <div
+                    style={{
+                      ...styles.coverHook,
+                      color: preset.hookColor,
+                      fontSize: preset.hookSize,
+                    }}
+                  >
+                    {cover.subtitle}
+                  </div>
+                  <div
+                    style={{
+                      ...styles.coverTitle,
+                      color: preset.titleColor,
+                      fontSize: preset.titleSize,
+                      fontWeight: preset.titleWeight,
+                      fontFamily: preset.titleFont,
+                      WebkitTextStroke: preset.titleStroke,
+                      textShadow: preset.titleShadow,
+                    }}
+                  >
+                    {cover.title}
+                  </div>
+                  <div
+                    style={{
+                      ...styles.coverCta,
+                      background: preset.ctaBg,
+                    }}
+                  >
+                    {cover.cta}
+                  </div>
                 </div>
               </div>
 
@@ -862,25 +1170,18 @@ const styles = {
   },
   coverTextWrap: {
     position: "absolute",
-    transform: "translate(-50%, -50%)",
     width: "82%",
-    textAlign: "center",
   },
   coverHook: {
-    fontSize: 13,
     fontWeight: 800,
-    color: "#fbbf24",
     letterSpacing: 2,
     textTransform: "uppercase",
     marginBottom: 8,
     textShadow: "0 2px 10px rgba(0,0,0,0.8)",
   },
   coverTitle: {
-    fontSize: 34,
-    fontWeight: 900,
     lineHeight: 1.05,
     textTransform: "uppercase",
-    textShadow: "0 6px 20px rgba(0,0,0,0.9)",
     marginBottom: 10,
   },
   coverCta: {
@@ -890,7 +1191,6 @@ const styles = {
     color: "#fff",
     padding: "8px 14px",
     borderRadius: 999,
-    background: "rgba(239,68,68,0.9)",
     boxShadow: "0 6px 16px rgba(0,0,0,0.35)",
     letterSpacing: 1,
   },
