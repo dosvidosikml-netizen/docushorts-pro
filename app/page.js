@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,9 +5,10 @@ import { SYS_SCENE_ENGINE, buildSceneUserPrompt } from "../engine/sceneEngine";
 import { SYS_PROMPT_ENGINE, buildPromptUserPrompt } from "../engine/promptEngine";
 import { SYS_REFERENCE_ENGINE, buildReferenceUserPrompt } from "../engine/referenceEngine";
 import { SYS_SEO_ENGINE, buildSeoUserPrompt } from "../engine/seoEngine";
+import { SYS_TTS_ENGINE, buildTtsUserPrompt } from "../engine/ttsEngine";
 import { buildCharacterDNA, injectCharactersIntoScript } from "../engine/characterEngine";
 
-const STORAGE_KEY = "neurocine_projects_v1";
+const STORAGE_KEY = "neurocine_projects_v3";
 
 const TEXT = {
   ru: {
@@ -23,16 +23,23 @@ const TEXT = {
     cover: "Cover Studio",
     export: "Экспорт",
     seo: "SEO + Social",
+    tts: "Озвучка",
     projects: "Проекты",
+    refImage: "Reference Image",
     noReference: "Reference пока не создан",
     noScenes: "Сцен пока нет",
     noPrompts: "Промптов пока нет",
     noSeo: "SEO пока не сгенерирован",
+    noTts: "Озвучка пока не сгенерирована",
     noProjects: "Сохранённых проектов пока нет",
+    noRefImage: "Reference image пока не загружен",
     btnScenes: "Сгенерировать сцены",
     btnReference: "Сгенерировать reference",
     btnPrompts: "Сгенерировать промпты",
     btnSeo: "Сгенерировать SEO",
+    btnTts: "Сгенерировать озвучку",
+    btnSpeak: "Слушать",
+    btnStop: "Стоп",
     loading: "Генерация...",
     name: "Имя",
     gender: "Пол",
@@ -53,9 +60,11 @@ const TEXT = {
     tabScenes: "Сцены",
     tabPrompts: "Промпты",
     tabReference: "Reference",
+    tabRefImage: "Ref Image",
     tabCover: "Обложка",
     tabExport: "Экспорт",
     tabSeo: "SEO",
+    tabTts: "Озвучка",
     tabProjects: "Проекты",
     male: "Мужской",
     female: "Женский",
@@ -75,8 +84,10 @@ const TEXT = {
     exportScenes: "Экспорт сцен",
     exportPrompts: "Экспорт промптов",
     exportReference: "Экспорт reference",
+    exportRefImage: "Экспорт reference image",
     exportCover: "Экспорт cover",
     exportSeo: "Экспорт SEO",
+    exportTts: "Экспорт TTS",
     edit: "Редактировать",
     save: "Сохранить",
     cancel: "Отмена",
@@ -99,6 +110,14 @@ const TEXT = {
     autoSaved: "Автосохранение черновика включено",
     createdAt: "Создан",
     updatedAt: "Обновлён",
+    uploadRef: "Загрузить reference image",
+    removeRef: "Удалить reference image",
+    refNote: "Этот image anchor сохраняется в проекте и помечает промпты как I2V-ready.",
+    refFileName: "Имя файла",
+    refImageUsed: "Использовать uploaded reference",
+    refImageActive: "Uploaded reference image активен",
+    ttsFullScript: "Полный текст озвучки",
+    ttsSegments: "Сегменты озвучки",
   },
   en: {
     appTitle: "NeuroCine Studio",
@@ -112,16 +131,23 @@ const TEXT = {
     cover: "Cover Studio",
     export: "Export",
     seo: "SEO + Social",
+    tts: "Voiceover",
     projects: "Projects",
+    refImage: "Reference Image",
     noReference: "Reference not created yet",
     noScenes: "No scenes yet",
     noPrompts: "No prompts yet",
     noSeo: "SEO not generated yet",
+    noTts: "Voiceover not generated yet",
     noProjects: "No saved projects yet",
+    noRefImage: "No reference image uploaded yet",
     btnScenes: "Generate scenes",
     btnReference: "Generate reference",
     btnPrompts: "Generate prompts",
     btnSeo: "Generate SEO",
+    btnTts: "Generate voiceover",
+    btnSpeak: "Speak",
+    btnStop: "Stop",
     loading: "Generating...",
     name: "Name",
     gender: "Gender",
@@ -142,9 +168,11 @@ const TEXT = {
     tabScenes: "Scenes",
     tabPrompts: "Prompts",
     tabReference: "Reference",
+    tabRefImage: "Ref Image",
     tabCover: "Cover",
     tabExport: "Export",
     tabSeo: "SEO",
+    tabTts: "Voiceover",
     tabProjects: "Projects",
     male: "Male",
     female: "Female",
@@ -164,8 +192,10 @@ const TEXT = {
     exportScenes: "Export scenes",
     exportPrompts: "Export prompts",
     exportReference: "Export reference",
+    exportRefImage: "Export reference image",
     exportCover: "Export cover",
     exportSeo: "Export SEO",
+    exportTts: "Export TTS",
     edit: "Edit",
     save: "Save",
     cancel: "Cancel",
@@ -188,6 +218,14 @@ const TEXT = {
     autoSaved: "Draft autosave enabled",
     createdAt: "Created",
     updatedAt: "Updated",
+    uploadRef: "Upload reference image",
+    removeRef: "Remove reference image",
+    refNote: "This image anchor is stored in the project and marks prompts as I2V-ready.",
+    refFileName: "File name",
+    refImageUsed: "Use uploaded reference",
+    refImageActive: "Uploaded reference image is active",
+    ttsFullScript: "Full voiceover script",
+    ttsSegments: "Voiceover segments",
   },
 };
 
@@ -266,10 +304,12 @@ export default function Page() {
   const [prompts, setPrompts] = useState([]);
   const [reference, setReference] = useState(null);
   const [seo, setSeo] = useState(null);
+  const [tts, setTts] = useState(null);
   const [loadingScenes, setLoadingScenes] = useState(false);
   const [loadingReference, setLoadingReference] = useState(false);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [loadingSeo, setLoadingSeo] = useState(false);
+  const [loadingTts, setLoadingTts] = useState(false);
   const [error, setError] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const [editingScene, setEditingScene] = useState(null);
@@ -277,6 +317,12 @@ export default function Page() {
   const [projectName, setProjectName] = useState("NeuroCine Project");
   const [savedProjects, setSavedProjects] = useState([]);
   const [saveStatus, setSaveStatus] = useState("");
+  const [refImage, setRefImage] = useState({
+    dataUrl: "",
+    fileName: "",
+    mimeType: "",
+    useAsAnchor: true,
+  });
 
   const [cover, setCover] = useState({
     preset: "netflix",
@@ -321,7 +367,9 @@ export default function Page() {
       prompts,
       reference,
       seo,
+      tts,
       cover,
+      refImage,
       characterForms,
       characters,
       createdAt: new Date().toISOString(),
@@ -342,7 +390,9 @@ export default function Page() {
         prompts,
         reference,
         seo,
+        tts,
         cover,
+        refImage,
         characterForms,
         characters,
         updatedAt: new Date().toISOString(),
@@ -366,7 +416,9 @@ export default function Page() {
     setPrompts(project.prompts || []);
     setReference(project.reference || null);
     setSeo(project.seo || null);
+    setTts(project.tts || null);
     setCover(project.cover || cover);
+    setRefImage(project.refImage || { dataUrl: "", fileName: "", mimeType: "", useAsAnchor: true });
     setCharacterForms(project.characterForms || [{ ...makeFormCharacter(1), name: "Alex" }]);
     setCharacters(project.characters || [
       buildCharacterDNA({ name: "Alex", gender: "male", age: 28, style: "black tactical jacket, cinematic look" }),
@@ -393,18 +445,20 @@ export default function Page() {
       prompts,
       reference,
       seo,
+      tts,
       cover,
+      refImage,
       characterForms,
       characters,
       updatedAt: new Date().toISOString(),
     };
-    localStorage.setItem("neurocine_draft_v1", JSON.stringify(draft));
-  }, [projectName, lang, script, scenes, prompts, reference, seo, cover, characterForms, characters]);
+    localStorage.setItem("neurocine_draft_v3", JSON.stringify(draft));
+  }, [projectName, lang, script, scenes, prompts, reference, seo, tts, cover, refImage, characterForms, characters]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const draft = JSON.parse(localStorage.getItem("neurocine_draft_v1") || "null");
+      const draft = JSON.parse(localStorage.getItem("neurocine_draft_v3") || "null");
       if (draft) {
         setProjectName(draft.projectName || "NeuroCine Project");
         setLang(draft.lang || "ru");
@@ -413,6 +467,7 @@ export default function Page() {
         setPrompts(draft.prompts || []);
         setReference(draft.reference || null);
         setSeo(draft.seo || null);
+        setTts(draft.tts || null);
         setCover(draft.cover || {
           preset: "netflix",
           title: "ТВОЯ ИСТОРИЯ",
@@ -422,6 +477,7 @@ export default function Page() {
           posY: 58,
           backgroundPrompt: "dark cinematic background, dramatic contrast, volumetric light, high tension",
         });
+        setRefImage(draft.refImage || { dataUrl: "", fileName: "", mimeType: "", useAsAnchor: true });
         setCharacterForms(draft.characterForms || [{ ...makeFormCharacter(1), name: "Alex" }]);
         setCharacters(draft.characters || [
           buildCharacterDNA({ name: "Alex", gender: "male", age: 28, style: "black tactical jacket, cinematic look" }),
@@ -477,6 +533,31 @@ export default function Page() {
     setScenes([]);
     setPrompts([]);
     setSeo(null);
+    setTts(null);
+  }
+
+  function handleRefImageUpload(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRefImage({
+        dataUrl: String(reader.result || ""),
+        fileName: file.name || "",
+        mimeType: file.type || "",
+        useAsAnchor: true,
+      });
+      setPrompts([]);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeRefImage() {
+    setRefImage({
+      dataUrl: "",
+      fileName: "",
+      mimeType: "",
+      useAsAnchor: true,
+    });
   }
 
   async function generateScenes() {
@@ -486,7 +567,12 @@ export default function Page() {
       setScenes([]);
       setPrompts([]);
       setSeo(null);
-      const scriptWithChars = injectCharactersIntoScript(script, characters);
+      setTts(null);
+      const extraRefText =
+        refImage.dataUrl && refImage.useAsAnchor
+          ? `\n\nUploaded reference image is available and should be treated as the identity anchor for recurring characters.`
+          : "";
+      const scriptWithChars = injectCharactersIntoScript(script, characters) + extraRefText;
       const prompt = buildSceneUserPrompt({ script: scriptWithChars, mode: "shorts", total: 60, characters });
       const raw = await callAPI(prompt, SYS_SCENE_ENGINE);
       const data = cleanJSON(raw);
@@ -503,7 +589,11 @@ export default function Page() {
     try {
       setLoadingReference(true);
       setError("");
-      const prompt = buildReferenceUserPrompt({ characters });
+      const extra =
+        refImage.dataUrl && refImage.useAsAnchor
+          ? `\n\nAn uploaded reference image exists and must be considered the strongest identity anchor. File name: ${refImage.fileName}`
+          : "";
+      const prompt = buildReferenceUserPrompt({ characters }) + extra;
       const raw = await callAPI(prompt, SYS_REFERENCE_ENGINE);
       const data = cleanJSON(raw);
       setReference(data.reference || null);
@@ -520,10 +610,24 @@ export default function Page() {
       setLoadingPrompts(true);
       setError("");
       setPrompts([]);
-      const prompt = buildPromptUserPrompt({ scenes, reference });
+      const refAnchorText =
+        refImage.dataUrl && refImage.useAsAnchor
+          ? `\n\nIMPORTANT: Uploaded reference image is present and must be used as the I2V anchor. Prefer I2V for recurring characters. File name: ${refImage.fileName}`
+          : "";
+      const prompt = buildPromptUserPrompt({ scenes, reference }) + refAnchorText;
       const raw = await callAPI(prompt, SYS_PROMPT_ENGINE);
       const data = cleanJSON(raw);
-      setPrompts(data.prompts || []);
+
+      let nextPrompts = data.prompts || [];
+      if (refImage.dataUrl && refImage.useAsAnchor) {
+        nextPrompts = nextPrompts.map((p) => ({
+          ...p,
+          generation_mode_final: "I2V",
+          vidPrompt_EN: `${p.vidPrompt_EN || ""}\n\nUse uploaded reference image as identity anchor for character consistency.`,
+        }));
+      }
+
+      setPrompts(nextPrompts);
       setActiveTab("prompts");
     } catch (e) {
       setError(e?.message || "Unknown error");
@@ -546,6 +650,35 @@ export default function Page() {
     } finally {
       setLoadingSeo(false);
     }
+  }
+
+  async function generateTts() {
+    try {
+      setLoadingTts(true);
+      setError("");
+      const prompt = buildTtsUserPrompt({ scenes, language: lang });
+      const raw = await callAPI(prompt, SYS_TTS_ENGINE);
+      const data = cleanJSON(raw);
+      setTts(data.tts || null);
+      setActiveTab("tts");
+    } catch (e) {
+      setError(e?.message || "Unknown error");
+    } finally {
+      setLoadingTts(false);
+    }
+  }
+
+  function speakText(text) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === "ru" ? "ru-RU" : "en-US";
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopSpeech() {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
   }
 
   function updateCoverField(field, value) {
@@ -575,6 +708,18 @@ export default function Page() {
   const exportReference = JSON.stringify(reference || {}, null, 2);
   const exportCover = JSON.stringify(cover, null, 2);
   const exportSeo = JSON.stringify(seo || {}, null, 2);
+  const exportTts = JSON.stringify(tts || {}, null, 2);
+  const exportRefImage = JSON.stringify(
+    {
+      fileName: refImage.fileName,
+      mimeType: refImage.mimeType,
+      useAsAnchor: refImage.useAsAnchor,
+      hasData: Boolean(refImage.dataUrl),
+      dataUrl: refImage.dataUrl,
+    },
+    null,
+    2
+  );
 
   return (
     <main style={styles.page}>
@@ -597,8 +742,10 @@ export default function Page() {
         <nav style={styles.tabs}>
           <button onClick={() => setActiveTab("studio")} style={{ ...styles.tabBtn, ...(activeTab === "studio" ? styles.tabBtnActive : {}) }}>{t.tabStudio}</button>
           <button onClick={() => setActiveTab("reference")} style={{ ...styles.tabBtn, ...(activeTab === "reference" ? styles.tabBtnActive : {}) }}>{t.tabReference}</button>
+          <button onClick={() => setActiveTab("refimage")} style={{ ...styles.tabBtn, ...(activeTab === "refimage" ? styles.tabBtnActive : {}) }}>{t.tabRefImage}</button>
           <button onClick={() => setActiveTab("scenes")} style={{ ...styles.tabBtn, ...(activeTab === "scenes" ? styles.tabBtnActive : {}) }}>{t.tabScenes}</button>
           <button onClick={() => setActiveTab("prompts")} style={{ ...styles.tabBtn, ...(activeTab === "prompts" ? styles.tabBtnActive : {}) }}>{t.tabPrompts}</button>
+          <button onClick={() => setActiveTab("tts")} style={{ ...styles.tabBtn, ...(activeTab === "tts" ? styles.tabBtnActive : {}) }}>{t.tabTts}</button>
           <button onClick={() => setActiveTab("cover")} style={{ ...styles.tabBtn, ...(activeTab === "cover" ? styles.tabBtnActive : {}) }}>{t.tabCover}</button>
           <button onClick={() => setActiveTab("seo")} style={{ ...styles.tabBtn, ...(activeTab === "seo" ? styles.tabBtnActive : {}) }}>{t.tabSeo}</button>
           <button onClick={() => setActiveTab("projects")} style={{ ...styles.tabBtn, ...(activeTab === "projects" ? styles.tabBtnActive : {}) }}>{t.tabProjects}</button>
@@ -633,6 +780,7 @@ export default function Page() {
                 <button onClick={generateScenes} style={styles.primaryBtn}>{loadingScenes ? `⏳ ${t.loading}` : `🚀 ${t.btnScenes}`}</button>
                 <button onClick={generateReference} style={styles.secondaryBtn}>{loadingReference ? `⏳ ${t.loading}` : `🖼 ${t.btnReference}`}</button>
                 <button onClick={generatePrompts} style={styles.secondaryBlueBtn}>{loadingPrompts ? `⏳ ${t.loading}` : `🎥 ${t.btnPrompts}`}</button>
+                <button onClick={generateTts} style={styles.secondaryOrangeBtn}>{loadingTts ? `⏳ ${t.loading}` : `🔊 ${t.btnTts}`}</button>
                 <button onClick={generateSeo} style={styles.secondaryGreenBtn}>{loadingSeo ? `⏳ ${t.loading}` : `📈 ${t.btnSeo}`}</button>
               </div>
             </div>
@@ -644,10 +792,10 @@ export default function Page() {
                 <button onClick={updateCharacters} style={styles.secondaryBlueBtn}>🧬 {t.saveCharacter}</button>
               </div>
               <div style={styles.formGrid}>
-                {characterForms.map((c, idx) => (
+                {characterForms.map((c) => (
                   <div key={c.id} style={styles.characterCard}>
                     <div style={styles.sceneHead}>
-                      <div style={styles.sceneId}>{c.name || `Character ${idx + 1}`}</div>
+                      <div style={styles.sceneId}>{c.name || "Character"}</div>
                       {characterForms.length > 1 ? <button onClick={() => removeCharacter(c.id)} style={styles.removeBtn}>{t.removeCharacter}</button> : null}
                     </div>
                     <label style={styles.label}><span>{t.name}</span><input value={c.name} onChange={(e) => updateCharacterField(c.id, "name", e.target.value)} style={styles.input} /></label>
@@ -658,6 +806,102 @@ export default function Page() {
                 ))}
               </div>
             </div>
+          </section>
+        )}
+
+        {activeTab === "refimage" && (
+          <section style={styles.grid}>
+            <div style={styles.cardLarge}>
+              <div style={styles.cardTitle}>{t.refImage}</div>
+
+              <div style={styles.actions}>
+                <label style={styles.secondaryBlueBtnLabel}>
+                  📤 {t.uploadRef}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => handleRefImageUpload(e.target.files?.[0])}
+                  />
+                </label>
+
+                {refImage.dataUrl ? (
+                  <button onClick={removeRefImage} style={styles.removeBtn}>
+                    {t.removeRef}
+                  </button>
+                ) : null}
+              </div>
+
+              <label style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={refImage.useAsAnchor}
+                  onChange={(e) =>
+                    setRefImage((prev) => ({ ...prev, useAsAnchor: e.target.checked }))
+                  }
+                />
+                <span>{t.refImageUsed}</span>
+              </label>
+
+              <div style={styles.noteBox}>{t.refNote}</div>
+
+              {refImage.fileName ? (
+                <div style={styles.metaText}>
+                  <b>{t.refFileName}:</b> {refImage.fileName}
+                </div>
+              ) : null}
+
+              {refImage.useAsAnchor && refImage.dataUrl ? (
+                <div style={styles.statusPill}>{t.refImageActive}</div>
+              ) : null}
+            </div>
+
+            <div style={styles.cardSide}>
+              <div style={styles.cardTitle}>{t.preview}</div>
+              {!refImage.dataUrl ? (
+                <div style={styles.empty}>{t.noRefImage}</div>
+              ) : (
+                <div style={styles.refImageWrap}>
+                  <img src={refImage.dataUrl} alt="reference" style={styles.refImagePreview} />
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === "tts" && (
+          <section style={styles.cardFull}>
+            <div style={styles.cardTitle}>{t.tts}</div>
+            {!tts ? (
+              <div style={styles.empty}>{t.noTts}</div>
+            ) : (
+              <div style={styles.stack}>
+                <div style={styles.actions}>
+                  <button onClick={() => speakText(tts.full_script || "")} style={styles.secondaryOrangeBtn}>{t.btnSpeak}</button>
+                  <button onClick={stopSpeech} style={styles.secondaryBtn}>{t.btnStop}</button>
+                </div>
+
+                <div style={styles.sceneBox}>
+                  <div><b>{t.ttsFullScript}:</b></div>
+                  <div style={styles.codeBlock}>{tts.full_script || ""}</div>
+                </div>
+
+                <div style={styles.sceneBox}>
+                  <div><b>{t.ttsSegments}:</b></div>
+                  <div style={styles.stack}>
+                    {(tts.segments || []).map((seg, idx) => (
+                      <div key={idx} style={styles.segmentBox}>
+                        <div style={styles.sceneHead}>
+                          <div style={styles.sceneId}>{seg.scene_id || `segment_${idx + 1}`}</div>
+                          <button onClick={() => speakText(seg.text || "")} style={styles.secondaryBtnSmall}>{t.btnSpeak}</button>
+                        </div>
+                        <div style={styles.codeBlock}>{seg.text || ""}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -887,6 +1131,16 @@ export default function Page() {
 
               <div style={styles.exportBlock}>
                 <div style={styles.sceneHead}>
+                  <div style={styles.sceneId}>{t.exportRefImage}</div>
+                  <button onClick={() => copyText("refimage", exportRefImage)} style={styles.secondaryBtn}>
+                    {copiedKey === "refimage" ? t.copied : t.copy}
+                  </button>
+                </div>
+                <div style={styles.codeBlock}>{exportRefImage}</div>
+              </div>
+
+              <div style={styles.exportBlock}>
+                <div style={styles.sceneHead}>
                   <div style={styles.sceneId}>{t.exportCover}</div>
                   <button onClick={() => copyText("cover", exportCover)} style={styles.secondaryBtn}>
                     {copiedKey === "cover" ? t.copied : t.copy}
@@ -903,6 +1157,16 @@ export default function Page() {
                   </button>
                 </div>
                 <div style={styles.codeBlock}>{exportSeo}</div>
+              </div>
+
+              <div style={styles.exportBlock}>
+                <div style={styles.sceneHead}>
+                  <div style={styles.sceneId}>{t.exportTts}</div>
+                  <button onClick={() => copyText("tts", exportTts)} style={styles.secondaryBtn}>
+                    {copiedKey === "tts" ? t.copied : t.copy}
+                  </button>
+                </div>
+                <div style={styles.codeBlock}>{exportTts}</div>
               </div>
             </div>
           </section>
@@ -941,6 +1205,8 @@ const styles = {
   secondaryBtn: { padding: "14px 18px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontWeight: 800, fontSize: 15 },
   secondaryBlueBtn: { padding: "14px 18px", borderRadius: 14, border: "1px solid rgba(59,130,246,0.45)", background: "linear-gradient(135deg, #2563eb, #3b82f6)", color: "#fff", fontWeight: 800, fontSize: 15 },
   secondaryGreenBtn: { padding: "14px 18px", borderRadius: 14, border: "1px solid rgba(16,185,129,0.45)", background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontWeight: 800, fontSize: 15 },
+  secondaryOrangeBtn: { padding: "14px 18px", borderRadius: 14, border: "1px solid rgba(249,115,22,0.45)", background: "linear-gradient(135deg, #ea580c, #f97316)", color: "#fff", fontWeight: 800, fontSize: 15 },
+  secondaryBlueBtnLabel: { display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "14px 18px", borderRadius: 14, border: "1px solid rgba(59,130,246,0.45)", background: "linear-gradient(135deg, #2563eb, #3b82f6)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" },
   secondaryBtnSmall: { padding: "8px 10px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontWeight: 700, fontSize: 12 },
   formGrid: { display: "grid", gap: 12 },
   exportBlock: { display: "grid", gap: 8 },
@@ -950,10 +1216,11 @@ const styles = {
   empty: { padding: 16, borderRadius: 14, background: "rgba(255,255,255,0.03)", color: "#a1a1aa" },
   stack: { display: "grid", gap: 14 },
   sceneBox: { padding: 14, borderRadius: 14, background: "#0f172a", border: "1px solid #334155", display: "grid", gap: 8 },
+  segmentBox: { padding: 12, borderRadius: 12, background: "#111827", border: "1px solid #334155" },
   sceneHead: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 2 },
   sceneId: { fontSize: 18, fontWeight: 900 },
   badge: { fontSize: 12, color: "#c4b5fd", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.35)", padding: "6px 10px", borderRadius: 999 },
-  codeBlock: { marginTop: 6, padding: 12, borderRadius: 10, background: "#020617", border: "1px solid #334155", whiteSpace: "pre-wrap", lineHeight: 1.5, color: "#e4e4e7" },
+  codeBlock: { marginTop: 6, padding: 12, borderRadius: 10, background: "#020617", border: "1px solid #334155", whiteSpace: "pre-wrap", lineHeight: 1.5, color: "#e4e4e7", overflowX: "auto" },
   removeBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontWeight: 700 },
   coverPreview: { position: "relative", width: "100%", aspectRatio: "9 / 16", overflow: "hidden", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", background: "#0b1120", marginBottom: 14 },
   coverBg: { position: "absolute", inset: 0, background: "radial-gradient(circle at 30% 20%, rgba(168,85,247,0.35), transparent 30%), radial-gradient(circle at 70% 80%, rgba(59,130,246,0.22), transparent 30%), linear-gradient(180deg, #0f172a 0%, #020617 100%)" },
@@ -964,6 +1231,10 @@ const styles = {
   statusPill: { display: "inline-flex", alignItems: "center", padding: "10px 12px", borderRadius: 999, background: "rgba(16,185,129,0.16)", color: "#86efac", border: "1px solid rgba(16,185,129,0.35)", fontWeight: 700 },
   statusGhost: { display: "inline-flex", alignItems: "center", padding: "10px 12px", borderRadius: 999, background: "rgba(255,255,255,0.04)", color: "#a1a1aa", border: "1px solid rgba(255,255,255,0.08)", fontWeight: 700 },
   metaText: { color: "#a1a1aa", fontSize: 13, marginTop: 4 },
+  noteBox: { padding: 12, borderRadius: 12, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", color: "#bfdbfe", lineHeight: 1.5 },
+  checkboxRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 12, color: "#e4e4e7" },
+  refImageWrap: { borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "#020617" },
+  refImagePreview: { display: "block", width: "100%", height: "auto", objectFit: "cover" },
 };
 
 const modal = {
