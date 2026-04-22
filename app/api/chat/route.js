@@ -17,15 +17,7 @@ function checkRateLimit(ip) {
 
 // ─── Whitelist разрешённых моделей ───────────────────────────────────────────
 const ALLOWED_MODELS = new Set([
-  "meta-llama/llama-3.3-70b-instruct",
-  "meta-llama/llama-3.1-8b-instruct",
-  "google/gemma-3-27b-it",
-  "mistralai/mistral-7b-instruct",
-  "deepseek/deepseek-r1-distill-llama-70b",
   "anthropic/claude-sonnet-4-6",
-  "anthropic/claude-sonnet-4-5",
-  "google/gemini-2.5-pro-preview",
-  "google/gemini-2.5-pro-exp-03-25",
   "openai/gpt-4o-mini",
 ]);
 
@@ -70,10 +62,10 @@ export async function POST(req) {
     }
 
     // 4. Whitelist моделей
-    const requestedModel = body.model || "meta-llama/llama-3.3-70b-instruct";
+    const requestedModel = body.model || "anthropic/claude-sonnet-4-6";
     const model = ALLOWED_MODELS.has(requestedModel)
       ? requestedModel
-      : "meta-llama/llama-3.3-70b-instruct";
+      : "anthropic/claude-sonnet-4-6";
 
     const maxTokens = Math.min(body.max_tokens || 4000, 8000);
 
