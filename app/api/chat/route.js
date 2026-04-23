@@ -42,13 +42,13 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-
     const topic = body.topic || "";
+
     if (!topic) {
       return json({ error: "Topic required" }, 400);
     }
 
-    // 🔥 НОВЫЙ ДВИЖОК (короткие промпты)
+    // 🔥 SYSTEM PROMPT (короткие и нормальные промпты)
     const systemPrompt = `
 You are an elite short-form video generator.
 
@@ -71,9 +71,6 @@ subject + environment + lighting + camera + style
 
 video_prompt:
 camera movement + micro motion + environment motion
-
-NO LONG SENTENCES.
-NO GENERIC WORDS.
 
 HOOKS:
 Generate 5 hooks (max 10 words each)
@@ -120,13 +117,25 @@ OUTPUT:
     );
 
     const data = await response.json();
+    const raw = data?.choices?.[0]?.message?.content;
 
-    const raw = data.choices?.[0]?.message?.content;
-    if (!raw) throw new Error("Empty response");
+    if (!raw) {
+      return json({ error: "Empty AI response" }, 500);
+    }
 
-    let parsed = JSON.parse(raw);
+    let parsed;
 
-    // 🔥 ЖЁСТКАЯ ОБРЕЗКА (фикс качества)
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      return json({ error: "AI вернул не JSON", raw }, 500);
+    }
+
+    // страховка чтобы UI не ломался
+    if (!parsed.frames) parsed.frames = [];
+    if (!parsed.hooks) parsed.hooks = [];
+
+    // обрезка чтобы не было мусора
     const clamp = (str, max) =>
       typeof str === "string" ? str.slice(0, max) : "";
 
@@ -140,8 +149,8 @@ OUTPUT:
     }));
 
     return json(parsed);
+
   } catch (e) {
-    console.error(e);
     return json({ error: e.message }, 500);
   }
 }
