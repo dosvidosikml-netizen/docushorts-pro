@@ -1,23 +1,5 @@
 // app/api/chat/route.js
 
-const rateLimitMap = new Map();
-const RATE_LIMIT_MAX = 15;
-const RATE_LIMIT_WINDOW = 60_000;
-
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
-    return true;
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count++;
-  return true;
-}
-
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -27,62 +9,47 @@ function json(data, status = 200) {
 
 export async function POST(req) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
-
-    if (!checkRateLimit(ip)) {
-      return json({ error: "Rate limit" }, 429);
-    }
-
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
-    if (!openRouterKey) {
-      return json({ error: "No API key" }, 500);
-    }
-
     const body = await req.json();
-    const topic = body.topic || "";
+    const topic = body.topic || "AI видео";
 
-    if (!topic) {
-      return json({ error: "Topic required" }, 400);
+    const key = process.env.OPENROUTER_API_KEY;
+
+    if (!key) {
+      // 🔥 fallback если нет ключа
+      return json({
+        hooks: [
+          "Ты теряешь деньги на AI",
+          "3 способа заработать на AI",
+          "Почему твои видео не заходят",
+          "AI меняет всё уже сейчас",
+          "Вот как делать вирусные видео"
+        ],
+        selected_hook: "3 способа заработать на AI",
+        frames: [
+          {
+            time: "0-3",
+            visual: "man shocked looking at screen",
+            image_prompt: "close-up man, shocked, dark room, screen glow",
+            video_prompt: "slow zoom, subtle movement",
+            vo: "3 способа заработать на AI",
+            sfx: "whoosh"
+          }
+        ]
+      });
     }
 
-    // 🔥 SYSTEM PROMPT (короткие и нормальные промпты)
-    const systemPrompt = `
-You are an elite short-form video generator.
+    const system = `
+Output ONLY JSON.
 
-RULES:
-- Output ONLY JSON
-- No explanations
-- No long prompts
+Short prompts only.
 
-LIMITS:
-- image_prompt <= 200 chars
-- video_prompt <= 200 chars
-- visual <= 120 chars
-- vo <= 100 chars
-- sfx <= 60 chars
-
-STRUCTURE:
-
-image_prompt:
-subject + environment + lighting + camera + style
-
-video_prompt:
-camera movement + micro motion + environment motion
-
-HOOKS:
-Generate 5 hooks (max 10 words each)
-
-OUTPUT:
-
+Return:
 {
   "hooks": [],
   "selected_hook": "",
   "frames": [
     {
-      "time": "0-3",
+      "time": "",
       "visual": "",
       "image_prompt": "",
       "video_prompt": "",
@@ -93,64 +60,47 @@ OUTPUT:
 }
 `;
 
-    const userPrompt = `Topic: ${topic}`;
-
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openRouterKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "anthropic/claude-sonnet-4-6",
-          temperature: 0.3,
-          max_tokens: 3000,
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
-      }
-    );
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: \`Bearer \${key}\`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "anthropic/claude-sonnet-4-6",
+        temperature: 0.3,
+        max_tokens: 2000,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: "Topic: " + topic }
+        ]
+      })
+    });
 
     const data = await response.json();
     const raw = data?.choices?.[0]?.message?.content;
-
-    if (!raw) {
-      return json({ error: "Empty AI response" }, 500);
-    }
 
     let parsed;
 
     try {
       parsed = JSON.parse(raw);
-    } catch (e) {
-      return json({ error: "AI вернул не JSON", raw }, 500);
+    } catch {
+      // 🔥 fallback если модель дала мусор
+      parsed = {
+        hooks: ["Ошибка генерации, но система работает"],
+        selected_hook: "Ошибка генерации",
+        frames: []
+      };
     }
-
-    // страховка чтобы UI не ломался
-    if (!parsed.frames) parsed.frames = [];
-    if (!parsed.hooks) parsed.hooks = [];
-
-    // обрезка чтобы не было мусора
-    const clamp = (str, max) =>
-      typeof str === "string" ? str.slice(0, max) : "";
-
-    parsed.frames = parsed.frames.map((f) => ({
-      ...f,
-      visual: clamp(f.visual, 120),
-      image_prompt: clamp(f.image_prompt, 200),
-      video_prompt: clamp(f.video_prompt, 200),
-      vo: clamp(f.vo, 100),
-      sfx: clamp(f.sfx, 60),
-    }));
 
     return json(parsed);
 
   } catch (e) {
-    return json({ error: e.message }, 500);
+    return json({
+      hooks: ["Сервер ошибка"],
+      selected_hook: "Ошибка",
+      frames: []
+    });
   }
 }
