@@ -1,42 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Menu,
-  X,
-  Sparkles,
-  Clapperboard,
-  Wand2,
-  Users,
-  Mic2,
-  ImageIcon,
-  FolderKanban,
-  FileJson,
-  Search,
-  Bell,
-  Settings2,
-  Play,
-  Download,
-  Upload,
-  ChevronRight,
-  Check,
-  PanelLeftClose,
-  PanelLeftOpen,
-  MoreHorizontal,
-  ArrowUpRight,
-  Clock3,
-  Layers3,
-} from "lucide-react";
 
 const NAV_ITEMS = [
-  { id: "studio", label: "Studio", icon: Sparkles },
-  { id: "scenes", label: "Scenes", icon: Clapperboard },
-  { id: "prompts", label: "Prompts", icon: Wand2 },
-  { id: "references", label: "Character DNA", icon: Users },
-  { id: "tts", label: "TTS Studio", icon: Mic2 },
+  { id: "studio", label: "Studio", icon: SparklesIcon },
+  { id: "scenes", label: "Scenes", icon: ClapperboardIcon },
+  { id: "prompts", label: "Prompts", icon: WandIcon },
+  { id: "references", label: "Character DNA", icon: UsersIcon },
+  { id: "tts", label: "TTS Studio", icon: MicIcon },
   { id: "cover", label: "Cover Studio", icon: ImageIcon },
-  { id: "projects", label: "Projects", icon: FolderKanban },
-  { id: "data", label: "Export / Import", icon: FileJson },
+  { id: "projects", label: "Projects", icon: FolderIcon },
+  { id: "data", label: "Export / Import", icon: FileJsonIcon },
 ];
 
 const STUDIO_TABS = [
@@ -142,7 +116,7 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
       script,
       notes,
       exportedAt: new Date().toISOString(),
-      version: "page-v2-ultra-clean",
+      version: "page-v2-ultra-clean-no-lucide",
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -252,7 +226,7 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
               className="flex w-full items-center justify-between rounded-2xl border border-white/6 bg-white/[0.02] px-3 py-3 text-left text-sm text-white/76 transition hover:bg-white/[0.05] hover:text-white"
             >
               <span>{item}</span>
-              <ChevronRight size={15} className="text-white/28" />
+              <ChevronRightIcon size={15} className="text-white/28" />
             </button>
           ))}
         </CleanPanel>
@@ -263,7 +237,7 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
           bodyClassName="space-y-3"
           action={
             <button className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2 text-sm text-white/76 transition hover:bg-white/[0.07]">
-              <Play size={15} />
+              <PlayIcon size={15} />
               Generate
             </button>
           }
@@ -322,7 +296,7 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
           subtitle="Primary TTS surface"
           action={
             <button className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2 text-sm text-white/76 transition hover:bg-white/[0.07]">
-              <Play size={15} />
+              <PlayIcon size={15} />
               Preview
             </button>
           }
@@ -378,14 +352,14 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
             onClick={exportProjectJson}
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition hover:bg-white/[0.07]"
           >
-            <Download size={16} />
+            <DownloadIcon size={16} />
             Export .json
           </button>
         </CleanPanel>
 
         <CleanPanel title="Import" subtitle="Restore from file">
           <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-4 py-3 text-sm font-medium text-white/82 transition hover:bg-white/[0.05]">
-            <Upload size={16} />
+            <UploadIcon size={16} />
             Import .json
             <input
               type="file"
@@ -446,7 +420,7 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-black">
-                    <Sparkles size={18} />
+                    <SparklesIcon size={18} />
                   </div>
 
                   {!sidebarCollapsed && (
@@ -463,13 +437,13 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/70 lg:hidden"
                 >
-                  <X size={16} />
+                  <XIcon size={16} />
                 </button>
               </div>
 
               {!sidebarCollapsed && (
                 <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/6 bg-white/[0.025] px-3 py-2.5">
-                  <Search size={15} className="text-white/28" />
+                  <SearchIcon size={15} className="text-white/28" />
                   <input
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
@@ -515,9 +489,9 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
                 className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white/70 transition hover:bg-white/[0.06]"
               >
                 {sidebarCollapsed ? (
-                  <PanelLeftOpen size={16} />
+                  <PanelLeftOpenIcon size={16} />
                 ) : (
-                  <PanelLeftClose size={16} />
+                  <PanelLeftCloseIcon size={16} />
                 )}
                 {!sidebarCollapsed && <span>Collapse</span>}
               </button>
@@ -534,7 +508,7 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
                     onClick={() => setMobileMenuOpen(true)}
                     className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.04] text-white/72 lg:hidden"
                   >
-                    <Menu size={18} />
+                    <MenuIcon size={18} />
                   </button>
 
                   <div className="min-w-0">
@@ -549,13 +523,13 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
 
                 <div className="flex items-center gap-2">
                   <button className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.04] text-white/70 transition hover:bg-white/[0.07] md:flex">
-                    <Bell size={16} />
+                    <BellIcon size={16} />
                   </button>
                   <button className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.04] text-white/70 transition hover:bg-white/[0.07] md:flex">
-                    <Settings2 size={16} />
+                    <SettingsIcon size={16} />
                   </button>
                   <button className="inline-flex h-10 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-medium text-black transition hover:opacity-90">
-                    <Check size={16} />
+                    <CheckIcon size={16} />
                     Save
                   </button>
                 </div>
@@ -582,8 +556,8 @@ The interface should feel closer to AI Studio, Linear, and Notion than to a heav
                   })}
 
                   <div className="ml-auto hidden items-center gap-2 lg:flex">
-                    <TopMeta icon={Clock3} text="Autosave on" />
-                    <TopMeta icon={Layers3} text="Compact shell" />
+                    <TopMeta icon={ClockIcon} text="Autosave on" />
+                    <TopMeta icon={LayersIcon} text="Compact shell" />
                   </div>
                 </div>
               )}
@@ -651,7 +625,7 @@ function HeroBlock({ title, description, badge }) {
 
         <button className="inline-flex items-center gap-2 self-start rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-sm text-white/78 transition hover:bg-white/[0.07]">
           Open roadmap
-          <ArrowUpRight size={15} />
+          <ArrowUpRightIcon size={15} />
         </button>
       </div>
     </section>
@@ -686,7 +660,7 @@ function MainWorkspace({ projectName, setProjectName, script, setScript }) {
         </div>
 
         <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.03] text-white/62 transition hover:bg-white/[0.06]">
-          <MoreHorizontal size={16} />
+          <MoreHorizontalIcon size={16} />
         </button>
       </div>
 
@@ -740,7 +714,7 @@ function RightRail({ notes, setNotes }) {
               className="flex items-center gap-3 rounded-2xl border border-white/6 bg-white/[0.02] px-3 py-3"
             >
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-black">
-                <Check size={12} />
+                <CheckIcon size={12} />
               </div>
               <span className="text-sm text-white/78">{item}</span>
             </div>
@@ -804,7 +778,7 @@ function SceneRow({ scene }) {
 
         <button className="inline-flex items-center gap-2 self-start rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2 text-sm text-white/76 transition hover:bg-white/[0.07]">
           Open
-          <ChevronRight size={15} />
+          <ChevronRightIcon size={15} />
         </button>
       </div>
     </div>
@@ -878,5 +852,269 @@ function MiniNotice({ title, text }) {
       <div className="text-sm font-medium text-white">{title}</div>
       <div className="mt-1.5 text-sm leading-6 text-white/56">{text}</div>
     </div>
+  );
+}
+
+/* =========================
+   ICONS
+========================= */
+
+function IconBase({ size = 18, className = "", children, viewBox = "0 0 24 24" }) {
+  return (
+    <svg
+      viewBox={viewBox}
+      width={size}
+      height={size}
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function MenuIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </IconBase>
+  );
+}
+
+function XIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </IconBase>
+  );
+}
+
+function SearchIcon(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4 4" />
+    </IconBase>
+  );
+}
+
+function SparklesIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z" />
+      <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
+      <path d="M5 14l.8 2L8 16.8 5.8 17.6 5 20l-.8-2.4L2 16.8 4.2 16 5 14z" />
+    </IconBase>
+  );
+}
+
+function ClapperboardIcon(props) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="8" width="18" height="12" rx="2" />
+      <path d="M7 8l3-5" />
+      <path d="M13 8l3-5" />
+      <path d="M3 12h18" />
+    </IconBase>
+  );
+}
+
+function WandIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 20L20 4" />
+      <path d="M14 4l1 2" />
+      <path d="M18 8l2 1" />
+      <path d="M4 14l2 1" />
+      <path d="M8 18l1 2" />
+    </IconBase>
+  );
+}
+
+function UsersIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M16 21v-1.5a4.5 4.5 0 00-4.5-4.5h-1A4.5 4.5 0 006 19.5V21" />
+      <circle cx="11" cy="8" r="3.5" />
+      <path d="M18 21v-1a3.5 3.5 0 00-2.2-3.2" />
+      <path d="M16 5.5a3 3 0 010 5.8" />
+    </IconBase>
+  );
+}
+
+function MicIcon(props) {
+  return (
+    <IconBase {...props}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M6 11a6 6 0 0012 0" />
+      <path d="M12 17v4" />
+      <path d="M8 21h8" />
+    </IconBase>
+  );
+}
+
+function ImageIcon(props) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="9" cy="10" r="1.5" />
+      <path d="M21 16l-5-5-6 6-2-2-5 5" />
+    </IconBase>
+  );
+}
+
+function FolderIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    </IconBase>
+  );
+}
+
+function FileJsonIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13c-.8 0-1.5.7-1.5 1.5S8.2 16 9 16" />
+      <path d="M15 13c.8 0 1.5.7 1.5 1.5S15.8 16 15 16" />
+      <path d="M12 12v5" />
+    </IconBase>
+  );
+}
+
+function BellIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M6 17h12" />
+      <path d="M8 17V11a4 4 0 118 0v6" />
+      <path d="M10 20a2 2 0 004 0" />
+    </IconBase>
+  );
+}
+
+function SettingsIcon(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v2.5" />
+      <path d="M12 19.5V22" />
+      <path d="M4.9 4.9l1.8 1.8" />
+      <path d="M17.3 17.3l1.8 1.8" />
+      <path d="M2 12h2.5" />
+      <path d="M19.5 12H22" />
+      <path d="M4.9 19.1l1.8-1.8" />
+      <path d="M17.3 6.7l1.8-1.8" />
+    </IconBase>
+  );
+}
+
+function PlayIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M8 6l10 6-10 6V6z" fill="currentColor" stroke="none" />
+    </IconBase>
+  );
+}
+
+function DownloadIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 4v10" />
+      <path d="M8 10l4 4 4-4" />
+      <path d="M5 20h14" />
+    </IconBase>
+  );
+}
+
+function UploadIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 20V10" />
+      <path d="M8 14l4-4 4 4" />
+      <path d="M5 4h14" />
+    </IconBase>
+  );
+}
+
+function ChevronRightIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M9 6l6 6-6 6" />
+    </IconBase>
+  );
+}
+
+function CheckIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 12l4 4L19 6" />
+    </IconBase>
+  );
+}
+
+function PanelLeftCloseIcon(props) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      <path d="M15 9l-3 3 3 3" />
+    </IconBase>
+  );
+}
+
+function PanelLeftOpenIcon(props) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      <path d="M12 9l3 3-3 3" />
+    </IconBase>
+  );
+}
+
+function MoreHorizontalIcon(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="6" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    </IconBase>
+  );
+}
+
+function ArrowUpRightIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M7 17L17 7" />
+      <path d="M9 7h8v8" />
+    </IconBase>
+  );
+}
+
+function ClockIcon(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v5l3 2" />
+    </IconBase>
+  );
+}
+
+function LayersIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 4l8 4-8 4-8-4 8-4z" />
+      <path d="M4 12l8 4 8-4" />
+      <path d="M4 16l8 4 8-4" />
+    </IconBase>
   );
 }
