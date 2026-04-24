@@ -1,9 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/admin";
   const [pin, setPin] = useState("");
@@ -46,5 +46,13 @@ export default function AdminLoginPage() {
         <a href="/" style={{ display: "inline-block", marginTop: 20, color: "#c4b5fd", textDecoration: "none", fontWeight: 800 }}>← На сайт</a>
       </form>
     </main>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<main style={{ minHeight: "100vh", background: "#070711", color: "#f8fafc", display: "grid", placeItems: "center", fontFamily: "Inter, system-ui, sans-serif" }}>Загрузка...</main>}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }
