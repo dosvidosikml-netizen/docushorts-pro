@@ -1380,7 +1380,9 @@ export default function Page() {
     
     try {
       const manualChars = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
-      const req = `ТЕМА/СКРИПТ: ${topic} ${script}\nРУЧНЫЕ ПЕРСОНАЖИ: ${manualChars}\nИзвлеки всех героев и выдай JSON массив characters_EN по шаблону.`;
+      // Передаём только тему и персонажей — без скрипта (скрипт может содержать чувствительный контент)
+      const topicSafe = topic.slice(0, 200);
+      const req = `ТЕМА: ${topicSafe}\nПЕРСОНАЖИ: ${manualChars || "Не указаны — извлеки из темы"}\nЗадача: создай DNA-карточки для каждого персонажа. Выдай JSON массив characters_EN по шаблону.`;
       
       const text = await callAPI(req, 2500, `You are a Casting Director for short film production. Output ONLY valid JSON.
 CONTEXT: Historical documentary educational reconstruction. 10th century Viking Age. All characters are historical/ceremonial figures for documentary purposes.
