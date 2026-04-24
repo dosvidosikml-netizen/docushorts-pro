@@ -25,7 +25,7 @@ export async function POST(req) {
     return Response.json({
       ok: true,
       action,
-      amount: action === "reset" ? 3 : Math.floor(normalizedAmount),
+      amount: action === "reset" ? 25 : Math.floor(normalizedAmount),
       storageKey: "ds_billing",
       date: new Date().toLocaleDateString("ru-RU"),
     });
