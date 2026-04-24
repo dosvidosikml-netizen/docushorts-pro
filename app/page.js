@@ -76,8 +76,7 @@ const NeuralBackground = () => {
 };
 
 // --- MAINTENANCE LOCK OVERLAY ---
-// ⬇ Сменить пароль здесь (только цифры)
-const LOCK_PIN = "2025";
+// PIN проверяется только на сервере: DEV_LOCK_PIN в .env.local
 
 const DemonCanvas = () => {
   return (
@@ -321,11 +320,19 @@ const LockedOverlay = ({ onUnlock }) => {
     if (n >= 7) { setShowPin(true); setCount(0); }
   };
 
-  const handleKey = (k) => {
+  const handleKey = async (k) => {
     if (k === "CLR") { setPin(""); return; }
     if (k === "OK") {
-      if (pin === LOCK_PIN) { localStorage.setItem("nc_unlocked","true"); onUnlock(); }
-      else { setShake(true); setTimeout(() => { setShake(false); setPin(""); }, 600); }
+      try {
+        const res = await fetch("/api/check-lock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) { safeStorageSet("nc_unlocked","true"); onUnlock(); return; }
+      } catch (e) {}
+      setShake(true); setTimeout(() => { setShake(false); setPin(""); }, 600);
       return;
     }
     if (pin.length < 6) setPin(p => p + k);
@@ -830,8 +837,7 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
         method: "POST",
         signal: controller.signal,
         headers: { 
-          "Content-Type": "application/json",
-          "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET || ""
+          "Content-Type": "application/json"
         }, 
         body: JSON.stringify({ 
           model: model,
@@ -865,32 +871,62 @@ async function callAPI(content, maxTokens = 4000, sysPrompt, model = MODEL_STD, 
   }
 }
 
+function safeStorageGet(key, fallback = null) {
+  if (typeof window === "undefined") return fallback;
+  try { const value = window.localStorage.getItem(key); return value === null ? fallback : value; }
+  catch (e) { console.warn(`localStorage get failed: ${key}`, e); return fallback; }
+}
+function safeStorageSet(key, value) {
+  if (typeof window === "undefined") return false;
+  try { window.localStorage.setItem(key, value); return true; }
+  catch (e) { console.warn(`localStorage set failed: ${key}`, e); return false; }
+}
+function safeStorageRemove(key) {
+  if (typeof window === "undefined") return false;
+  try { window.localStorage.removeItem(key); return true; }
+  catch (e) { console.warn(`localStorage remove failed: ${key}`, e); return false; }
+}
+function buildStyleLock({ engine, styleRef, customStyle } = {}) {
+  return [VISUAL_ENGINES[engine]?.prompt, styleRef || "cinematic", customStyle]
+    .filter(Boolean).map(v => String(v).trim()).filter(Boolean).join(", ");
+}
+function extractFirstJSONObject(text) {
+  const src = String(text || ""); let start = -1, depth = 0, inString = false, escaped = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inString) { if (escaped) { escaped = false; continue; } if (ch === "\\") { escaped = true; continue; } if (ch === '"') inString = false; continue; }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === "{") { if (depth === 0) start = i; depth++; continue; }
+    if (ch === "}" && depth > 0) { depth--; if (depth === 0 && start !== -1) return src.slice(start, i + 1); }
+  }
+  return null;
+}
+
 // Прогрев сервера — лёгкий ping чтобы Render проснулся ДО основного запроса
 async function warmupServer(onWaking) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 3500);
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 10000);
-    const res = await fetch("/api/chat", {
-      method: "POST", signal: ctrl.signal,
-      headers: { "Content-Type": "application/json", "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET || "" },
-      body: JSON.stringify({ model: MODEL_STD, messages: [{ role: "user", content: "hi" }], max_tokens: 5 })
-    });
+    const res = await fetch("/api/health", { method: "GET", signal: ctrl.signal, cache: "no-store" });
     clearTimeout(t);
-    // Если ответ пришёл быстро — сервер уже тёплый
+    if (res.ok) return true;
+    // 4xx/5xx means the server is awake; do not show a cold-start warning.
+    return false;
   } catch(e) {
-    // Сервер спал — уведомляем пользователя и ждём пока проснётся
-    if (onWaking) onWaking();
-    await sleep(20000); // Render cold start реально занимает 15-30 сек
+    clearTimeout(t);
+    if (e.name === "AbortError") {
+      if (onWaking) onWaking();
+      await sleep(8000);
+    }
+    return false;
   }
 }
 
 async function callVisionAPI(base64Image, sysPrompt) {
-  try {
     const res = await fetch("/api/chat", { 
       method: "POST", 
       headers: { 
-        "Content-Type": "application/json",
-        "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET || ""
+        "Content-Type": "application/json"
       }, 
       body: JSON.stringify({ 
         model: "openai/gpt-4o-mini", // Дешевая и быстрая модель для зрения
@@ -910,23 +946,25 @@ async function callVisionAPI(base64Image, sysPrompt) {
     try { data = JSON.parse(textRes); } catch (e) { throw new Error(`Сервер вернул не JSON: ${textRes.substring(0, 100)}`); }
     if (!res.ok || data.error) throw new Error(data.error || "Ошибка Vision API");
     return data.text || "";
-  } catch (e) { throw e; }
 }
 
 function cleanJSON(rawText) {
   if (!rawText || typeof rawText !== "string") throw new Error("Пустой ответ от сервера");
-  let cleanText = rawText.replace(/```json/gi, "").replace(/```/gi, "").trim();
-  // Detect model refusal before trying to parse
+  let cleanText = rawText
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+
   const lower = cleanText.toLowerCase();
   if (lower.startsWith("i'm not") || lower.startsWith("i cannot") || lower.startsWith("i can't") || lower.startsWith("i am not") || lower.startsWith("sorry,") || lower.startsWith("i apologize")) {
     throw new Error("Модель отказала в генерации. Попробуйте ещё раз: " + cleanText.substring(0, 120));
   }
-  const startIdx = cleanText.indexOf('{'); 
-  const endIdx = cleanText.lastIndexOf('}');
-  if (startIdx === -1 || endIdx === -1) throw new Error("Модель не вернула JSON. Ответ: " + cleanText.substring(0, 120));
-  cleanText = cleanText.substring(startIdx, endIdx + 1);
-  cleanText = cleanText.replace(/\r?\n|\r/g, " ").replace(/[\u0000-\u001F]+/g, "");
-  return JSON.parse(cleanText);
+
+  const jsonCandidate = extractFirstJSONObject(cleanText);
+  if (!jsonCandidate) throw new Error("Модель не вернула JSON. Ответ: " + cleanText.substring(0, 160));
+
+  try { return JSON.parse(jsonCandidate); }
+  catch (err) { throw new Error("JSON повреждён или обрезан: " + err.message + ". Ответ: " + cleanText.substring(0, 160)); }
 }
 
 function CopyBtn({ text, label="Копировать", small=false, fullWidth=false }) {
@@ -1158,6 +1196,7 @@ export default function Page() {
   const [bRolls, setBRolls] = useState([]);
   const [step2Done, setStep2Done] = useState(false);
   // Частичный прогресс Шага 2 — сохраняем готовые батчи чтобы не потерять оплаченные запросы
+  const [step1Partial, setStep1Partial] = useState(null); // { frames, data1A, nextBatch, totalBatches, currentScript, targetFrames }
   const [step2Partial, setStep2Partial] = useState(null); // { prompts, fromBatch, totalBatches, thumbRaw, brolls }
   const [busy, setBusy] = useState(false);
   const [generatingSEO, setGeneratingSEO] = useState(false);
@@ -1231,14 +1270,14 @@ export default function Page() {
 
   const activateDevMode = () => {
     setTokens(999);
-    localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() }));
+    safeStorageSet("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() }));
   };
 
   useEffect(() => { 
     if (typeof window !== "undefined") { 
 
       // ── ПРОВЕРКА LOCK OVERLAY ──
-      if (localStorage.getItem("nc_unlocked") === "true") setSiteUnlocked(true);
+      if (safeStorageGet("nc_unlocked") === "true") setSiteUnlocked(true);
 
       // ── ПРОВЕРКА URL-ПАРАМЕТРА (?dev=пароль) — проверка на СЕРВЕРЕ ──
       const params = new URLSearchParams(window.location.search);
@@ -1253,9 +1292,12 @@ export default function Page() {
           .catch(() => {});
       }
 
-      const savedHist = localStorage.getItem("ds_history"); 
-      if (savedHist) setHistory(JSON.parse(savedHist)); 
-      const savedDraft = localStorage.getItem("ds_draft");
+      const savedHist = safeStorageGet("ds_history"); 
+      if (savedHist) {
+        try { setHistory(JSON.parse(savedHist)); }
+        catch (e) { console.warn("Corrupted ds_history, clearing", e); safeStorageRemove("ds_history"); }
+      } 
+      const savedDraft = safeStorageGet("ds_draft");
       if (savedDraft) {
          try {
            const d = JSON.parse(savedDraft);
@@ -1281,20 +1323,20 @@ export default function Page() {
       // Если dev не активирован через URL — загружаем обычный биллинг
       {
         const today = new Date().toLocaleDateString();
-        const savedBilling = localStorage.getItem("ds_billing");
+        const savedBilling = safeStorageGet("ds_billing");
         if (savedBilling) {
           try {
             const b = JSON.parse(savedBilling);
-            if (b.date !== today) { setTokens(3); localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); } 
+            if (b.date !== today) { setTokens(3); safeStorageSet("ds_billing", JSON.stringify({ tokens: 3, date: today })); } 
             else { setTokens(b.tokens); }
           } catch(e) { setTokens(3); }
-        } else { localStorage.setItem("ds_billing", JSON.stringify({ tokens: 3, date: today })); setTokens(3); }
+        } else { safeStorageSet("ds_billing", JSON.stringify({ tokens: 3, date: today })); setTokens(3); }
       }
     } 
   }, []);
 
   useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
-  useEffect(() => { if (draftLoaded) localStorage.setItem("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData, draftLoaded]);
+  useEffect(() => { if (draftLoaded) safeStorageSet("ds_draft", JSON.stringify({topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData})); }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData, draftLoaded]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view]);
 
   // Ротация советов каждые 5 секунд на экране загрузки
@@ -1333,16 +1375,26 @@ export default function Page() {
     setStyleRef("");
     setThumb(null);
     setTtsStudioData(null);
+    setStep1Partial(null);
+    setStep2Partial(null);
+    setI2vPackage(null);
+    setPipelineResult(null);
+    setPipelineProgress(null);
+    setPipelineRunning(false);
+    setBgImage(null);
+    setLogoImage(null);
     setBusy(false);
+    setTab("storyboard");
     setView("form");
+    safeStorageRemove("ds_draft");
     // Референсы не сбрасываем — пользователь мог их загрузить для нового проекта тоже
   };
 
-  const deductToken = () => { setTokens(prev => { const next = prev - 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
-  const refundToken = () => { setTokens(prev => { const next = prev + 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
+  const deductToken = () => { setTokens(prev => { const next = prev - 1; safeStorageSet("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
+  const refundToken = () => { setTokens(prev => { const next = prev + 1; safeStorageSet("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
   const checkTokens = () => { if (tokens <= 0) { setShowPaywall(true); return false; } return true; };
-  const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); localStorage.setItem("ds_history", JSON.stringify(next)); return next; }); };
-  const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
+  const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); safeStorageSet("ds_history", JSON.stringify(next)); return next; }); };
+  const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); safeStorageRemove("ds_history"); } };
 
   const applyPreset = (presetId) => {
     setActivePreset(presetId); 
@@ -1352,12 +1404,12 @@ export default function Page() {
 
   const saveCustomPreset = () => {
     const p = { covX, covY, covFont, covColor, sizeHook, sizeTitle, sizeCta, covDark, logoX, logoY, logoSize };
-    localStorage.setItem("ds_custom_preset", JSON.stringify(p)); alert("⭐ Ваш стиль успешно сохранен в памяти!");
+    safeStorageSet("ds_custom_preset", JSON.stringify(p)); alert("⭐ Ваш стиль успешно сохранен в памяти!");
   };
 
   const loadCustomPreset = () => {
     try {
-      const raw = localStorage.getItem("ds_custom_preset");
+      const raw = safeStorageGet("ds_custom_preset");
       if (!raw) { alert("У вас еще нет сохраненного стиля."); return; }
       const p = JSON.parse(raw);
       if (p) {
@@ -1779,7 +1831,7 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
 
       const characterDNA = scriptPackage.character_dna_used;
       const seed = seedLocked ? String(seedValue) : "777777";
-      const styleLockStr = `${VISUAL_ENGINES[engine]?.prompt || ""}, ${styleRef || "cinematic"}${customStyle ? ", " + customStyle : ""}`;
+      const styleLockStr = buildStyleLock({ engine, styleRef, customStyle });
 
       // Симуляция прогресса пока идёт запрос
       let progressInterval;
@@ -1798,7 +1850,7 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
 
       const res = await fetch("/api/pipeline", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-App-Token": process.env.NEXT_PUBLIC_APP_SECRET || "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scriptPackage, characterDNA, seed, referenceImage: "", styleLock: styleLockStr }),
       });
 
@@ -1892,15 +1944,18 @@ JSON FORMAT:
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
   }
 
-  async function handleStep1() {
-    if (!topic.trim() && !script.trim()) return alert("Заполните тему или скрипт!");
+  async function handleStep1(resumeFrom = null) {
+    if (!topic.trim() && !script.trim() && !resumeFrom) return alert("Заполните тему или скрипт!");
     if (!checkTokens()) return;
     
     setBusy(true); setView("loading");
     
-    // Сбрасываем старые результаты перед новой генерацией
-    setFrames([]); setStep2Done(false); setSeoVariants([]); setMusic("");
-    setBRolls([]); setRawScript(""); setRawImg(""); setRawVid(""); setRetention(null);
+    // Сбрасываем старые результаты перед новой генерацией; при resume сохраняем готовые батчи
+    if (!resumeFrom) {
+      setFrames([]); setStep2Done(false); setSeoVariants([]); setMusic("");
+      setBRolls([]); setRawScript(""); setRawImg(""); setRawVid(""); setRetention(null);
+      setStep1Partial(null);
+    }
     
     try {
       // Прогреваем Render-сервер перед основным запросом
@@ -1908,7 +1963,7 @@ JSON FORMAT:
       setLoadingMsg("🔄 Проверяем соединение с сервером...");
       await warmupServer(() => setLoadingMsg("😴 Сервер просыпается (~15 сек), подождите..."));
       
-      let currentScript = script.trim();
+      let currentScript = resumeFrom?.currentScript || script.trim();
       const sec = DURATION_SECONDS[dur] || 60;
       
       if (!currentScript) {
@@ -1943,14 +1998,17 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       // Уменьшено с 10 до 6 — новый промпт детальнее, нужно больше токенов на кадр
       const BATCH_SIZE = 6;
       const totalBatches = Math.ceil(targetFrames / BATCH_SIZE);
-      let allFrames = [];
-      let data1A = null;
+      let allFrames = resumeFrom?.frames ? [...resumeFrom.frames] : [];
+      let data1A = resumeFrom?.data1A || null;
 
       // Нарезаем сценарий на равные части для каждого батча
       const scriptWords = currentScript.split(/\s+/);
       const wordsPerBatch = Math.ceil(scriptWords.length / totalBatches);
 
-      for (let batch = 0; batch < totalBatches; batch++) {
+      const startBatch = resumeFrom?.nextBatch || 0;
+      if (resumeFrom) setStep1Partial(null);
+
+      for (let batch = startBatch; batch < totalBatches; batch++) {
         const batchStart = batch * BATCH_SIZE + 1;
         const batchEnd = Math.min((batch + 1) * BATCH_SIZE, targetFrames);
         const batchCount = batchEnd - batchStart + 1;
@@ -1979,8 +2037,18 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
           : `${SYS_STEP_1A}\nIMPORTANT: Continuation batch ${batch+1}/${totalBatches}. Output JSON with ONLY "frames" array. Reuse existing characters_EN. Timecodes start from ${timecodeStart} sec.`;
 
         let batchText, batchData;
-        batchText = await callAPI(batchReq, 5000, batchSys, MODEL_STD);
-        batchData = cleanJSON(batchText);
+        try {
+          batchText = await callAPI(batchReq, 5000, batchSys, MODEL_STD, 2, 120000);
+          batchData = cleanJSON(batchText);
+        } catch (batchErr) {
+          setStep1Partial({ frames: allFrames, data1A, nextBatch: batch, totalBatches, currentScript, targetFrames });
+          setFrames(allFrames);
+          rebuildRawText(allFrames, false);
+          setBusy(false);
+          setView(allFrames.length ? "result" : "form");
+          alert(`⚠️ Шаг 1 прерван на батче ${batch+1}/${totalBatches} (кадры ${batchStart}–${batchEnd}).\n\n✅ Уже готово кадров: ${allFrames.length}.\n💡 Нажмите "▶ ПРОДОЛЖИТЬ ШАГ 1" чтобы продолжить без потери готовых батчей.\n\nОшибка: ${batchErr.message}`);
+          return;
+        }
 
         if (isFirstBatch) {
           data1A = batchData;
@@ -1992,6 +2060,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         if (batch < totalBatches - 1) await sleep(300);
       }
 
+      setStep1Partial(null);
       data1A.frames = allFrames;
       
       setLoadingMsg("📊 Шаг 2/2: Генерируем SEO, музыку и обложку...");
@@ -2030,7 +2099,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       
       const stateData = { frames: data1A.frames, generatedChars: data1A.characters_EN, locRef: data1A.location_ref_EN, styleRef: data1A.style_ref_EN, retention: data1A.retention, thumb: data1B.thumbnail, seoVariants: data1B.seo_variants, music: data1B.music_EN, step2Done: false, ttsStudioData };
       const newHistory = [{ id: Date.now(), topic: topic || "Генерация", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData), format: vidFormat }, ...history].slice(0, 10);
-      setHistory(newHistory); localStorage.setItem("ds_history", JSON.stringify(newHistory));
+      setHistory(newHistory); safeStorageSet("ds_history", JSON.stringify(newHistory));
       
     } catch(e) { alert(`🚨 ОШИБКА ШАГА 1: ${e.message}`); setView("form"); } finally { setBusy(false); }
   }
@@ -2193,7 +2262,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         referenceImage: "",
       });
 
-      const styleLockStr = `${VISUAL_ENGINES[engine]?.prompt || ""}${styleRef ? ", " + styleRef : ""}${customStyle ? ", " + customStyle : ""}`;
+      const styleLockStr = buildStyleLock({ engine, styleRef, customStyle });
 
       // Обогащаем промпты: каждый кадр получает identity lock + continuity note
       const enrichedFrames = ncEnrichFrames({
@@ -2228,7 +2297,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
          if(next.length > 0) { 
            const stateData = { frames: enrichedFrames, generatedChars, locRef, styleRef, retention, thumb: {...thumb, prompt_EN: finalThumbPrompt}, seoVariants, music, bRolls: finalBRolls, step2Done: true, ttsStudioData };
            next[0].text = JSON.stringify(stateData); 
-           localStorage.setItem("ds_history", JSON.stringify(next)); 
+           safeStorageSet("ds_history", JSON.stringify(next)); 
          }
          return next;
       });
@@ -2300,7 +2369,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
   }
 
   const currFormat = FORMATS.find(f => f.id === vidFormat) || FORMATS[0]; 
-  const activeStyle = activePreset === "custom" ? COVER_PRESETS[0].style : COVER_PRESETS.find(p => p.id === activePreset).style;
+  const activeStyle = (activePreset === "custom" ? COVER_PRESETS[0] : COVER_PRESETS.find(p => p.id === activePreset) || COVER_PRESETS[0]).style;
 
 
   return (
@@ -2965,6 +3034,17 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
               </div>
             </div>
           </div>
+
+          {step1Partial&&(
+            <div style={{background:"rgba(234,179,8,.07)",border:"1px solid rgba(234,179,8,.3)",borderRadius:20,padding:18,textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:12,color:"#fcd34d",fontWeight:800,marginBottom:10}}>
+                ⚠️ Шаг 1 прерван на батче {step1Partial.nextBatch+1}/{step1Partial.totalBatches}. Готово кадров: {step1Partial.frames?.length || 0}
+              </div>
+              <button onClick={()=>handleStep1(step1Partial)} disabled={busy} style={{width:"100%",padding:"13px",background:"linear-gradient(135deg,#d97706,#b45309)",borderRadius:12,color:"#fff",fontWeight:900,border:"none",cursor:"pointer",fontSize:14,letterSpacing:"0.5px"}}>
+                ▶ ПРОДОЛЖИТЬ ШАГ 1 БЕЗ ПОТЕРИ БАТЧЕЙ
+              </button>
+            </div>
+          )}
 
           {/* STEP 2 BTN */}
           {!step2Done&&(
