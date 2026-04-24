@@ -1118,48 +1118,71 @@ function stripDnaForI2V(prompt) {
     .trim();
 }
 
+function ncSceneRequiresCharacter(frame = {}, scene = "") {
+  if (Array.isArray(frame.characters_in_frame) && frame.characters_in_frame.length > 0) return true;
+  const text = `${scene} ${frame.visual || ""} ${frame.vo || frame.voice || ""}`.toLowerCase();
+  return /\b(agent|officer|detective|witness|soldier|general|president|scientist|man|woman|person|bureaucrat|harold|vance)\b|агент|офицер|детектив|свидетел|солдат|генерал|президент|уч[её]н|мужчин|женщин|человек|бюрократ/.test(text);
+}
+
+function ncBuildSceneFirstImagePrompt({ frame = {}, identityLock, style = "", continuity = "", refNote = "", seedNote = "" } = {}) {
+  const scene = ncNormalizeText(frame.imgPrompt_EN || frame.image_prompt || frame.visual || frame.scene || "", 760);
+  const hasIdentity = Boolean(identityLock?.identity && identityLock.identity.length > 4);
+  const needsCharacter = hasIdentity && ncSceneRequiresCharacter(frame, scene);
+
+  const characterBlock = needsCharacter
+    ? `CHARACTER LOCK ONLY IF VISIBLE: ${identityLock.identity}. ${identityLock.lockPhrase || "no identity drift"}`
+    : "NO VISIBLE MAIN CHARACTER: do not default to portrait, do not center identity character";
+
+  return ncNormalizeText([
+    `SCENE PRIMARY FOCUS: ${scene || "specific visual evidence from the current script frame"}`,
+    characterBlock,
+    `CONTINUITY: ${continuity}`,
+    `STYLE LOCK: ${style}`,
+    refNote,
+    seedNote,
+    "RULES: follow this exact frame from the current VO; scene/event/evidence comes before character; do not invent unrelated visuals; no subtitles, no UI, no watermark; text only if it is a deliberate document/evidence detail from the scene"
+  ].filter(Boolean).join(". "), 1200);
+}
+
+function ncBuildSceneFirstVideoPrompt({ frame = {}, identityLock, style = "", continuity = "", refNote = "", seedNote = "" } = {}) {
+  const scene = ncNormalizeText(frame.vidPrompt_EN || frame.video_prompt || frame.visual || frame.scene || "", 620);
+  const hasIdentity = Boolean(identityLock?.identity && identityLock.identity.length > 4);
+  const needsCharacter = hasIdentity && ncSceneRequiresCharacter(frame, scene);
+
+  return ncNormalizeText([
+    `ANIMATE CURRENT FRAME: ${scene || "cinematic motion based strictly on this frame"}`,
+    needsCharacter ? "preserve same face and outfit for visible character only" : "no character continuity required; focus on evidence, environment, objects, light, dust, camera tension",
+    "smooth camera motion, subject/object motion, environment motion",
+    continuity,
+    style,
+    refNote,
+    seedNote,
+    "do not change topic, do not add unrelated dialogue or unrelated characters"
+  ].filter(Boolean).join(", "), 1000);
+}
+
 function ncEnrichFrames({ frames = [], identityLock, styleLock = "" } = {}) {
   const style = styleLock || "cinematic, high contrast, consistent color grading, trailer-like continuity";
 
   return frames.map((frame, index) => {
     const continuity =
       index === 0
-        ? "opening shot, establish identity and world"
-        : "continue previous shot world, preserve identity, preserve lighting continuity";
+        ? "opening shot, establish the exact script evidence/event"
+        : "continue previous scene logic, preserve lighting continuity, follow current VO beat";
 
-    const refNote = identityLock.referenceImage ? "use reference image as identity anchor" : "";
+    const refNote = identityLock.referenceImage ? "use reference image as identity anchor only when the character is visible" : "";
     const seedNote = identityLock.seed && identityLock.seed !== "777777" ? `seed ${identityLock.seed}` : "";
-
-    // Только если есть реальная ДНК — иначе не засоряем промпт
     const hasIdentity = identityLock.identity && identityLock.identity.length > 4;
 
-    const enrichedImg = hasIdentity
-      ? ncNormalizeText([
-          identityLock.identity,
-          frame.imgPrompt_EN || "",
-          continuity,
-          style,
-          identityLock.lockPhrase,
-          refNote,
-          seedNote,
-        ].filter(Boolean).join(", "), 260)
-      : frame.imgPrompt_EN || "";
-
-    const enrichedVid = ncNormalizeText([
-      frame.vidPrompt_EN || "",
-      hasIdentity ? "preserve same face and outfit" : "",
-      "smooth camera motion, subject motion, environment motion",
-      continuity,
-      style,
-      refNote,
-      seedNote,
-    ].filter(Boolean).join(", "), 260);
+    const enrichedImg = ncBuildSceneFirstImagePrompt({ frame, identityLock, style, continuity, refNote, seedNote });
+    const enrichedVid = ncBuildSceneFirstVideoPrompt({ frame, identityLock, style, continuity, refNote, seedNote });
 
     return {
       ...frame,
       imgPrompt_EN: enrichedImg,
       vidPrompt_EN: enrichedVid,
       identity_lock_applied: hasIdentity,
+      character_visible_in_prompt: hasIdentity && ncSceneRequiresCharacter(frame, enrichedImg),
       continuity_note: continuity,
     };
   });
@@ -1844,7 +1867,7 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
 
       const characterDNA = scriptPackage.character_dna_used;
       const seed = seedLocked ? String(seedValue) : "777777";
-      const styleLockStr = `${VISUAL_ENGINES[engine]?.prompt || ""}, ${styleRef || "cinematic"}${customStyle ? ", " + customStyle : ""}`;
+      const styleLockStr = [VISUAL_ENGINES[engine]?.prompt, styleRef, customStyle].filter(Boolean).join(", ") || "cinematic";
 
       // Симуляция прогресса пока идёт запрос
       let progressInterval;
