@@ -400,44 +400,23 @@ const FORMATS = [
 ];
 
 const VISUAL_ENGINES = {
-  "CINEMATIC":      { label: "Кино-реализм",   prompt: "cinematic realism, 35mm anamorphic lens, dramatic chiaroscuro, natural skin texture, premium docudrama reconstruction, Veo 3.1 optimized" },
-  "DARK_HISTORY":   { label: "Dark History",   prompt: "dark history documentary, handheld 16mm archival grain, desaturated amber green grade, harsh tungsten lamps, Cold War paranoia thriller, Grok Video optimized" },
-  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized cinematic illustration, painterly depth layers, parallax-ready composition, expressive lighting, premium story animation" },
-  "X_RAY":          { label: "X-Ray / Схемы",  prompt: "x-ray visualization, neon wireframe, scientific blueprint overlays, deep black background, technical scan aesthetic, Grok Imagine API" },
-  "VIRAL_SHOCK":    { label: "Viral Shock", prompt: "viral shock documentary, every frame has a strong visual hook, high contrast, immediate danger, impossible evidence, fast Shorts pacing" },
-  "MILITARY_ARCHIVE": { label: "Military Archive", prompt: "military archive thriller, classified operation, floodlights, uniforms, sealed crates, restricted base atmosphere, 1970s government secrecy" },
-  "PARANORMAL_FOUND": { label: "Found Footage", prompt: "paranormal found footage, VHS timestamp feel without readable overlays, surveillance camera anxiety, shaky handheld motion, low light, eerie anomalies" },
-  "CINEMATIC_RECON": { label: "Netflix Recon", prompt: "cinematic historical reconstruction, realistic actors, expensive docudrama lighting, production design detail, smoke, practical lamps, grounded physical action" }
+  "CINEMATIC":      { label: "Кино-реализм",   prompt: "cinematic realism, natural color, 35mm anamorphic, grounded physical action, premium docudrama lighting, Veo 3.1 optimized" },
+  "DARK_HISTORY":   { label: "Dark History",   prompt: "dark history documentary, 16mm grain, desaturated amber-green palette, handheld archival realism, hard practical light, Grok Video optimized" },
+  "ANIMATION_2_5D": { label: "2.5D Анимация", prompt: "2.5D stylized animation, painterly cinematic lighting, layered parallax, expressive silhouettes, no photorealistic skin" },
+  "X_RAY":          { label: "X-Ray / Схемы",  prompt: "x-ray visualization, neon wireframe, scientific blueprint, fluoroscopy scan aesthetic, Grok Imagine API" },
+  "VIRAL_SHOCK":    { label: "Viral Shock",    prompt: "viral shock documentary, immediate visual hook, high contrast danger, dramatic reveal, every frame contains anomaly or conflict" },
+  "MIL_ARCHIVE":    { label: "Military Archive", prompt: "military archive thriller, classified operation atmosphere, 1940s-1970s government evidence, dusty files, field lights, covert tension" },
+  "FOUND_FOOTAGE":  { label: "Found Footage",  prompt: "paranormal found footage, handheld imperfect camera, VHS noise, surveillance angle, night vision tension, realistic accidental framing" },
+  "NETFLIX_RECON":  { label: "Netflix Recon",  prompt: "premium Netflix docudrama reconstruction, realistic color grading, cinematic natural light, historically accurate costumes, expensive production design, not black and white unless explicitly requested" }
 };
+
+const CURRENCY_SYMBOL = "⭐";
+const DAILY_START_BALANCE = 10;
+const COSTS = { boost: 1, referencePrompts: 1, casting: 1, step1: 1, step2: 1, tts: 1, preview: 1 };
+const formatStars = (amount = 0) => `${CURRENCY_SYMBOL} ${Number(amount) || 0}`;
 
 const DURATION_SECONDS = { "15 сек": 15, "30–45 сек": 40, "До 60 сек": 60, "1.5 мин": 90, "3 мин": 180 };
 const DURATIONS = Object.keys(DURATION_SECONDS);
-
-const NEW_USER_CINEMS = 25;
-const DAILY_FREE_CINEMS = 10;
-const CINEM_COSTS = {
-  draft: 1, boost: 1, refs: 1, casting: 1, step1: 1, step2: 1, tts: 1, seo: 1, fb: 1, pipeline: 1
-};
-
-function safeJsonParse(raw, fallback = null) {
-  try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
-}
-function safeLsGet(key, fallback = null) {
-  if (typeof window === "undefined") return fallback;
-  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
-}
-function safeLsSet(key, value) {
-  if (typeof window === "undefined") return;
-  try { localStorage.setItem(key, value); } catch {}
-}
-function safeLsRemove(key) {
-  if (typeof window === "undefined") return;
-  try { localStorage.removeItem(key); } catch {}
-}
-function getEnginePrompt(engineId, customStyle = "") {
-  const base = VISUAL_ENGINES[engineId]?.prompt || VISUAL_ENGINES.CINEMATIC.prompt;
-  return [base, customStyle].filter(Boolean).join(", ");
-}
 
 const SAFE_TEXT_STYLE = { width: "100%", padding: "0 15px", boxSizing: "border-box", wordBreak: "break-word", overflowWrap: "break-word" };
 
@@ -450,7 +429,7 @@ const LOADING_TIPS = [
   { icon: "🎙", text: "TTS диктор лучше читает короткие рубленые фразы. После точки — пауза 0.3 сек." },
   { icon: "⚡", text: "Первые 3 секунды видео решают всё. Если хук не шокирует — зритель уже ушёл." },
   { icon: "🎨", text: "Движок DARK HISTORY даёт самые жёсткие результаты в Grok. CINEMATIC — для Veo 3.1." },
-  { icon: "💡", text: "Если генерация падает — уменьши длительность до «30–45 сек». Меньше кадров = меньше синемаов." },
+  { icon: "💡", text: "Если генерация падает — уменьши длительность до «30–45 сек». Меньше кадров = меньше токенов." },
   { icon: "🔊", text: "Sub-bass drop в первые 2 секунды повышает удержание на 23%. Не забудь SFX в промпте." },
   { icon: "🧠", text: "Pattern Interrupt каждые 3-5 кадров — обязательное условие вирусного видео." },
   { icon: "📐", text: "DNA персонажа должна быть в каждом кадре дословно. Без этого лицо дрейфует между сценами." },
@@ -461,7 +440,7 @@ const LOADING_TIPS = [
   { icon: "🎭", text: "X-Ray движок идеален для научных тем. Grok Imagine API генерирует нейроны, атомы, ДНК лучше всего." },
   { icon: "✂️", text: "Смена кадра каждые 3 секунды = оптимальный ритм для удержания аудитории 60%+." },
   { icon: "🌊", text: "Эмоциональная дуга: любопытство → страх → восторг → облегчение. Без дуги — нет вирусности." },
-  { icon: "🎬", text: "TTS Studio подбирает голос и эмоциональные теги автоматически под твой жанр." },
+  { icon: "⭐", text: "TTS Studio подбирает голос и эмоциональные теги автоматически под твой жанр." },
   { icon: "🎥", text: "I2V (Студийный) режим даёт контроль над внешностью — ты сам загружаешь референс-кадр." },
   { icon: "🔍", text: "SEO-матрица создаёт 3 варианта заголовка: Шок, Тайна и Поиск. Тестируй все три." },
   { icon: "🌙", text: "Для мрачных тем: Dark History + chiaroscuro + «wet stone» в локации = максимальный эффект." },
@@ -633,6 +612,44 @@ function sanitizeModeLeak(text = "", { allowXray = false, frame = null } = {}) {
     .replace(/\s+/g, " ")
     .replace(/^\s*,\s*|\s*,\s*$/g, "")
     .trim();
+}
+
+function getStyleLock(engineId = "CINEMATIC", customStyle = "") {
+  const base = VISUAL_ENGINES[engineId]?.prompt || VISUAL_ENGINES.CINEMATIC.prompt;
+  return [base, customStyle].filter(Boolean).join(", ");
+}
+
+function getTimingPlan(durationLabel = "До 60 сек") {
+  const seconds = DURATION_SECONDS[durationLabel] || 60;
+  const frameDuration = 3;
+  const frames = Math.max(1, Math.round(seconds / frameDuration));
+  const minWords = Math.max(3, Math.floor(frameDuration * 2.0));
+  const maxWords = Math.max(6, Math.ceil(frameDuration * 3.2));
+  return { seconds, frameDuration, frames, minWords, maxWords };
+}
+
+function buildReferenceSheetPrompt({ char = {}, index = 1, engine = "CINEMATIC", genre = "ТАЙНА", topic = "", style = "" } = {}) {
+  const name = char.name || "CHAR_" + index;
+  const desc = char.desc || "important story character, visually distinctive face, production-ready appearance";
+  const styleLock = style || getStyleLock(engine);
+  const banBW = /NETFLIX_RECON|CINEMATIC|VIRAL_SHOCK|MIL_ARCHIVE/i.test(engine) ? "full color reference sheet, not black and white, no noir monochrome unless explicitly requested," : "";
+  return ("CHAR_" + index + " • " + name + "\nCharacter reference sheet for " + name + ". " + desc + ". Show the SAME identity from multiple angles: front view, left side view, right side view, three-quarter view, full body neutral pose. Same outfit, same face, same hairstyle, clean studio background, production character sheet, consistent identity, " + banBW + " " + styleLock + ". Topic context: " + topic + ". Genre: " + genre + ". No text, no logo, no watermark.").replace(/\s+/g, " ").trim();
+}
+
+function buildAllReferencePrompts({ chars = [], engine = "CINEMATIC", genre = "ТАЙНА", topic = "", loc = "", style = "" } = {}) {
+  const sourceChars = chars.length ? chars : [{ name: "Main character", desc: "primary protagonist inferred from script" }];
+  const characterPrompts = sourceChars.slice(0, 6).map((char, idx) => ({
+    id: char.id || "CHAR_" + (idx + 1),
+    name: char.name || "CHAR_" + (idx + 1),
+    type: "character",
+    prompt: buildReferenceSheetPrompt({ char, index: idx + 1, engine, genre, topic, style }),
+  }));
+  const styleLock = style || getStyleLock(engine);
+  return [
+    ...characterPrompts,
+    { id: "LOCATION_REF", type: "location", name: "Location reference", prompt: "Location reference sheet for NeuroCine scene environment. " + (loc || topic || "main story location") + ". Show wide establishing view, medium shot, key prop corner, lighting reference, atmosphere plate. " + styleLock + ". No characters, no text, no logo." },
+    { id: "STYLE_REF", type: "style", name: "Style reference", prompt: "Visual style reference board. " + styleLock + ". Include color palette, lighting sample, lens texture, grain/noise level, contrast, mood, cinematic examples. No text, no watermark." },
+  ];
 }
 
 // --- СИСТЕМНЫЕ ПРОМПТЫ (NeuroCine Master Engine v3) ---
@@ -1257,7 +1274,7 @@ function ncEnrichFrames({ frames = [], identityLock, styleLock = "" } = {}) {
   });
 }
 export default function Page() {
-  const [tokens, setTokens] = useState(NEW_USER_CINEMS);
+  const [tokens, setTokens] = useState(3);
   const [showPaywall, setShowPaywall] = useState(false);
   const [clicks, setClicks] = useState(0);
   const [siteUnlocked, setSiteUnlocked] = useState(false);
@@ -1330,8 +1347,9 @@ export default function Page() {
   const [refLocText, setRefLocText] = useState("");    // проанализированная локация
   const [refStyleText, setRefStyleText] = useState(""); // проанализированный стиль
   const [refAnalyzed, setRefAnalyzed] = useState(false);
-  const [refChars, setRefChars] = useState([]); // multi-character references: [{id,image,dna}]
-  const [referencePrompts, setReferencePrompts] = useState(null); // prompts to generate refs before upload
+  const [referencePrompts, setReferencePrompts] = useState([]);
+  const [multiCharRefs, setMultiCharRefs] = useState([]); // [{id, src, dna, name}]
+  const [currentStep, setCurrentStep] = useState("form");
 
   // ── I2V ANALYZER STATE ────────────────────────────────────────────────────
   const [i2vPackage, setI2vPackage] = useState(null);
@@ -1389,14 +1407,14 @@ export default function Page() {
 
   const activateDevMode = () => {
     setTokens(999);
-    safeLsSet("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() }));
+    localStorage.setItem("ds_billing", JSON.stringify({ tokens: 999, date: new Date().toLocaleDateString() }));
   };
 
   useEffect(() => { 
     if (typeof window !== "undefined") { 
 
       // ── ПРОВЕРКА LOCK OVERLAY ──
-      if (safeLsGet("nc_unlocked") === "true") setSiteUnlocked(true);
+      if (localStorage.getItem("nc_unlocked") === "true") setSiteUnlocked(true);
 
       // ── ПРОВЕРКА URL-ПАРАМЕТРА (?dev=пароль) — проверка на СЕРВЕРЕ ──
       const params = new URLSearchParams(window.location.search);
@@ -1411,9 +1429,9 @@ export default function Page() {
           .catch(() => {});
       }
 
-      const savedHist = safeLsGet("ds_history"); 
-      if (savedHist) setHistory(safeJsonParse(savedHist, [])); 
-      const savedDraft = safeLsGet("ds_draft");
+      const savedHist = localStorage.getItem("ds_history"); 
+      if (savedHist) { try { setHistory(JSON.parse(savedHist)); } catch { localStorage.removeItem("ds_history"); } }
+      const savedDraft = localStorage.getItem("ds_draft");
       if (savedDraft) {
          try {
            const d = JSON.parse(savedDraft);
@@ -1437,29 +1455,16 @@ export default function Page() {
            if (d.engine) setEngine(d.engine);
            if (d.customStyle) setCustomStyle(d.customStyle);
            if (d.lang) setLang(d.lang);
-           if (typeof d.settingsOpen === "boolean") setSettingsOpen(d.settingsOpen);
-           if (typeof d.seedLocked === "boolean") setSeedLocked(d.seedLocked);
+           if (d.seedLocked !== undefined) setSeedLocked(Boolean(d.seedLocked));
            if (d.seedValue) setSeedValue(d.seedValue);
-           if (Array.isArray(d.frames)) setFrames(d.frames);
-           if (d.retention) setRetention(d.retention);
-           if (d.thumb) setThumb(d.thumb);
-           if (d.music) setMusic(d.music);
-           if (Array.isArray(d.seoVariants)) setSeoVariants(d.seoVariants);
-           if (Array.isArray(d.generatedChars)) setGeneratedChars(d.generatedChars);
+           if (d.frames) setFrames(d.frames);
+           if (d.generatedChars) setGeneratedChars(d.generatedChars);
            if (d.locRef) setLocRef(d.locRef);
            if (d.styleRef) setStyleRef(d.styleRef);
-           if (Array.isArray(d.bRolls)) setBRolls(d.bRolls);
-           if (typeof d.step2Done === "boolean") setStep2Done(d.step2Done);
-           if (d.refChar) setRefChar(d.refChar);
-           if (Array.isArray(d.refChars)) setRefChars(d.refChars);
-           if (d.refLoc) setRefLoc(d.refLoc);
-           if (d.refStyle) setRefStyle(d.refStyle);
-           if (d.refCharDNA) setRefCharDNA(d.refCharDNA);
-           if (d.refLocText) setRefLocText(d.refLocText);
-           if (d.refStyleText) setRefStyleText(d.refStyleText);
-           if (d.refAnalyzed) setRefAnalyzed(Boolean(d.refAnalyzed));
+           if (d.step2Done !== undefined) setStep2Done(Boolean(d.step2Done));
            if (d.referencePrompts) setReferencePrompts(d.referencePrompts);
-           if (d.view === "result" && Array.isArray(d.frames) && d.frames.length) setView("result");
+           if (d.multiCharRefs) setMultiCharRefs(d.multiCharRefs);
+           if (d.currentStep) setCurrentStep(d.currentStep);
          } catch(e){}
       }
       setDraftLoaded(true);
@@ -1467,20 +1472,14 @@ export default function Page() {
       // Если dev не активирован через URL — загружаем обычный биллинг
       {
         const today = new Date().toLocaleDateString();
-        const savedBilling = safeLsGet("ds_billing");
+        const savedBilling = localStorage.getItem("ds_billing");
         if (savedBilling) {
-          const b = safeJsonParse(savedBilling, null);
-          if (b && b.date === today) {
-            setTokens(Number.isFinite(Number(b.tokens)) ? Number(b.tokens) : DAILY_FREE_CINEMS);
-          } else {
-            const restored = Math.max(Number(b?.tokens || 0), DAILY_FREE_CINEMS);
-            setTokens(restored);
-            safeLsSet("ds_billing", JSON.stringify({ tokens: restored, date: today }));
-          }
-        } else {
-          safeLsSet("ds_billing", JSON.stringify({ tokens: NEW_USER_CINEMS, date: today }));
-          setTokens(NEW_USER_CINEMS);
-        }
+          try {
+            const b = JSON.parse(savedBilling);
+            if (b.date !== today) { setTokens(DAILY_START_BALANCE); localStorage.setItem("ds_billing", JSON.stringify({ tokens: DAILY_START_BALANCE, date: today })); } 
+            else { setTokens(b.tokens); }
+          } catch(e) { setTokens(DAILY_START_BALANCE); }
+        } else { localStorage.setItem("ds_billing", JSON.stringify({ tokens: DAILY_START_BALANCE, date: today })); setTokens(DAILY_START_BALANCE); }
       }
     } 
   }, []);
@@ -1488,14 +1487,15 @@ export default function Page() {
   useEffect(() => { if (GENRE_PRESETS[genre]) { setCovFont(GENRE_PRESETS[genre].font); setCovColor(GENRE_PRESETS[genre].color); } }, [genre]);
   useEffect(() => {
     if (!draftLoaded) return;
-    safeLsSet("ds_draft", JSON.stringify({
-      topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle,
-      ttsVoice, ttsSpeed, ttsStudioData, dur, vidFormat, engine, customStyle, lang, settingsOpen,
-      seedLocked, seedValue, frames, retention, thumb, music, seoVariants, generatedChars, locRef, styleRef,
-      bRolls, step2Done, refChar, refChars, refLoc, refStyle, refCharDNA, refLocText, refStyleText, refAnalyzed,
-      referencePrompts, view: frames.length ? view : "form"
-    }));
-  }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData, dur, vidFormat, engine, customStyle, lang, settingsOpen, seedLocked, seedValue, frames, retention, thumb, music, seoVariants, generatedChars, locRef, styleRef, bRolls, step2Done, refChar, refChars, refLoc, refStyle, refCharDNA, refLocText, refStyleText, refAnalyzed, referencePrompts, view, draftLoaded]);
+    try {
+      localStorage.setItem("ds_draft", JSON.stringify({
+        topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle,
+        ttsVoice, ttsSpeed, ttsStudioData, dur, vidFormat, engine, customStyle, lang,
+        seedLocked, seedValue, frames, generatedChars, locRef, styleRef, step2Done,
+        referencePrompts, multiCharRefs, currentStep
+      }));
+    } catch {}
+  }, [topic, script, genre, finalTwist, chars, pipelineMode, studioMode, studioLoc, studioStyle, ttsVoice, ttsSpeed, ttsStudioData, dur, vidFormat, engine, customStyle, lang, seedLocked, seedValue, frames, generatedChars, locRef, styleRef, step2Done, referencePrompts, multiCharRefs, currentStep, draftLoaded]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({top:0, behavior:"smooth"}); }, [view]);
 
   // Ротация советов каждые 5 секунд на экране загрузки
@@ -1534,18 +1534,19 @@ export default function Page() {
     setStyleRef("");
     setThumb(null);
     setTtsStudioData(null);
+    setReferencePrompts([]);
+    setMultiCharRefs([]);
+    setCurrentStep("form");
     setBusy(false);
     setView("form");
     // Референсы не сбрасываем — пользователь мог их загрузить для нового проекта тоже
   };
 
-  const persistCinemBalance = (value) => safeLsSet("ds_billing", JSON.stringify({ tokens: value, date: new Date().toLocaleDateString() }));
-  const deductToken = (amount = 1) => { setTokens(prev => { const next = Math.max(0, prev - amount); persistCinemBalance(next); return next; }); };
-  const refundToken = (amount = 1) => { setTokens(prev => { const next = prev + amount; persistCinemBalance(next); return next; }); };
+  const deductToken = (amount = 1) => { setTokens(prev => { const next = Math.max(0, prev - amount); try { localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); } catch {} return next; }); };
+  const refundToken = (amount = 1) => { setTokens(prev => { const next = prev + amount; try { localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); } catch {} return next; }); };
   const checkTokens = (amount = 1) => { if (tokens < amount) { setShowPaywall(true); return false; } return true; };
-  const chargeCinem = (key = "generation") => { const amount = CINEM_COSTS[key] || 1; if (!checkTokens(amount)) return false; deductToken(amount); return amount; };
-  const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); safeLsSet("ds_history", JSON.stringify(next)); return next; }); };
-  const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); safeLsRemove("ds_history"); } };
+  const deleteFromHistory = (id) => { setHistory(prev => { const next = prev.filter(item => item.id !== id); localStorage.setItem("ds_history", JSON.stringify(next)); return next; }); };
+  const clearHistory = () => { if(confirm("Очистить архив проектов?")) { setHistory([]); localStorage.removeItem("ds_history"); } };
 
   const applyPreset = (presetId) => {
     setActivePreset(presetId); 
@@ -1629,41 +1630,40 @@ export default function Page() {
     }
   }
 
-  async function handleAddRefCharacters(e) {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    const prepared = [];
-    for (const file of files.slice(0, 6)) {
-      const image = await resizeImageToBase64(file, 1024);
-      prepared.push({ id: `REF_CHAR_${Date.now()}_${Math.random().toString(36).slice(2)}`, image, dna: "" });
-    }
-    setRefChars(prev => [...prev, ...prepared].slice(0, 6));
-    setRefAnalyzed(false);
-    e.target.value = "";
-  }
-
-  const removeRefCharacter = (id) => {
-    setRefChars(prev => prev.filter(c => c.id !== id));
-    setRefAnalyzed(false);
-  };
-
   async function handleGenerateReferencePrompts() {
-    if (!topic.trim() && !script.trim()) return alert("Сначала введите тему или сценарий!");
-    const charged = chargeCinem("refs"); if (!charged) return;
-    setBusy(true); setLoadingMsg("Генерируем промпты для референсов..."); setView("loading");
-    try {
-      const sys = `You are a production art director. Create reference image prompts BEFORE storyboard generation. Output ONLY valid JSON: { "characters": [{"id":"CHAR_1","role":"...","prompt_EN":"..."}], "location_prompt_EN":"...", "style_prompt_EN":"..." }
-Rules: infer 1-4 important characters from script/topic; prompts are for still reference images, not video; English only; cinematic, identity-stable, no text/watermarks.`;
-      const raw = await callAPI(`Topic: ${topic}\nGenre: ${genre}\nScript: ${script}`, 2500, sys);
-      const data = cleanJSON(raw);
-      setReferencePrompts(data);
-    } catch(e) { refundToken(charged || 1); alert("🚨 Ошибка reference prompts: " + e.message); }
-    finally { setBusy(false); setView("form"); }
+    if (!checkTokens(COSTS.referencePrompts)) return;
+    const prompts = buildAllReferencePrompts({ chars, engine, genre, topic: topic || script.slice(0, 120), loc: studioLoc, style: studioStyle || customStyle });
+    setReferencePrompts(prompts);
+    deductToken(COSTS.referencePrompts);
   }
 
+  async function handleMultiCharUpload(e) {
+    const files = Array.from(e.target.files || []).slice(0, 6);
+    if (!files.length) return;
+    setBusy(true); setLoadingMsg("Сканируем персонажей..."); setView("loading");
+    try {
+      const next = [...multiCharRefs];
+      for (let i = 0; i < files.length; i++) {
+        const src = await resizeImageToBase64(files[i], 1024);
+        const raw = await callVisionAPI(src, 'Analyze this character reference image for AI video identity lock. Return ONLY JSON: { "dna": "[CHAR_DNA: age, gender, face geometry, eyes, hair, skin, body, outfit, unique marks, production identity lock in English]" }');
+        const parsed = cleanJSON(raw);
+        const id = "CHAR_" + (next.length + 1);
+        next.push({ id, src, dna: parsed?.dna || "", name: id });
+      }
+      setMultiCharRefs(next.slice(0, 6));
+    } catch (err) {
+      alert("🚨 Ошибка multi-character анализа: " + err.message);
+    } finally {
+      setBusy(false); setView("form");
+    }
+  }
+
+  function removeMultiCharRef(id) {
+    setMultiCharRefs(prev => prev.filter(x => x.id !== id));
+  }
 
   async function handleAnalyzeRefs() {
-    if (!refChar && refChars.length === 0 && !refLoc && !refStyle) return alert("Загрузите хотя бы одно фото!");
+    if (!refLoc && !refStyle && multiCharRefs.length === 0 && !refChar) return alert("Загрузите локацию, стиль или персонажей!");
     setBusy(true); setView("loading");
     try {
       if (refChar) {
@@ -1671,15 +1671,6 @@ Rules: infer 1-4 important characters from script/topic; prompts are for still r
         const raw = await callVisionAPI(refChar, `You are an elite Character Designer for AI video production. Analyze this reference photo and describe the person's PHYSICAL appearance in English. Focus ONLY on: exact age range, face geometry (jaw shape, cheekbone prominence, nose bridge), eye color+shape+spacing, eyebrow thickness, hair (color/texture/length/style), facial hair details, skin tone, build, any unique marks/scars/features. Be maximally specific — this DNA will be used to lock character identity across all video frames. Return ONLY valid JSON: { "dna": "[CHAR_REF_DNA: very detailed physical description in English]" }`);
         const p = cleanJSON(raw);
         if (p?.dna) setRefCharDNA(p.dna);
-      }
-      for (let i = 0; i < refChars.length; i++) {
-        const r = refChars[i];
-        if (r.image && !r.dna) {
-          setLoadingMsg(`👤 Сканируем персонажа ${i + 1}/${refChars.length}...`);
-          const raw = await callVisionAPI(r.image, `You are an elite Character Designer for AI video production. Analyze this reference photo and describe the person's PHYSICAL appearance in English. Return ONLY valid JSON: { "dna": "[CHAR_${i + 1}_REF_DNA: detailed physical description in English]" }`);
-          const p = cleanJSON(raw);
-          if (p?.dna) setRefChars(prev => prev.map(x => x.id === r.id ? { ...x, dna: p.dna } : x));
-        }
       }
       if (refLoc) {
         setLoadingMsg("🌍 Анализируем локацию...");
@@ -1694,7 +1685,7 @@ Rules: infer 1-4 important characters from script/topic; prompts are for still r
         if (p?.style) setRefStyleText(p.style);
       }
       setRefAnalyzed(true);
-      const analyzed = [(refChar || refChars.length) && `${refChars.length + (refChar ? 1 : 0)} персонаж(ей)`, refLoc && "локация", refStyle && "стиль"].filter(Boolean).join(", ");
+      const analyzed = [multiCharRefs.length && (multiCharRefs.length + " персонаж(ей)"), refLoc && "локация", refStyle && "стиль"].filter(Boolean).join(", ");
       alert(`✅ Проанализировано: ${analyzed}.\n\nТеперь запускайте Шаг 1 — раскадровка будет построена под ваши референсы!`);
     } catch(e) {
       alert("🚨 Ошибка анализа референсов: " + e.message);
@@ -1763,7 +1754,7 @@ Generate exactly ${chunk.length} frames. Keep frame numbering starting from ${i+
 
   async function handleGenerateCasting() {
     if (!topic.trim() && chars.length === 0) return alert("Введите тему или добавьте персонажей вручную!");
-    const charged = chargeCinem("casting"); if (!charged) return;
+    if (!checkTokens(COSTS.casting)) return;
     setBusy(true); setLoadingMsg("Проводим кастинг героев..."); setView("loading");
     
     try {
@@ -1790,27 +1781,26 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
       const data = cleanJSON(text);
       if (data.characters_EN && data.characters_EN.length > 0) {
         setGeneratedChars(data.characters_EN);
+        deductToken(COSTS.casting);
         alert(`Успешно! ИИ подготовил кастинг на ${data.characters_EN.length} чел. Можно переходить к Шагу 1.`);
       } else {
         alert("Героев не найдено.");
       }
-    } catch(e) { refundToken(charged || 1); alert("🚨 ОШИБКА КАСТИНГА: " + e.message); } finally { setBusy(false); setView("form"); }
+    } catch(e) { alert("🚨 ОШИБКА КАСТИНГА: " + e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleGenerateHooks() {
     if (!topic.trim()) return alert("Сначала введите Тему!");
-    const charged = chargeCinem("draft"); if (!charged) return;
     setBusy(true); setLoadingMsg("Придумываем кликбейты..."); setView("loading");
     try {
       const text = await callAPI(`Topic: ${topic}`, 2000, `You are a viral TikTok producer. Write 3 powerful hooks (1 sentence each) in RUSSIAN. Genre: ${genre}. Provide valid JSON object ONLY. Format: { "hooks": ["Хук 1", "Хук 2", "Хук 3"] }`);
       const data = cleanJSON(text);
       if(data && Array.isArray(data.hooks)) setHooksList(data.hooks);
-    } catch(e) { refundToken(charged || 1); alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
+    } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleDraftText() {
     if (!topic.trim()) return alert("Введите тему!");
-    const charged = chargeCinem("draft"); if (!charged) return;
     setBusy(true); setScript(""); setLoadingMsg("Пишем сценарий..."); setView("loading");
     try {
       const sec = DURATION_SECONDS[dur] || 60; 
@@ -1906,12 +1896,11 @@ No markdown. No ** in text. Emphasis in CAPS only.`;
 
       setScript(draftScript);
       setHooksList([]);
-    } catch(e) { refundToken(charged || 1); alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
+    } catch(e) { alert("🚨 ОШИБКА: " + e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleBoostScript() {
     if (!script.trim()) return alert("Сначала напишите или вставьте текст сценария!");
-    const charged = chargeCinem("boost"); if (!charged) return;
     setBusy(true); setLoadingMsg("⚡ Усиливаем текст по вирусным законам..."); setView("loading");
     try {
       const sec = DURATION_SECONDS[dur] || 60;
@@ -1946,12 +1935,13 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
       const data = cleanJSON(text);
       if (data && data.script) {
         setScript(data.script.replace(/Диктор:\s*/gi, "").trim());
+        deductToken(COSTS.boost);
       }
-    } catch(e) { refundToken(charged || 1); alert("🚨 ОШИБКА УСИЛЕНИЯ: " + e.message); } finally { setBusy(false); setView("form"); }
+    } catch(e) { alert("🚨 ОШИБКА УСИЛЕНИЯ: " + e.message); } finally { setBusy(false); setView("form"); }
   }
 
   async function handleGenerateTTSStudio() {
-    const charged = chargeCinem("tts"); if (!charged) return;
+    if (!checkTokens(COSTS.tts)) return;
     setGeneratingTTS(true);
     try {
       const voiceList = GOOGLE_VOICES.map(v => `${v.id} (${v.desc})`).join(", ");
@@ -1969,19 +1959,18 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
       const text = await callAPI(`Жанр: ${genre}. Тема: ${topic||"Видео"}.\nСценарий:\n${script}`, 2000, sys);
       const data = cleanJSON(text);
       setTtsStudioData(data);
-    } catch(e) { refundToken(charged || 1); alert("Ошибка TTS Studio: " + e.message); }
+      deductToken(COSTS.tts);
+    } catch(e) { alert("Ошибка TTS Studio: " + e.message); }
     finally { setGeneratingTTS(false); }
   }
 
-  async function handleAddSEOVariant() {
-    const charged = chargeCinem("seo"); if (!charged) return;
-    setGeneratingSEO(true);
+  async function handleAddSEOVariant() {    setGeneratingSEO(true);
     try {
       const req = `Тема: ${topic}. Сценарий: ${script}. Сгенерируй еще 1 АБСОЛЮТНО НОВЫЙ вариант SEO. Выдай только JSON объект: { "title": "...", "desc": "...", "tags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"] }`;
       const text = await callAPI(req, 1000, `Output ONLY valid JSON object representing 1 SEO variant with AT LEAST 5 hashtags.`);
       const newVar = cleanJSON(text);
       setSeoVariants(prev => [...prev, newVar]);
-    } catch (e) { refundToken(charged || 1); alert("Ошибка генерации SEO: " + e.message); } finally { setGeneratingSEO(false); }
+    } catch (e) { alert("Ошибка генерации SEO: " + e.message); } finally { setGeneratingSEO(false); }
   }
 
   const savePageProfile = (profile) => {};
@@ -1989,7 +1978,6 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
   // ── PRODUCTION PIPELINE ───────────────────────────────────────────────────
   async function handleRunPipeline() {
     if (!step2Done || frames.length === 0) return alert("Сначала выполните Шаг 2 — PRO-промпты!");
-    const charged = chargeCinem("pipeline"); if (!charged) return;
     setPipelineRunning(true);
     setPipelineResult(null);
     setPipelineProgress({ stage: "prepare", index: 0, total: frames.length, message: "Подготовка locked промптов..." });
@@ -2067,7 +2055,6 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
       setTab("pipeline");
 
     } catch (e) {
-      refundToken(charged || 1);
       alert("🚨 Pipeline error: " + e.message);
     } finally {
       setPipelineRunning(false);
@@ -2076,7 +2063,6 @@ BANNED: "incredible", "amazing", "legendary", "heroic", "unique", "fascinating",
 
   async function handleGenerateFB() {
     if (!script.trim()) return alert("Сначала создайте сценарий (Шаг 1)!");
-    const charged = chargeCinem("fb"); if (!charged) return;
     setGeneratingFB(true);
     setFbData(null);
     try {
@@ -2138,7 +2124,7 @@ JSON FORMAT:
       const text = await callAPI(req, 2000, sys);
       const data = cleanJSON(text);
       setFbData(data);
-    } catch(e) { refundToken(charged || 1); alert("🚨 Ошибка генерации Facebook: " + e.message); }
+    } catch(e) { alert("🚨 Ошибка генерации Facebook: " + e.message); }
     finally { setGeneratingFB(false); }
   }
 
@@ -2151,7 +2137,7 @@ JSON FORMAT:
 
   async function handleStep1() {
     if (!topic.trim() && !script.trim()) return alert("Заполните тему или скрипт!");
-    const charged = chargeCinem("step1"); if (!charged) return;
+    if (!checkTokens(COSTS.step1)) return;
     
     setBusy(true); setView("loading");
     
@@ -2187,20 +2173,20 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       }
       
       // Render.com выдерживает долгие запросы — снимаем искусственный лимит
-      const rawTargetFrames = Math.floor(sec / 3);
-      const targetFrames = rawTargetFrames; // без ограничений
+      const timingPlan = getTimingPlan(dur);
+      const rawTargetFrames = timingPlan.frames;
+      const targetFrames = rawTargetFrames; // выбранная длительность строго управляет количеством кадров
       
       setLoadingMsg("🎬 Шаг 1/2: Пишем раскадровку и ДНК персонажей...");
+      const characterRefsForPrompt = multiCharRefs.map((c, i) => ({ id: c.id || "CHAR_" + (i+1), dna: c.dna, source: "uploaded_reference" }));
       const preGeneratedChars = generatedChars.length > 0 ? JSON.stringify(generatedChars) : JSON.stringify(chars);
-      const engineDirective = `VISUAL ENGINE LOCK: ${VISUAL_ENGINES[engine]?.label || engine}. Style must be applied in EVERY visual, imgPrompt_EN and vidPrompt_EN: ${getEnginePrompt(engine, customStyle)}. Do not leak styles from other engines.`;
-      const timingDirective = `TIMING LOCK: total duration ${sec}s, target frames ${targetFrames}, about 3s per frame. Voiceover per frame must fit its time. Use ${lang === "RU" ? "Russian" : "English"} VO only.`;
-      const genreDirective = `GENRE LOCK: ${genre}. This genre must change pacing, tone, visual hooks and scene choices — not only UI.`;
+      const visualStyleLock = getStyleLock(engine, customStyle);
       const studioInfo = studioMode === "MANUAL" ? `ВВОДНЫЕ СТУДИИ: Локация [${studioLoc}], Стиль [${studioStyle}]. НЕ МЕНЯЙ ИХ!` : "ВВОДНЫЕ СТУДИИ: Автоматически.";
 
       // БАТЧ-ГЕНЕРАЦИЯ раскадровки
       // Каждый батч = отдельный лёгкий запрос к серверу
-      // 6 кадров * ~250 синемаов = ~1500 синемаов на батч → быстро и стабильно
-      // Уменьшено с 10 до 6 — новый промпт детальнее, нужно больше синемаов на кадр
+      // 6 кадров * ~250 токенов = ~1500 токенов на батч → быстро и стабильно
+      // Уменьшено с 10 до 6 — новый промпт детальнее, нужно больше токенов на кадр
       const BATCH_SIZE = 6;
       const totalBatches = Math.ceil(targetFrames / BATCH_SIZE);
       let allFrames = [];
@@ -2225,15 +2211,14 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         const isFirstBatch = batch === 0;
 
         // Инжектируем проанализированные референсы в промпт (если есть)
-        const allRefDna = [refCharDNA, ...refChars.map(c => c.dna).filter(Boolean)].filter(Boolean).join("\n");
-        const refCharBlock = allRefDna ? `\nCHARACTER VISUAL REFERENCES (uploaded photos):\n${allRefDna}\nUse the matching reference ONLY when that character is visible. Do NOT force one face into every frame.` : "";
+        const refCharBlock = refCharDNA ? `\nCHARACTER VISUAL REFERENCE (from uploaded photo — MANDATORY): ${refCharDNA}. Apply this EXACT appearance to the main character in EVERY frame. Do NOT invent or change any physical feature.` : "";
         const refLocBlock  = refLocText  ? `\nLOCATION VISUAL REFERENCE (from uploaded photo): ${refLocText}. Match this environment throughout all frames.` : "";
         const refStyleBlock= refStyleText? `\nSTYLE VISUAL REFERENCE (from uploaded photo): ${refStyleText}. Apply this visual style to every frame.` : "";
         const refBlock = refCharBlock + refLocBlock + refStyleBlock;
 
         const batchReq = isFirstBatch
-          ? `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\n${studioInfo}\n${engineDirective}\n${timingDirective}\n${genreDirective}${refBlock}\nПЕРСОНАЖИ: ${preGeneratedChars}.\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! 3 СЕК/КАДР. РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек.`
-          : `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nПРОДОЛЖЕНИЕ. ЖАНР: ${genre}.\nПЕРСОНАЖИ: ${JSON.stringify(data1A.characters_EN || [])}.\nЛОКАЦИЯ: ${data1A.location_ref_EN || ""}.\n${engineDirective}\n${timingDirective}\n${genreDirective}${refBlock}\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек. Используй тех же персонажей.`;
+          ? `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\n${studioInfo}${refBlock}\nПЕРСОНАЖИ: ${preGeneratedChars}.\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! ${timingPlan.frameDuration} СЕК/КАДР. РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек. Каждый кадр обязан учитывать жанр ${genre} и стиль ${VISUAL_ENGINES[engine]?.label || engine}.`
+          : `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nПРОДОЛЖЕНИЕ. ЖАНР: ${genre}.\nПЕРСОНАЖИ: ${JSON.stringify(data1A.characters_EN || [])}.\nЛОКАЦИЯ: ${data1A.location_ref_EN || ""}.\n${refBlock}\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек. Используй тех же персонажей, но только когда они реально видны в кадре.`;
 
         const batchSys = isFirstBatch
           ? SYS_STEP_1A
@@ -2284,27 +2269,28 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       }
       
       rebuildRawText(data1A.frames || [], false);
-      // Синема НЕ списываем здесь — только после успешного Шага 2
+      deductToken(COSTS.step1); // Step 1 — отдельная AI-генерация, списываем только после полного успеха
+      setCurrentStep("storyboard");
       setBgImage(null); 
       setTab("storyboard"); 
       setView("result");
       
       const stateData = { frames: data1A.frames, generatedChars: data1A.characters_EN, locRef: data1A.location_ref_EN, styleRef: data1A.style_ref_EN, retention: data1A.retention, thumb: data1B.thumbnail, seoVariants: data1B.seo_variants, music: data1B.music_EN, step2Done: false, ttsStudioData };
       const newHistory = [{ id: Date.now(), topic: topic || "Генерация", time: new Date().toLocaleString("ru-RU"), text: JSON.stringify(stateData), format: vidFormat }, ...history].slice(0, 10);
-      setHistory(newHistory); safeLsSet("ds_history", JSON.stringify(newHistory));
+      setHistory(newHistory); localStorage.setItem("ds_history", JSON.stringify(newHistory));
       
-    } catch(e) { refundToken(charged || 1); alert(`🚨 ОШИБКА ШАГА 1: ${e.message}`); setView("form"); } finally { setBusy(false); }
+    } catch(e) { alert(`🚨 ОШИБКА ШАГА 1: ${e.message}`); setView("form"); } finally { setBusy(false); }
   }
 
   async function handleStep2(resumeFrom = null) {
-    const charged = resumeFrom ? 0 : chargeCinem("step2"); if (!resumeFrom && !charged) return;
+    if (!checkTokens(COSTS.step2)) return;
     setBusy(true); setView("loading");
-    let tokenDeducted = Boolean(charged);
+    let tokenDeducted = false;
 
     // Прогреваем сервер — между Шагом 1 и 2 пользователь изучает раскадровку,
     // за это время Render Free успевает заснуть снова (< 15 мин без запросов)
-    setLoadingMsg("🔄 Проверяем соединение... 🎬 API не тратится");
-    await warmupServer(() => setLoadingMsg("😴 Сервер просыпается (~15 сек)... 🎬 API ещё не тратится, ждите!"));
+    setLoadingMsg("🔄 Проверяем соединение... ⭐ API не тратится");
+    await warmupServer(() => setLoadingMsg("😴 Сервер просыпается (~15 сек)... ⭐ API ещё не тратится, ждите!"));
     setLoadingMsg(`🪄 Шаг 2: Генерируем PRO-промпты (${pipelineMode} режим)...`);
 
     try {
@@ -2490,7 +2476,8 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       setStep2Done(true);
       
       rebuildRawText(enrichedFrames, true); 
-      tokenDeducted = false; // Синемы списаны при старте Шага 2; при ошибке вернём ниже
+      tokenDeducted = true;
+      deductToken(COSTS.step2); // Step 2 — отдельная AI-генерация, списываем только после полного успеха
       setView("result");
 
       setHistory(prev => {
@@ -2498,11 +2485,11 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
          if(next.length > 0) { 
            const stateData = { frames: enrichedFrames, generatedChars, locRef, styleRef, retention, thumb: nextThumb, seoVariants, music, bRolls: finalBRolls, step2Done: true, ttsStudioData };
            next[0].text = JSON.stringify(stateData); 
-           safeLsSet("ds_history", JSON.stringify(next)); 
+           localStorage.setItem("ds_history", JSON.stringify(next)); 
          }
          return next;
       });
-    } catch(e) { if (tokenDeducted) refundToken(charged || 1); alert(`🚨 ОШИБКА ШАГА 2: ${e.message}\n\n💡 Попробуйте ещё раз — уже оплаченные батчи не повторятся.`); setView("result"); } finally { setBusy(false); }
+    } catch(e) { if (tokenDeducted) refundToken(); alert(`🚨 ОШИБКА ШАГА 2: ${e.message}\n\n💡 Попробуйте ещё раз — уже оплаченные батчи не повторятся.`); setView("result"); } finally { setBusy(false); }
   }
 
   function handleImageUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setBgImage(ev.target.result); reader.readAsDataURL(file); }
@@ -2677,8 +2664,8 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.88)",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div className="glass" style={{padding:36,maxWidth:380,textAlign:"center",position:"relative",boxShadow:"0 20px 60px rgba(168,85,247,.35)"}}>
             <button onClick={()=>setShowPaywall(false)} style={{position:"absolute",top:16,right:16,background:"none",border:"none",color:"#6b7280",fontSize:22,cursor:"pointer"}}>×</button>
-            <div style={{fontSize:52,marginBottom:12}}>🎬</div>
-            <h2 style={{fontSize:22,fontWeight:900,color:"#fff",marginBottom:10}}>Недостаточно Синем</h2>
+            <div style={{fontSize:52,marginBottom:12}}>⭐</div>
+            <h2 style={{fontSize:22,fontWeight:900,color:"#fff",marginBottom:10}}>Лимит исчерпан</h2>
             <p style={{fontSize:14,color:"#94a3b8",marginBottom:28,lineHeight:1.6}}>Магия на сегодня закончилась.<br/>Возвращайтесь завтра или оформите PRO.</p>
             <button onClick={()=>setShowPaywall(false)} style={{width:"100%",background:"linear-gradient(135deg,#a855f7,#ec4899)",border:"none",padding:"16px",borderRadius:14,color:"#fff",fontWeight:900,cursor:"pointer",fontSize:15}}>ПОНЯТНО</button>
           </div>
@@ -2743,7 +2730,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
           <button onClick={()=>setShowGuide(true)} style={{background:"none",border:"none",color:"#10b981",fontSize:11,fontWeight:800,cursor:"pointer",padding:"6px 10px",borderRadius:8,transition:"background .2s"}} onMouseEnter={e=>e.target.style.background="rgba(16,185,129,.1)"} onMouseLeave={e=>e.target.style.background="none"}>📖 ГАЙД</button>
           <button onClick={()=>setShowHistory(true)} style={{background:"none",border:"none",color:"#94a3b8",fontSize:11,fontWeight:700,cursor:"pointer",padding:"6px 10px",borderRadius:8,transition:"background .2s"}} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,.06)"} onMouseLeave={e=>e.target.style.background="none"}>🗄 АРХИВ</button>
-          <div className="token-badge" style={{fontSize:12,fontWeight:900,color:tokens>0?"#34d399":"#ef4444",background:"rgba(255,255,255,.05)",border:`1px solid ${tokens>0?"rgba(52,211,153,.3)":"rgba(239,68,68,.3)"}`,padding:"6px 14px",borderRadius:10,letterSpacing:"0.5px"}}>🎬 {tokens}</div>
+          <div className="token-badge" style={{fontSize:12,fontWeight:900,color:tokens>0?"#34d399":"#ef4444",background:"rgba(255,255,255,.05)",border:`1px solid ${tokens>0?"rgba(52,211,153,.3)":"rgba(239,68,68,.3)"}`,padding:"6px 14px",borderRadius:10,letterSpacing:"0.5px"}}>{formatStars(tokens)}</div>
         </div>
       </nav>
 
@@ -2866,6 +2853,55 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
               }
             </div>
 
+            {/* PRE-REFERENCE PROMPTS */}
+            <div className="glass panel" style={{padding:24,borderColor:"rgba(56,189,248,.25) !important"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:12}}>
+                <div>
+                  <label style={{fontSize:10,fontWeight:900,letterSpacing:"2.5px",color:"#67e8f9",textTransform:"uppercase"}}>🧩 REFERENCE PROMPTS ДО ЗАГРУЗКИ</label>
+                  <p style={{fontSize:11,color:"#64748b",margin:"8px 0 0",lineHeight:1.4}}>Сначала получи карты персонажей / локации / стиля, сгенерируй их, потом загрузи ниже.</p>
+                </div>
+                <button onClick={handleGenerateReferencePrompts} disabled={busy||tokens<COSTS.referencePrompts} style={{background:"rgba(14,165,233,.12)",border:"1px solid rgba(56,189,248,.35)",color:"#bae6fd",borderRadius:12,padding:"10px 12px",fontSize:11,fontWeight:900,cursor:"pointer"}}>✨ Получить ({formatStars(COSTS.referencePrompts)})</button>
+              </div>
+              {referencePrompts.length>0&&(
+                <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+                  <CopyBtn text={referencePrompts.map(p=>(p.id + " • " + p.name + "\n" + p.prompt)).join("\n\n")} label="📦 Все" small/>
+                </div>
+              )}
+              <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:360,overflow:"auto"}}>
+                {referencePrompts.map((p)=>(
+                  <div key={p.id} style={{background:"rgba(0,0,0,.42)",border:"1px solid rgba(56,189,248,.18)",borderRadius:14,padding:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
+                      <div style={{fontSize:11,fontWeight:900,color:p.type==="character"?"#f472b6":p.type==="location"?"#38bdf8":"#facc15",fontFamily:"monospace"}}>{p.id} · {p.name}</div>
+                      <CopyBtn text={p.prompt} small label="📋"/>
+                    </div>
+                    <div style={{fontSize:11,lineHeight:1.55,color:"#cbd5e1",fontFamily:"monospace"}}>{p.prompt}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* MULTI CHARACTER REFERENCES */}
+            <div className="glass panel" style={{padding:24,borderColor:"rgba(244,114,182,.25) !important"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
+                <div>
+                  <label style={{fontSize:10,fontWeight:900,letterSpacing:"2.5px",color:"#f472b6",textTransform:"uppercase"}}>👥 MULTI CHARACTER REFERENCES</label>
+                  <p style={{fontSize:11,color:"#64748b",margin:"8px 0 0",lineHeight:1.4}}>Загружай 2–6 фото персонажей. Каждый станет отдельным CHAR_X DNA-lock.</p>
+                </div>
+                <label style={{background:"rgba(236,72,153,.12)",border:"1px solid rgba(236,72,153,.35)",color:"#fbcfe8",borderRadius:12,padding:"10px 14px",fontSize:12,fontWeight:900,cursor:"pointer"}}>➕ Фото<input type="file" accept="image/*" multiple hidden onChange={handleMultiCharUpload}/></label>
+              </div>
+              {multiCharRefs.length>0&&(
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(92px,1fr))",gap:10}}>
+                  {multiCharRefs.map((c,i)=>(
+                    <div key={c.id} style={{position:"relative",background:"rgba(0,0,0,.45)",border:"1px solid rgba(244,114,182,.25)",borderRadius:14,padding:8}}>
+                      <button onClick={()=>removeMultiCharRef(c.id)} style={{position:"absolute",top:4,right:4,border:"none",background:"rgba(0,0,0,.7)",color:"#f87171",borderRadius:8,fontWeight:900,cursor:"pointer"}}>×</button>
+                      <img src={c.src} alt={c.id} style={{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:10,marginBottom:6}}/>
+                      <div style={{fontSize:10,fontWeight:900,color:"#f472b6",fontFamily:"monospace"}}>CHAR_{i+1}</div>
+                      <div style={{fontSize:8,color:"#64748b",lineHeight:1.3,maxHeight:30,overflow:"hidden"}}>{c.dna||"DNA готов"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {/* REFERENCE STUDIO */}
             <div className="glass panel" style={{padding:24}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -2873,55 +2909,17 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                   <label style={{fontSize:10,fontWeight:900,letterSpacing:"2.5px",color:"#f97316",textTransform:"uppercase"}}>📸 REFERENCE STUDIO</label>
                   {refAnalyzed && <span style={{fontSize:9,background:"rgba(34,197,94,.2)",color:"#4ade80",border:"1px solid rgba(34,197,94,.3)",padding:"2px 8px",borderRadius:10,fontWeight:900}}>✓ ГОТОВО</span>}
                 </div>
-                {(refChar||refChars.length>0||refLoc||refStyle)&&(
-                  <button onClick={()=>{setRefChar(null);setRefChars([]);setRefLoc(null);setRefStyle(null);setRefCharDNA("");setRefLocText("");setRefStyleText("");setRefAnalyzed(false);}} style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"4px 10px",fontSize:10,fontWeight:900,cursor:"pointer"}}>✕ Очистить</button>
+                {(multiCharRefs.length>0||refLoc||refStyle)&&(
+                  <button onClick={()=>{setMultiCharRefs([]);setRefChar(null);setRefLoc(null);setRefStyle(null);setRefCharDNA("");setRefLocText("");setRefStyleText("");setRefAnalyzed(false);}} style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"4px 10px",fontSize:10,fontWeight:900,cursor:"pointer"}}>✕ Очистить</button>
                 )}
               </div>
 
               <p style={{fontSize:11,color:"#64748b",marginBottom:16,lineHeight:1.6}}>
-                Загрузи фото → ИИ увидит лицо/место/стиль → раскадровка и I2V-промпты строятся под эти референсы.
+                Персонажи загружаются в Multi Character. Здесь — окружение: локация и визуальный стиль.
               </p>
-              <div style={{background:"rgba(56,189,248,.06)",border:"1px solid rgba(56,189,248,.18)",borderRadius:14,padding:14,marginBottom:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:10}}>
-                  <div>
-                    <div style={{fontSize:10,fontWeight:900,color:"#7dd3fc",textTransform:"uppercase",letterSpacing:"1.6px"}}>🧩 Reference prompts до загрузки</div>
-                    <div style={{fontSize:10,color:"#64748b",marginTop:4}}>Сначала получи промпты, сгенерируй картинки, потом загрузи их сюда.</div>
-                  </div>
-                  <button onClick={handleGenerateReferencePrompts} disabled={busy||(!topic.trim()&&!script.trim())} style={{background:"rgba(56,189,248,.14)",border:"1px solid rgba(56,189,248,.35)",borderRadius:10,color:"#bae6fd",padding:"8px 10px",fontSize:10,fontWeight:900,cursor:busy?"not-allowed":"pointer"}}>✨ Получить (🎬1)</button>
-                </div>
-                {referencePrompts&&<div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {(referencePrompts.characters||[]).map((c,i)=>(
-                    <div key={i} style={{fontSize:10,color:"#cbd5e1",fontFamily:"monospace",background:"rgba(0,0,0,.35)",borderRadius:8,padding:8,lineHeight:1.45}}>
-                      <b style={{color:"#f472b6"}}>{c.id || `CHAR_${i+1}`} · {c.role}</b><br/>{c.prompt_EN}
-                    </div>
-                  ))}
-                  {referencePrompts.location_prompt_EN&&<div style={{fontSize:10,color:"#bae6fd",fontFamily:"monospace",background:"rgba(0,0,0,.35)",borderRadius:8,padding:8}}>🌍 {referencePrompts.location_prompt_EN}</div>}
-                  {referencePrompts.style_prompt_EN&&<div style={{fontSize:10,color:"#ddd6fe",fontFamily:"monospace",background:"rgba(0,0,0,.35)",borderRadius:8,padding:8}}>🎨 {referencePrompts.style_prompt_EN}</div>}
-                </div>}
-              </div>
 
-              <div style={{background:"rgba(236,72,153,.06)",border:"1px solid rgba(236,72,153,.18)",borderRadius:14,padding:14,marginBottom:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:10}}>
-                  <div>
-                    <div style={{fontSize:10,fontWeight:900,color:"#f9a8d4",textTransform:"uppercase",letterSpacing:"1.6px"}}>👥 Multi Character References</div>
-                    <div style={{fontSize:10,color:"#64748b",marginTop:4}}>Загружай 2–6 фото персонажей. Каждый станет отдельным DNA-lock.</div>
-                  </div>
-                  <label style={{background:"rgba(236,72,153,.14)",border:"1px solid rgba(236,72,153,.35)",borderRadius:10,color:"#fbcfe8",padding:"8px 10px",fontSize:10,fontWeight:900,cursor:"pointer"}}>➕ Фото<input type="file" accept="image/*" multiple hidden onChange={handleAddRefCharacters}/></label>
-                </div>
-                {refChars.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {refChars.map((rc,i)=>(
-                    <div key={rc.id} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:`2px solid ${rc.dna?"#22c55e":"rgba(236,72,153,.35)"}`}}>
-                      <img src={rc.image} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={`ref character ${i+1}`}/>
-                      <button onClick={()=>removeRefCharacter(rc.id)} style={{position:"absolute",top:4,right:4,width:22,height:22,borderRadius:"50%",border:"none",background:"rgba(0,0,0,.75)",color:"#f87171",fontWeight:900,cursor:"pointer"}}>×</button>
-                      <div style={{position:"absolute",left:4,bottom:4,background:"rgba(0,0,0,.72)",color:rc.dna?"#4ade80":"#f9a8d4",fontSize:9,fontWeight:900,borderRadius:6,padding:"2px 6px"}}>CHAR {i+1}{rc.dna?" ✓":""}</div>
-                    </div>
-                  ))}
-                </div>}
-              </div>
-
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
                 {[
-                  {key:"char",  label:"👤 Персонаж", stateVal:refChar,  setFn:setRefChar,  dna:refCharDNA,  color:"#f472b6"},
                   {key:"loc",   label:"🌍 Локация",   stateVal:refLoc,   setFn:setRefLoc,   dna:refLocText,  color:"#38bdf8"},
                   {key:"style", label:"🎨 Стиль",     stateVal:refStyle, setFn:setRefStyle, dna:refStyleText,color:"#a78bfa"},
                 ].map(({key,label,stateVal,setFn,dna,color})=>(
@@ -2949,7 +2947,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                 ))}
               </div>
 
-              {(refChar||refChars.length>0||refLoc||refStyle)&&(
+              {(multiCharRefs.length>0||refLoc||refStyle)&&(
                 <button onClick={handleAnalyzeRefs} disabled={busy||refAnalyzed} style={{width:"100%",padding:"12px",background:refAnalyzed?"rgba(34,197,94,.12)":"linear-gradient(135deg,rgba(249,115,22,.25),rgba(168,85,247,.25))",border:`1px solid ${refAnalyzed?"rgba(34,197,94,.4)":"rgba(249,115,22,.5)"}`,borderRadius:12,color:refAnalyzed?"#4ade80":"#fff",fontWeight:900,cursor:busy||refAnalyzed?"default":"pointer",fontSize:13,letterSpacing:"0.5px",transition:"all .2s"}}>
                   {refAnalyzed?"✅ Референсы готовы — запускайте Шаг 1":busy?"⏳ Анализируем...":"🔍 АНАЛИЗИРОВАТЬ РЕФЕРЕНСЫ"}
                 </button>
@@ -2960,12 +2958,12 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
             <div className="glass panel" style={{padding:24}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <label style={{fontSize:10,fontWeight:900,letterSpacing:"2.5px",color:"#f472b6",textTransform:"uppercase"}}>👤 КУЗНИЦА ПЕРСОНАЖЕЙ</label>
+                  <label style={{fontSize:10,fontWeight:900,letterSpacing:"2.5px",color:"#f472b6",textTransform:"uppercase"}}>⚙️ ADVANCED CHARACTER EDITOR</label>
                   <button onClick={()=>openInfo('forge')} className="icon-btn" style={{color:"#f472b6",fontSize:13}}>ℹ️</button>
                 </div>
                 <button onClick={addChar} style={{background:"rgba(236,72,153,.12)",border:"1px solid rgba(236,72,153,.35)",borderRadius:8,color:"#fbcfe8",padding:"5px 12px",fontSize:10,fontWeight:800,cursor:"pointer",transition:"all .2s"}}>➕ ДОБАВИТЬ</button>
               </div>
-              {chars.length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic",textAlign:"center",marginBottom:14}}>ИИ сам выберет героев из текста</div>}
+              {chars.length===0&&<div style={{fontSize:12,color:"#475569",fontStyle:"italic",textAlign:"center",marginBottom:14}}>Ручной режим: можно уточнить персонажей, если сценарий сам не даёт достаточно деталей</div>}
               <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
                 {chars.map((c)=>(
                   <div key={c.id} style={{background:"rgba(0,0,0,.4)",border:"1px solid rgba(255,255,255,.05)",borderRadius:12,padding:12}}>
@@ -2982,7 +2980,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                   </div>
                 ))}
               </div>
-              <button onClick={handleGenerateCasting} disabled={busy||(!topic.trim()&&!script.trim()&&chars.length===0)} style={{width:"100%",background:"linear-gradient(135deg,rgba(236,72,153,.12),rgba(168,85,247,.12))",border:"1px dashed rgba(236,72,153,.4)",borderRadius:12,padding:12,color:"#fbcfe8",fontSize:11,fontWeight:800,cursor:busy?"not-allowed":"pointer",transition:"all .2s"}}>🧬 СГЕНЕРИРОВАТЬ КАСТИНГ (🎬 1 Синема)</button>
+              <button onClick={handleGenerateCasting} disabled={busy||(!topic.trim()&&!script.trim()&&chars.length===0)} style={{width:"100%",background:"linear-gradient(135deg,rgba(236,72,153,.12),rgba(168,85,247,.12))",border:"1px dashed rgba(236,72,153,.4)",borderRadius:12,padding:12,color:"#fbcfe8",fontSize:11,fontWeight:800,cursor:busy?"not-allowed":"pointer",transition:"all .2s"}}>🧬 УТОЧНИТЬ КАСТИНГ (ДО РАСКАДРОВКИ)</button>
               {generatedChars.length>0&&<div style={{textAlign:"center",marginTop:10,fontSize:11,color:"#34d399",fontWeight:800}}>✅ Кастинг готов ({generatedChars.length} персонажей)</div>}
             </div>
           </div>
@@ -3081,15 +3079,15 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
             {/* CTA — DESKTOP visible */}
             <div className="desktop-only">
               <button className={`gbtn${(topic.trim()||script.trim())&&!busy?" pulsing":""}`} onClick={handleStep1} disabled={(!script.trim()&&!topic.trim())||busy}>
-                {busy?"⏳ СИСТЕМА В РАБОТЕ...":"🚀 ШАГ 1: РАСКАДРОВКА (🎬 1 Синема)"}
+                {busy?"⏳ СИСТЕМА В РАБОТЕ...":"🚀 ШАГ 1: РАСКАДРОВКА  (⭐ 1)"}
               </button>
             </div>
 
             {/* CREDITS MINI */}
             <div className="desktop-only" style={{background:"rgba(168,85,247,.06)",border:"1px solid rgba(168,85,247,.15)",borderRadius:14,padding:16,textAlign:"center"}}>
-              <div style={{fontSize:26,marginBottom:8}}>🎬</div>
-              <div style={{fontSize:22,fontWeight:900,color:tokens>0?"#a855f7":"#ef4444"}}>{tokens}</div>
-              <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>{tokens>0?"Синем доступно":"Недостаточно Синем"}</div>
+              <div style={{fontSize:26,marginBottom:8}}>⭐</div>
+              <div style={{fontSize:22,fontWeight:900,color:tokens>0?"#a855f7":"#ef4444"}}>{formatStars(tokens)}</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:4}}>{tokens>0?"доступно сегодня":"Лимит исчерпан"}</div>
             </div>
 
           </div>
@@ -3100,7 +3098,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       {view==="form"&&(
         <div className="mobile-only" style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:600,padding:"14px 16px 24px",background:"linear-gradient(to top,rgba(5,5,10,1) 60%,transparent)",zIndex:100}}>
           <button className={`gbtn${(topic.trim()||script.trim())&&!busy?" pulsing":""}`} onClick={handleStep1} disabled={(!script.trim()&&!topic.trim())||busy}>
-            {busy?"⏳ СИСТЕМА В РАБОТЕ...":"🚀 ШАГ 1: СОЗДАТЬ РАСКАДРОВКУ (🎬 1 Синема)"}
+            {busy?"⏳ СИСТЕМА В РАБОТЕ...":"🚀 ШАГ 1: СОЗДАТЬ РАСКАДРОВКУ (⭐ 1)"}
           </button>
         </div>
       )}
@@ -3156,12 +3154,6 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         <div style={{maxWidth:640,margin:"0 auto",padding:"20px 16px 120px"}}>
 
           <button onClick={()=>setView("form")} style={{marginBottom:20,color:"#a855f7",background:"none",border:"none",fontWeight:800,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>← НАЗАД В НАСТРОЙКИ</button>
-          {frames.length>0&&!step2Done&&(
-            <button onClick={()=>handleStep2()} disabled={busy} style={{marginBottom:20,marginLeft:10,background:"linear-gradient(135deg,#a855f7,#ec4899)",border:"none",borderRadius:12,padding:"10px 16px",color:"#fff",fontSize:12,fontWeight:900,cursor:busy?"not-allowed":"pointer"}}>▶ ВПЕРЁД: ШАГ 2 / PRO-ПРОМПТЫ (🎬 1 Синема)</button>
-          )}
-          {step2Done&&frames.length>0&&(
-            <button onClick={()=>setTab("pipeline")} style={{marginBottom:20,marginLeft:10,background:"rgba(56,189,248,.16)",border:"1px solid rgba(56,189,248,.35)",borderRadius:12,padding:"10px 16px",color:"#bae6fd",fontSize:12,fontWeight:900,cursor:"pointer"}}>▶ ВПЕРЁД: PIPELINE</button>
-          )}
 
           {/* RETENTION */}
           {retention&&(
@@ -3297,7 +3289,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                   </button>
                 </div>
               )}
-              <button onClick={()=>handleStep2(null)} disabled={busy||tokens<1} style={{width:"100%",padding:"16px",background:"linear-gradient(135deg,#db2777,#9333ea)",borderRadius:14,color:"#fff",fontWeight:900,border:"none",cursor:"pointer",boxShadow:"0 6px 24px rgba(219,39,119,.4)",fontSize:15,letterSpacing:"0.5px",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>🪄 ШАГ 2: СГЕНЕРИРОВАТЬ PRO-ПРОМПТЫ СЦЕН (🎬 1 Синема)</button>
+              <button onClick={()=>handleStep2(null)} disabled={busy||tokens < COSTS.step2} style={{width:"100%",padding:"16px",background:"linear-gradient(135deg,#db2777,#9333ea)",borderRadius:14,color:"#fff",fontWeight:900,border:"none",cursor:"pointer",boxShadow:"0 6px 24px rgba(219,39,119,.4)",fontSize:15,letterSpacing:"0.5px",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>🪄 ШАГ 2: СГЕНЕРИРОВАТЬ PRO-ПРОМПТЫ СЦЕН (⭐ 1)</button>
             </div>
           )}
 
@@ -3319,7 +3311,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                 onClick={handleRunPipeline}
                 disabled={pipelineRunning}
                 style={{width:"100%",padding:"16px",background:pipelineRunning?"rgba(14,165,233,.2)":"linear-gradient(135deg,#0ea5e9,#7c3aed)",borderRadius:14,color:"#fff",fontWeight:900,border:"none",cursor:pipelineRunning?"not-allowed":"pointer",boxShadow:"0 6px 24px rgba(14,165,233,.35)",fontSize:15,letterSpacing:"0.5px",transition:"all .2s"}}>
-                {pipelineRunning ? "⏳ ПАЙПЛАЙН РАБОТАЕТ..." : "🎬 ЗАПУСТИТЬ ПРОДАКШН ПАЙПЛАЙН (🎬 1 Синема)"}
+                {pipelineRunning ? "⏳ ПАЙПЛАЙН РАБОТАЕТ..." : "🎬 ЗАПУСТИТЬ ПРОДАКШН ПАЙПЛАЙН"}
               </button>
               <div style={{marginTop:8,fontSize:11,color:"#475569"}}>
                 script → identity lock → image anchors → video clips → timeline package
@@ -3383,7 +3375,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                 </div>
               )}
               {/* Баннер: Reference Studio активен */}
-              {refAnalyzed&&(refChar||refChars.length>0||refLoc||refStyle)&&(
+              {refAnalyzed&&(refChar||refLoc||refStyle)&&(
                 <div style={{display:"flex",gap:10,alignItems:"center",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.3)",borderRadius:14,padding:"12px 16px",marginBottom:16}}>
                   <div style={{display:"flex",gap:6}}>
                     {refChar  && <img src={refChar}  style={{width:36,height:36,objectFit:"cover",borderRadius:8,border:"2px solid #f472b6"}} alt="char ref"/>}
@@ -3393,7 +3385,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                   <div>
                     <div style={{fontSize:10,fontWeight:900,color:"#f97316",textTransform:"uppercase",letterSpacing:"1px"}}>📸 Reference Studio активен</div>
                     <div style={{fontSize:10,color:"#94a3b8",lineHeight:1.4}}>
-                      {[(refChar||refChars.length>0)&&`👤 персонажи: ${refChars.length + (refChar?1:0)}`,refLoc&&"🌍 локация",refStyle&&"🎨 стиль"].filter(Boolean).join(" · ")} — встроены в промпты
+                      {[refChar&&"👤 персонаж",refLoc&&"🌍 локация",refStyle&&"🎨 стиль"].filter(Boolean).join(" · ")} — встроены в промпты
                     </div>
                   </div>
                 </div>
@@ -3693,7 +3685,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                     </div>
                     <button onClick={handleGenerateFB} disabled={generatingFB||!script.trim()}
                       style={{width:"100%",padding:"13px",background:generatingFB?"rgba(29,78,216,.3)":"linear-gradient(135deg,#1d4ed8,#7c3aed)",borderRadius:12,color:"#fff",fontWeight:900,border:"none",cursor:generatingFB||!script.trim()?"not-allowed":"pointer",opacity:!script.trim()?0.4:1,fontSize:13,letterSpacing:"0.5px",boxShadow:"0 4px 20px rgba(29,78,216,.35)",transition:"all .2s"}}>
-                      {generatingFB?"⏳ ГЕНЕРАЦИЯ...":"📘 FB + REELS + CAROUSEL + STORIES (🎬 1 Синема)"}
+                      {generatingFB?"⏳ ГЕНЕРАЦИЯ...":"📘 FB + REELS + CAROUSEL + STORIES"}
                     </button>
                     {!script.trim()&&<div style={{fontSize:10,color:"#ef4444",marginTop:8}}>Сначала создайте сценарий (Шаг 1)</div>}
                   </div>
@@ -3787,7 +3779,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                   <div style={{fontSize:13,color:"#7dd3fc",fontWeight:700,marginBottom:6}}>Настройки для Google AI Studio</div>
                   <div style={{fontSize:11,color:"#475569",marginBottom:18,lineHeight:1.6}}>ИИ подберёт Scene, Context, лучший голос<br/>и перепишет скрипт с Google-тегами эмоций</div>
                   <button onClick={handleGenerateTTSStudio} disabled={generatingTTS||!script.trim()} style={{width:"100%",padding:"14px",background:"linear-gradient(135deg,#0ea5e9,#0284c7)",borderRadius:14,color:"#fff",fontWeight:900,border:"none",cursor:generatingTTS||!script.trim()?"not-allowed":"pointer",opacity:!script.trim()?0.4:1,fontSize:14,letterSpacing:"0.5px",boxShadow:"0 4px 20px rgba(14,165,233,.35)",transition:"all .2s"}}>
-                    {generatingTTS?"⏳ ГЕНЕРАЦИЯ...":"🎙 СГЕНЕРИРОВАТЬ TTS НАСТРОЙКИ (🎬 1 Синема)"}
+                    {generatingTTS?"⏳ ГЕНЕРАЦИЯ...":"🎙 СГЕНЕРИРОВАТЬ TTS НАСТРОЙКИ (⭐ 1)"}
                   </button>
                   {!script.trim()&&<div style={{fontSize:10,color:"#ef4444",marginTop:8}}>Сначала создайте сценарий (Шаг 1)</div>}
                 </div>
@@ -3840,7 +3832,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
 
                   {/* Сброс */}
                   <button onClick={()=>setTtsStudioData(null)} style={{width:"100%",padding:"10px",background:"transparent",border:"1px dashed rgba(255,255,255,.1)",borderRadius:12,color:"#475569",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                    🔄 Сгенерировать заново (🎬 1 Синема)
+                    🔄 Сгенерировать заново (⭐ 1)
                   </button>
                 </>
               )}
