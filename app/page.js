@@ -1175,6 +1175,10 @@ export default function Page() {
   const [refStyleText, setRefStyleText] = useState(""); // проанализированный стиль
   const [refAnalyzed, setRefAnalyzed] = useState(false);
 
+  // ── I2V ANALYZER STATE ────────────────────────────────────────────────────
+  const [i2vPackage, setI2vPackage] = useState(null);
+  const [generatingI2V, setGeneratingI2V] = useState(false);
+
   // ── PRODUCTION PIPELINE STATE ─────────────────────────────────────────────
   const [pipelineResult, setPipelineResult] = useState(null);
   const [pipelineRunning, setPipelineRunning] = useState(false);
@@ -1451,6 +1455,64 @@ export default function Page() {
       alert("🚨 Ошибка анализа референсов: " + e.message);
     } finally {
       setBusy(false); setView("form");
+    }
+  }
+
+  async function handleAnalyzeI2V() {
+    if (!frames.length) return alert("Сначала создайте раскадровку (Шаг 1)!");
+    setGeneratingI2V(true);
+    setI2vPackage(null);
+
+    const sys = `You are a professional I2V (Image-to-Video) Production Coordinator for AI video studios. Given a storyboard, output a ready-to-use I2V production package.
+
+For EACH frame generate:
+1. ref_image_prompt — the STILL image to generate FIRST as the anchor/reference frame.
+   Structure: [subject + exact pose + body language + facial expression] + [environment + background + lighting direction + shadows] + [camera angle + lens type] + [cinematic style tags]
+   Rules: max 200 chars · NO motion words · NO audio · this is a STILL photo prompt for Midjourney/Grok/Flux.
+2. i2v_prompt — how to ANIMATE that image. MUST start with "Animate:" · then camera movement + subject motion only · max 15 words total · ZERO appearance description.
+3. duration — clip length in seconds (2–5)
+4. tool — best tool for this frame: Kling / Runway / Veo / Hailuo / Minimax
+
+Output ONLY valid JSON, no text outside:
+{
+  "frames": [
+    { "n": 1, "ref_image_prompt": "...", "i2v_prompt": "Animate: slow push-in, subject exhales, hands grip table edge", "duration": 3, "tool": "Kling" }
+  ],
+  "workflow_note": "1-2 sentence production tip for this specific storyboard"
+}`;
+
+    try {
+      const BATCH = 8;
+      let allResults = [];
+
+      const charCtx = generatedChars.length > 0
+        ? `\nCHARACTERS: ${generatedChars.map(c => `${c.name}: ${c.dna || ""}`).join(" | ")}`
+        : "";
+      const locCtx  = locRef   ? `\nLOCATION: ${locRef}`   : "";
+      const refCtx  = refCharDNA ? `\nCHAR_REF_DNA: ${refCharDNA}` : "";
+
+      for (let i = 0; i < frames.length; i += BATCH) {
+        const chunk = frames.slice(i, i + BATCH);
+        const storyboard = chunk.map((f, idx) =>
+          `Frame ${i+idx+1} [${f.timecode||""}] cam:${f.camera||""} | Visual: ${f.visual} | Voice: ${f.voice||""} | SFX: ${f.sfx||""}`
+        ).join("\n");
+
+        const req = `STORYBOARD (frames ${i+1}–${i+chunk.length}):
+${storyboard}${charCtx}${locCtx}${refCtx}
+
+Generate exactly ${chunk.length} frames. Keep frame numbering starting from ${i+1}.`;
+
+        const text = await callAPI(req, 4000, sys);
+        const data = cleanJSON(text);
+        if (data?.frames) allResults = [...allResults, ...data.frames];
+        if (i + BATCH < frames.length) await sleep(400);
+      }
+
+      setI2vPackage({ frames: allResults });
+    } catch(e) {
+      alert("🚨 Ошибка I2V анализа: " + e.message);
+    } finally {
+      setGeneratingI2V(false);
     }
   }
 
@@ -3123,6 +3185,107 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                 <div style={{marginBottom:20,background:"rgba(245,158,11,.04)",border:"1px solid rgba(245,158,11,.25)",borderRadius:20,padding:20}}>
                   <div style={{fontSize:11,fontWeight:900,color:"#fbbf24",marginBottom:14,textTransform:"uppercase",letterSpacing:"2px"}}>⚡ МИКРО-ПЕРЕБИВКИ (B-ROLLS)</div>
                   {bRolls.map((b,i)=><div key={i} style={{fontSize:12,fontFamily:"monospace",color:"#fcd34d",marginBottom:i<bRolls.length-1?8:0,paddingBottom:i<bRolls.length-1?8:0,borderBottom:i<bRolls.length-1?"1px solid rgba(245,158,11,.08)":"none"}}>- {b}</div>)}
+                </div>
+              )}
+
+              {/* ── I2V ANALYZER ───────────────────────────────────── */}
+              {frames.length>0&&(
+                <div style={{marginBottom:20}}>
+                  {/* Заголовок + кнопка */}
+                  <div style={{background:"rgba(14,165,233,.05)",border:"1px solid rgba(14,165,233,.3)",borderRadius:20,padding:20,marginBottom:i2vPackage?14:0}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:900,color:"#38bdf8",textTransform:"uppercase",letterSpacing:"2px",marginBottom:4}}>🎬 I2V АНАЛИЗАТОР</div>
+                        <div style={{fontSize:11,color:"#475569",lineHeight:1.5}}>ИИ исследует каждый кадр и выдаёт:<br/><span style={{color:"#7dd3fc"}}>📸 Что генерировать</span> → <span style={{color:"#a78bfa"}}>🎬 Как анимировать</span></div>
+                      </div>
+                      {i2vPackage&&<button onClick={()=>setI2vPackage(null)} style={{background:"none",border:"none",color:"#475569",fontSize:18,cursor:"pointer"}}>×</button>}
+                    </div>
+                    <button
+                      onClick={handleAnalyzeI2V}
+                      disabled={generatingI2V}
+                      style={{width:"100%",padding:"13px",background:generatingI2V?"rgba(14,165,233,.1)":"linear-gradient(135deg,rgba(14,165,233,.3),rgba(139,92,246,.3))",border:"1px solid rgba(14,165,233,.5)",borderRadius:14,color:"#fff",fontWeight:900,cursor:generatingI2V?"not-allowed":"pointer",fontSize:13,letterSpacing:"0.5px",transition:"all .2s",boxShadow:generatingI2V?"none":"0 0 20px rgba(14,165,233,.15)"}}
+                    >
+                      {generatingI2V
+                        ? "⏳ Анализируем раскадровку..."
+                        : i2vPackage
+                        ? "🔄 Анализировать заново"
+                        : `🔍 АНАЛИЗИРОВАТЬ ДЛЯ I2V (${frames.length} кадров)`}
+                    </button>
+                  </div>
+
+                  {/* Результаты */}
+                  {i2vPackage&&(
+                    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+                      {/* Кнопка скопировать всё */}
+                      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                        <CopyBtn
+                          label="📋 Все IMG промпты"
+                          text={i2vPackage.frames.map((f,i)=>`[КАДР ${f.n||i+1}] IMG:\n${f.ref_image_prompt}`).join("\n\n")}
+                        />
+                        <CopyBtn
+                          label="📋 Все I2V промпты"
+                          text={i2vPackage.frames.map((f,i)=>`[КАДР ${f.n||i+1}] I2V:\n${f.i2v_prompt}`).join("\n\n")}
+                        />
+                      </div>
+
+                      {/* Карточка каждого кадра */}
+                      {i2vPackage.frames.map((f,i)=>{
+                        const toolColors = {Kling:"#a855f7",Runway:"#ef4444",Veo:"#3b82f6",Hailuo:"#f97316",Minimax:"#10b981"};
+                        const tc = toolColors[f.tool] || "#6b7280";
+                        return (
+                          <div key={i} style={{background:"rgba(10,10,22,.8)",border:"1px solid rgba(14,165,233,.15)",borderRadius:16,overflow:"hidden"}}>
+                            {/* Шапка кадра */}
+                            <div style={{background:"rgba(14,165,233,.06)",padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid rgba(255,255,255,.05)"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                                <div style={{background:"linear-gradient(135deg,#0ea5e9,#6366f1)",borderRadius:8,padding:"3px 10px",fontFamily:"monospace",fontSize:12,fontWeight:900,color:"#fff"}}>
+                                  {String(f.n||i+1).padStart(2,"0")}
+                                </div>
+                                <span style={{fontSize:9,color:"#475569",fontFamily:"monospace"}}>{frames[i]?.timecode||""}</span>
+                              </div>
+                              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                                <span style={{fontSize:9,fontWeight:900,color:tc,background:`${tc}18`,border:`1px solid ${tc}40`,padding:"2px 8px",borderRadius:20}}>{f.tool||"Kling"}</span>
+                                <span style={{fontSize:9,color:"#6b7280",fontFamily:"monospace"}}>{f.duration||3}s</span>
+                              </div>
+                            </div>
+
+                            <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+                              {/* Шаг 1 — генерировать изображение */}
+                              <div style={{background:"rgba(16,185,129,.04)",border:"1px solid rgba(16,185,129,.2)",borderRadius:12,padding:12}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                                  <span style={{fontSize:9,fontWeight:900,color:"#34d399",letterSpacing:"1.5px",textTransform:"uppercase"}}>
+                                    ШАГ 1 — 📸 СГЕНЕРИРОВАТЬ ИЗОБРАЖЕНИЕ
+                                  </span>
+                                  <CopyBtn text={f.ref_image_prompt||""} small/>
+                                </div>
+                                <div style={{fontSize:11,fontFamily:"monospace",color:"#6ee7b7",lineHeight:1.6}}>{f.ref_image_prompt}</div>
+                                <div style={{marginTop:8,fontSize:9,color:"#374151"}}>→ Midjourney / Grok Imagine / Flux / Firefly</div>
+                              </div>
+
+                              {/* Шаг 2 — анимировать */}
+                              <div style={{background:"rgba(139,92,246,.04)",border:"1px solid rgba(139,92,246,.2)",borderRadius:12,padding:12}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                                  <span style={{fontSize:9,fontWeight:900,color:"#a78bfa",letterSpacing:"1.5px",textTransform:"uppercase"}}>
+                                    ШАГ 2 — 🎬 АНИМИРОВАТЬ (I2V)
+                                  </span>
+                                  <CopyBtn text={f.i2v_prompt||""} small/>
+                                </div>
+                                <div style={{fontSize:12,fontFamily:"monospace",color:"#d8b4fe",lineHeight:1.5,fontWeight:700}}>{f.i2v_prompt}</div>
+                                <div style={{marginTop:8,fontSize:9,color:"#374151"}}>→ {f.tool||"Kling"} · {f.duration||3} сек · Image-to-Video</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Workflow note */}
+                      {i2vPackage.workflow_note&&(
+                        <div style={{background:"rgba(245,158,11,.05)",border:"1px dashed rgba(245,158,11,.25)",borderRadius:12,padding:"12px 16px",fontSize:11,color:"#fcd34d",lineHeight:1.6}}>
+                          💡 {i2vPackage.workflow_note}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
