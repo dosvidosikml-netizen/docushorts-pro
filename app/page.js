@@ -1420,10 +1420,10 @@ Output: { "characters_EN": [ { "id": "CHAR_1", "name": "Имя", "dna": "[CHAR_1
     try {
       const sec = DURATION_SECONDS[dur] || 60; 
       let wordLimitRule = "";
-      if (sec <= 15) wordLimitRule = "СТРОГО от 30 до 40 слов";
-      else if (sec <= 40) wordLimitRule = "СТРОГО от 70 до 90 слов";
-      else if (sec <= 60) wordLimitRule = "СТРОГО 130-150 слов. Опиши атмосферу подробно, минимум 4-5 длинных абзацев. Меньше 12 предложений КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО!";
-      else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов. Обязательно длинные, детализированные абзацы.`;
+      if (sec <= 15) wordLimitRule = "СТРОГО от 30 до 40 слов. Максимум 5 предложений. Не превышать.";
+      else if (sec <= 40) wordLimitRule = "СТРОГО от 70 до 90 слов. Максимум 8 предложений. Не превышать.";
+      else if (sec <= 60) wordLimitRule = "СТРОГО от 120 до 150 слов. Максимум 10 предложений. ЗАПРЕЩЕНО писать длиннее — это ровно 60 секунд озвучки.";
+      else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов (не более ${Math.floor(sec * 2.4)}). Это ${sec} секунд озвучки.`;
 
       // Структура зависит от длительности
       const isShort = sec <= 60;
@@ -1520,10 +1520,10 @@ No markdown. No ** in text. Emphasis in CAPS only.`;
     try {
       const sec = DURATION_SECONDS[dur] || 60;
       let wordLimitRule = "";
-      if (sec <= 15) wordLimitRule = "СТРОГО от 30 до 40 слов";
-      else if (sec <= 40) wordLimitRule = "СТРОГО от 70 до 90 слов";
-      else if (sec <= 60) wordLimitRule = "СТРОГО 130-150 слов";
-      else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов`;
+      if (sec <= 15) wordLimitRule = "СТРОГО от 30 до 40 слов. Максимум 5 предложений.";
+      else if (sec <= 40) wordLimitRule = "СТРОГО от 70 до 90 слов. Максимум 8 предложений.";
+      else if (sec <= 60) wordLimitRule = "СТРОГО от 120 до 150 слов. Максимум 10 предложений. Не превышать — это 60 секунд.";
+      else wordLimitRule = `СТРОГО около ${Math.floor(sec * 2.2)} слов (лимит ${Math.floor(sec * 2.4)})`;
 
       const boostSys = `You are NeuroCine Master Engine — elite short-form script rewriter. Output ONLY valid JSON: { "script": "..." }
 
