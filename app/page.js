@@ -1036,6 +1036,23 @@ function ncBuildIdentityLock({ characterDNA = {}, seed = "777777", referenceImag
   };
 }
 
+function stripDnaForI2V(prompt) {
+  prompt = String(prompt || "");
+  return prompt
+    .replace(/\[CHAR_\d+_DNA:[^\]]*\]/gi, "")
+    .replace(/same character, consistent face[^,."]*/gi, "")
+    .replace(/opening shot, establish identity and world,?\s*/gi, "")
+    .replace(/continue previous shot world, preserve identity[^,."]*/gi, "")
+    .replace(/preserve same face and outfit,?\s*/gi, "")
+    .replace(/no identity drift,?\s*/gi, "")
+    .replace(/use reference image as identity anchor,?\s*/gi, "")
+    .replace(/seed \d+,?\s*/gi, "")
+    .replace(/,\s*,/g, ",")
+    .replace(/^[,\s]+|[,\s]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function ncEnrichFrames({ frames = [], identityLock, styleLock = "" } = {}) {
   const style = styleLock || "cinematic, high contrast, consistent color grading, trailer-like continuity";
 
@@ -1106,6 +1123,7 @@ export default function Page() {
   const [customStyle, setCustomStyle] = useState(""); 
   const [lang, setLang] = useState("RU"); 
   const [pipelineMode, setPipelineMode] = useState("T2V");
+  const [promptView, setPromptView] = useState("T2V"); // T2V = full DNA prompts, I2V = action-only prompts
   
   const [chars, setChars] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false); 
@@ -1351,38 +1369,61 @@ export default function Page() {
   const removeChar = (id) => setChars(chars.filter(c => c.id !== id));
   const updateChar = (id, field, value) => setChars(chars.map(c => c.id === id ? { ...c, [field]: value } : c));
 
+  // Ресайз фото до макс 1024px перед отправкой в API
+  function resizeImageToBase64(file, maxPx = 1024) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = reject;
+        img.src = ev.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleCharImageUpload(e, id) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target.result;
-      setBusy(true); setLoadingMsg("ИИ сканирует лицо..."); setView("loading");
-      try {
-        const sys = `You are an elite Character Designer. Describe the person's physical appearance in the image in English. Focus ONLY on physical traits: age, jawline, facial hair, scars, eye color, specific clothing style. DO NOT describe the background or lighting. Return ONLY a valid JSON object: { "desc": "Detailed english prompt..." }`;
-        const rawText = await callVisionAPI(base64, sys);
-        const parsed = cleanJSON(rawText);
-        if (parsed && parsed.desc) {
-          updateChar(id, 'desc', `[${parsed.desc}]`);
-        }
-      } catch (err) {
-        alert("🚨 ОШИБКА АНАЛИЗА ФОТО: " + err.message);
-      } finally {
-        setBusy(false); setView("form");
+    setBusy(true); setLoadingMsg("Сжимаем и сканируем лицо..."); setView("loading");
+    try {
+      const base64 = await resizeImageToBase64(file, 1024);
+      const sys = `You are an elite Character Designer. Describe the person's physical appearance in the image in English. Focus ONLY on physical traits: age, jawline, facial hair, scars, eye color, specific clothing style. DO NOT describe the background or lighting. Return ONLY a valid JSON object: { "desc": "Detailed english prompt..." }`;
+      const rawText = await callVisionAPI(base64, sys);
+      const parsed = cleanJSON(rawText);
+      if (parsed && parsed.desc) {
+        updateChar(id, 'desc', `[${parsed.desc}]`);
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      alert("🚨 ОШИБКА АНАЛИЗА ФОТО: " + err.message);
+    } finally {
+      setBusy(false); setView("form");
+    }
   }
 
   async function handleGenerateCasting() {
-    if (!topic.trim() && !script.trim() && chars.length === 0) return alert("Введите тему, скрипт или добавьте персонажей вручную!");
+    if (!topic.trim() && chars.length === 0) return alert("Введите тему или добавьте персонажей вручную!");
     setBusy(true); setLoadingMsg("Проводим кастинг героев..."); setView("loading");
     
     try {
       const manualChars = chars.map(c => `${c.name}: ${c.desc}`).join(" | ");
-      // Передаём только тему и персонажей — без скрипта (скрипт может содержать чувствительный контент)
       const topicSafe = topic.slice(0, 200);
-      const req = `ТЕМА: ${topicSafe}\nПЕРСОНАЖИ: ${manualChars || "Не указаны — извлеки из темы"}\nЗадача: создай DNA-карточки для каждого персонажа. Выдай JSON массив characters_EN по шаблону.`;
+      // Если персонажи не заданы — ИИ придумывает сам из темы
+      const charInstruction = manualChars
+        ? `ПЕРСОНАЖИ (описаны пользователем): ${manualChars}`
+        : `ПЕРСОНАЖИ: не указаны — АВТОМАТИЧЕСКИ придумай 1-2 главных персонажа подходящих для этой темы. Дай им реалистичные имена и уникальную внешность соответствующую эпохе и жанру темы.`;
+      const req = `ТЕМА: ${topicSafe}\n${charInstruction}\nЗадача: создай DNA-карточки для каждого персонажа. Выдай JSON массив characters_EN по шаблону.`;
       
       const text = await callAPI(req, 2500, `You are a Casting Director for short film production. Output ONLY valid JSON.
 CONTEXT: Historical documentary educational reconstruction. 10th century Viking Age. All characters are historical/ceremonial figures for documentary purposes.
@@ -2836,6 +2877,21 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                 </div>
               )}
 
+              {/* ── PROMPT VIEW TOGGLE ─────────────────────────── */}
+              {step2Done&&(
+                <div style={{display:"flex",gap:8,marginBottom:16,background:"rgba(0,0,0,.3)",borderRadius:12,padding:6}}>
+                  {[["T2V","🎯 T2V (с DNA)"],["I2V","📸 I2V (без DNA)"]].map(([mode,label])=>(
+                    <button key={mode} onClick={()=>setPromptView(mode)} style={{flex:1,padding:"8px 10px",borderRadius:8,border:`1px solid ${promptView===mode?"rgba(168,85,247,.6)":"rgba(255,255,255,.08)"}`,background:promptView===mode?"rgba(168,85,247,.2)":"transparent",color:promptView===mode?"#d8b4fe":"rgba(255,255,255,.4)",fontSize:11,fontWeight:promptView===mode?900:500,cursor:"pointer",transition:"all .2s"}}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {step2Done&&promptView==="I2V"&&(
+                <div style={{background:"rgba(56,189,248,.06)",border:"1px solid rgba(56,189,248,.2)",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:11,color:"#7dd3fc"}}>
+                  📸 <b>I2V режим:</b> ты загружаешь свой референс в Grok/Kling/Runway — промпты содержат только действие и камеру, без описания внешности
+                </div>
+              )}
               {/* ── FILM STRIP FRAMES ─────────────────────────────── */}
               {frames.map((f,i)=>(
                 <div key={i} className="film-card hover-lift" style={{marginBottom:16,animationDelay:`${Math.min(i*0.06,0.8)}s`,display:"flex",gap:0}}>
@@ -2880,22 +2936,26 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
                       </div>
                     )}
 
-                    {step2Done&&f.imgPrompt_EN&&(
-                      <div style={{background:"rgba(16,185,129,.04)",padding:12,borderRadius:10,marginBottom:10,marginTop:step2Done?10:0}}>
+                    {step2Done&&f.imgPrompt_EN&&(()=>{
+                      const imgTxt = promptView==="I2V" ? stripDnaForI2V(f.imgPrompt_EN) : f.imgPrompt_EN;
+                      return (
+                      <div style={{background:"rgba(16,185,129,.04)",padding:12,borderRadius:10,marginBottom:10,marginTop:10}}>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                          <span style={{fontSize:9,color:"#34d399",fontWeight:900,letterSpacing:"1.5px"}}>🖼 IMAGE PROMPT</span>
-                          <CopyBtn text={f.imgPrompt_EN} small/>
+                          <span style={{fontSize:9,color:"#34d399",fontWeight:900,letterSpacing:"1.5px"}}>🖼 IMAGE PROMPT {promptView==="I2V"?"(I2V — без DNA)":""}</span>
+                          <CopyBtn text={imgTxt} small/>
                         </div>
-                        <div style={{fontSize:11,fontFamily:"monospace",color:"#6ee7b7",lineHeight:1.5}}>{f.imgPrompt_EN}</div>
-                      </div>
-                    )}
-                    {step2Done&&f.vidPrompt_EN&&(
+                        <div style={{fontSize:11,fontFamily:"monospace",color:"#6ee7b7",lineHeight:1.5}}>{imgTxt}</div>
+                      </div>);
+                    })()}
+                    {step2Done&&f.vidPrompt_EN&&(()=>{
+                      const vidTxt = promptView==="I2V" ? stripDnaForI2V(f.vidPrompt_EN) : f.vidPrompt_EN;
+                      return (
                       <div style={{background:"rgba(139,92,246,.04)",padding:12,borderRadius:10}}>
                         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                          <span style={{fontSize:9,color:"#a78bfa",fontWeight:900,letterSpacing:"1.5px"}}>🎬 VIDEO PROMPT (GROK / KLING)</span>
-                          <CopyBtn text={f.vidPrompt_EN} small/>
+                          <span style={{fontSize:9,color:"#a78bfa",fontWeight:900,letterSpacing:"1.5px"}}>🎬 VIDEO PROMPT {promptView==="I2V"?"(I2V — только действие)":"(GROK / KLING)"}</span>
+                          <CopyBtn text={vidTxt} small/>
                         </div>
-                        <div style={{fontSize:11,fontFamily:"monospace",color:"#d8b4fe",lineHeight:1.5}}>{f.vidPrompt_EN}</div>
+                        <div style={{fontSize:11,fontFamily:"monospace",color:"#d8b4fe",lineHeight:1.5}}>{vidTxt}</div>
                         <div style={{marginTop:10,background:"rgba(250,204,21,.04)",border:"1px dashed rgba(250,204,21,.25)",borderRadius:8,padding:"8px 10px",display:"flex",alignItems:"center",gap:8}}>
                           <span style={{fontSize:16}}>🔒</span>
                           <div>
