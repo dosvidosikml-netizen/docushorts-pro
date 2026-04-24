@@ -608,6 +608,93 @@ function sanitizeModeLeak(text = "", { allowXray = false, frame = null } = {}) {
     .trim();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VIRAL DIRECTOR ENGINE v3 — every frame must be visually interesting.
+// VO -> cinematic interpretation -> strong T2V scene, not literal boring illustration.
+// ─────────────────────────────────────────────────────────────────────────────
+function viralText(frame = {}) {
+  return `${frame.voice || frame.vo || ""} ${frame.visual || ""} ${frame.text_on_screen || ""}`.toLowerCase();
+}
+function detectViralStoryTheme(frame = {}) {
+  const t = viralText(frame);
+  if (/розуэлл|roswell|нло|ufo|alien|иноплан|не\s*человеч|mj-12|mj12|aquarius|аквариус|пентагон|pentagon/.test(t)) return "UFO";
+  if (/убий|маньяк|crime|murder|serial|forensic|полици|детектив/.test(t)) return "CRIME";
+  if (/цру|cia|fbi|фбр|секрет|classified|архив|документ|заговор|cover.?up|редакт|redacted/.test(t)) return "CONSPIRACY";
+  if (/война|war|soldier|солдат|army|military|военн/.test(t)) return "WAR";
+  if (/ужас|horror|ghost|призрак|демон|curse|проклят/.test(t)) return "HORROR";
+  if (/учен|science|лаборатор|experiment|эксперимент|physics|физик/.test(t)) return "SCIENCE";
+  return "GENERAL";
+}
+function detectViralBeat(frame = {}, index = 0, total = 1) {
+  const t = viralText(frame);
+  if (index === 0) return "HOOK_SHOCK";
+  if (index >= total - 1 || /либо|propaganda|пропаганд|финал|до сих пор|still classified|засекречен/.test(t)) return "FINAL_TWIST";
+  if (/не\s*человеч|unknown|не знаем|аномал|anomaly|impossible|невозмож|17\s*000|17000|без двигателя|without engine/.test(t)) return "ANOMALY";
+  if (/48|собран|облом|debris|crash|кратер|press|пресса|до того/.test(t)) return "ACTION_COVERUP";
+  if (/документ|архив|фбр|fbi|гриф|совершенно секретно|classified|project|проект|mj-12|mj12|aquarius|аквариус/.test(t)) return "PROOF_WITH_THREAT";
+  if (/цру|cia|группа|двенадцать|президенты|не в списке|officer|офицер|перевели|transferred/.test(t)) return "PARANOIA_POWER";
+  if (/2017|пентагон|pentagon|video|видео|объекты|objects|рассекретил/.test(t)) return "TECH_REVEAL";
+  return "VISUAL_CONFLICT";
+}
+function buildViralRuSummary(frame = {}, index = 0, total = 1) {
+  const vo = String(frame.voice || frame.vo || "").trim();
+  const theme = detectViralStoryTheme(frame);
+  const beat = detectViralBeat(frame, index, total);
+  if (theme === "UFO") {
+    if (beat === "HOOK_SHOCK") return "Ночной Розуэлл: военные находят четыре накрытых нечеловеческих тела, одна серая рука видна из-под простыни.";
+    if (beat === "ACTION_COVERUP") return "Военные в спешке вывозят обломки и скрытые тела до приезда прессы, фары режут пыль и дым.";
+    if (beat === "PROOF_WITH_THREAT") return "Секретная папка ФБР/Аквариус рядом с размытыми фото вскрытия; агент рукой закрывает часть доказательств.";
+    if (beat === "PARANOIA_POWER") return "Тайная комната MJ-12: двенадцать теневых фигур смотрят на улики, президентский портрет отвернут.";
+    if (beat === "TECH_REVEAL") return "Военный инфракрасный экран фиксирует НЛО, объект резко ускоряется без двигателя, приборы срываются в глитч.";
+    if (beat === "FINAL_TWIST") return "Финальный раскол: с одной стороны скрытый контакт, с другой — комната пропаганды, всё связано папкой Аквариус.";
+  }
+  return `Кадр ${index + 1}: сильная сцена с визуальным конфликтом и скрытой угрозой. VO: ${vo || "без VO"}`;
+}
+function buildViralDirectorScene(frame = {}, index = 0, total = 1) {
+  const original = String(frame.visual || frame.image_prompt || frame.imgPrompt_EN || "").trim();
+  const vo = String(frame.voice || frame.vo || "").trim();
+  const t = viralText(frame);
+  const theme = detectViralStoryTheme(frame);
+  const beat = detectViralBeat(frame, index, total);
+  let scene = "";
+  if (theme === "UFO") {
+    if (beat === "HOOK_SHOCK" || /не\s*человеч|четыре тела|four bodies|bodies/.test(t)) scene = "night Roswell crash-site recovery, four covered non-human bodies on military stretchers, one grey alien hand visible under a torn sheet, floodlights, dust, soldiers freezing in shock";
+    else if (beat === "ACTION_COVERUP") scene = "1947 Roswell desert cover-up operation, military trucks loading strange metallic debris and covered non-human forms before reporters arrive, headlights cutting through dust, urgent secrecy";
+    else if (beat === "PROOF_WITH_THREAT") scene = "classified FBI/Aquarius folder opened under a hard desk lamp, redacted pages beside blurred alien autopsy photographs, agent hand covering evidence, shadow figure behind frosted glass";
+    else if (beat === "PARANOIA_POWER") scene = "MJ-12 secret room, twelve faceless officials around a glowing evidence table, presidential portrait deliberately turned away, alien silhouette reflected in black glass, surveillance paranoia";
+    else if (beat === "TECH_REVEAL") scene = "declassified Pentagon infrared tracking screen, impossible UFO accelerating over dark ocean, pilots' instruments shaking, speed numbers glitching, no engine trail, cold military tension";
+    else if (beat === "FINAL_TWIST") scene = "split reality finale: one side secret alien contact behind military glass, other side propaganda broadcast control room, same classified Aquarius file connecting both worlds";
+    else scene = "Cold War UFO evidence scene, hidden alien trace visible in the background, classified material in foreground, every object suggesting a cover-up";
+  } else if (theme === "CRIME") scene = beat === "HOOK_SHOCK" ? "clean non-graphic crime scene reveal, police lights slicing through rain, a single impossible clue in the foreground, detective silhouette stopping mid-step" : "forensic evidence scene with one disturbing contradiction, case file, suspect shadow, police light reflections, high tension without graphic violence";
+  else if (theme === "CONSPIRACY") scene = beat === "HOOK_SHOCK" ? "secret evidence room with a forbidden object under glass, redacted files scattered, shadow officials watching from behind blinds, immediate visual threat" : "classified document scene with hidden photograph, surveillance monitors, gloved hand removing evidence, paranoia and cover-up in every layer";
+  else if (theme === "WAR") scene = beat === "HOOK_SHOCK" ? "battlefield aftermath without gore, abandoned military vehicle, strange classified object in the mud, soldiers frozen under searchlights, smoke and urgency" : "military operation with moving troops, hidden evidence, searchlights, dust, urgent radio tension, no static archive shot";
+  else if (theme === "HORROR") scene = "dark corridor horror reveal, human figure in foreground, unnatural silhouette behind, flickering light, impossible shadow geometry, dread and motion";
+  else if (theme === "SCIENCE") scene = "high-stakes laboratory experiment going wrong, instruments vibrating, impossible anomaly forming behind glass, scientists reacting, cinematic tension";
+  else scene = (original || vo || "high-retention cinematic scene with clear visual conflict") + ", visible conflict, hidden threat, strong foreground object, background reveal, cinematic tension";
+  return { theme, beat, scene_EN: `${scene}. Frame meaning: ${vo || original}.`, visual_RU: buildViralRuSummary(frame, index, total) };
+}
+function buildViralImagePrompt(frame = {}, index = 0, total = 1, style = "") {
+  const v = buildViralDirectorScene(frame, index, total);
+  return sanitizeModeLeak([
+    v.scene_EN,
+    "dominant visual hook, no boring archive-only shot, no neutral talking head, no static portrait",
+    "cinematic documentary thriller, high contrast, strong foreground object, background reveal",
+    style,
+    "no subtitles, no UI, no watermark"
+  ].filter(Boolean).join(", "), { allowXray: false, frame });
+}
+function buildViralVideoPrompt(frame = {}, index = 0, total = 1, style = "") {
+  const v = buildViralDirectorScene(frame, index, total);
+  const sfx = frame.sfx || "low ominous rumble, radio static, wind, distant metal impact";
+  return sanitizeModeLeak([
+    "ANIMATE CURRENT FRAME:",
+    v.scene_EN,
+    "camera pushes or tracks through the evidence, subject/object motion, dust/light/smoke movement, pattern-interrupt pacing",
+    style,
+    `Audio: ${sfx}`
+  ].filter(Boolean).join(" "), { allowXray: false, frame });
+}
+
 // --- СИСТЕМНЫЕ ПРОМПТЫ (NeuroCine Master Engine v3) ---
 const SYS_STEP_1A = `You are NeuroCine Master Engine — an elite AI short-form video writing, storyboard, and prompt-generation system for TikTok, Reels, and YouTube Shorts.
 You do NOT write vague text. You build production-ready short-form video packages.
@@ -635,6 +722,19 @@ SHORT-FORM STRUCTURE
 For ≤15s: 0–3s hook | 3–6s context | 6–9s value | 9–12s twist | 12–15s payoff/CTA
 For 30s and 60s: same principle, extend with additional value beats and pattern interrupts.
 For >60s: chapters of 8–10 frames each with a story bridge between chapters.
+
+--------------------------------------------------
+VIRAL DIRECTOR ENGINE v3 — MANDATORY
+--------------------------------------------------
+You are not an illustrator. You are a paid cinematic director for short-form retention.
+Every frame must be interesting even with the sound muted.
+Do NOT make literal, passive, archive-only, document-only, office-only, or portrait-only frames unless the frame also contains visible threat, contradiction, forbidden evidence, or action.
+For each frame choose a hidden beat: SHOCK, ACTION, PROOF_WITH_THREAT, COVER_UP, PARANOIA, TECH_REVEAL, FINAL_TWIST.
+The "visual" field must be a clear human-readable scene in the requested LANGUAGE. If LANGUAGE is Russian, write "visual" in Russian.
+The "visual" field must explain what the viewer sees, not write an English image prompt.
+If the VO mentions non-human bodies, aliens, UFO, Roswell, unknown objects, secret files, MJ-12, Aquarius, CIA/FBI/Pentagon: include a physical visual hook (covered non-human body, alien hand, crash debris, surveillance screen, shadow officials, hidden photo, impossible object). Do not show only a folder.
+Each frame must contain: foreground hook + midground action/evidence + background reveal.
+No dead frames. No filler. No neutral talking heads. No generic document close-ups without a shocking secondary element.
 
 --------------------------------------------------
 RETENTION ENGINE
@@ -773,6 +873,16 @@ JSON FORMAT — output ONLY this:
 
 const SYS_STEP_2 = `You are NeuroCine Master Engine — elite image and video prompt engineer for TikTok, Reels, and YouTube Shorts production.
 Output STRICT JSON ONLY. No markdown. No explanations. No text before or after JSON.
+
+--------------------------------------------------
+VIRAL T2V DIRECTOR ENGINE v3 — MANDATORY
+--------------------------------------------------
+Do not merely translate the storyboard. Interpret each VO beat as a cinematic event.
+Every imgPrompt_EN must show a strong visual hook: action, anomaly, threat, forbidden evidence, contradiction, or reveal.
+Never output a boring portrait, plain document, empty office, static cabinet, or neutral archive shot unless it contains a second layer: hidden body/photo/reflection/shadow/witness/cover-up action.
+For UFO/Roswell/Aquarius/MJ-12/Pentagon frames, physical hooks are mandatory: covered non-human bodies, alien hand, crash-site debris, military floodlights, infrared UFO tracking, shadow officials, redacted evidence with hidden photo.
+Documents are allowed only as PROOF_WITH_THREAT: document + shocking image/reflection/hand covering evidence/background silhouette.
+Each video prompt must include camera motion + subject/object motion + environment motion + Audio.
 
 --------------------------------------------------
 IMAGE PROMPT RULES (imgPrompt_EN)
@@ -1186,8 +1296,9 @@ function ncEnrichFrames({ frames = [], identityLock, styleLock = "" } = {}) {
 
     const refNote = identityLock.referenceImage ? "use reference image as identity anchor" : "";
     const seedNote = identityLock.seed && identityLock.seed !== "777777" ? `seed ${identityLock.seed}` : "";
-    const sceneFirst = frame.imgPrompt_EN || frame.visual || frame.scene || "";
-    const motionFirst = frame.vidPrompt_EN || frame.video_prompt || frame.visual || "";
+    const viralScene = buildViralDirectorScene(frame, index, frames.length);
+    const sceneFirst = buildViralImagePrompt(frame, index, frames.length, style) || frame.imgPrompt_EN || frame.visual || frame.scene || "";
+    const motionFirst = buildViralVideoPrompt(frame, index, frames.length, style) || frame.vidPrompt_EN || frame.video_prompt || frame.visual || "";
     const hasIdentity = identityLock.identity && identityLock.identity.length > 4;
     const visibleChar = hasIdentity && hasVisibleCharacter(frame, `${sceneFirst} ${motionFirst}`);
 
@@ -1222,6 +1333,9 @@ function ncEnrichFrames({ frames = [], identityLock, styleLock = "" } = {}) {
 
     return {
       ...frame,
+      visual_ru: frame.visual_ru || viralScene.visual_RU,
+      viral_theme: viralScene.theme,
+      viral_beat: viralScene.beat,
       imgPrompt_EN: enrichedImg,
       vidPrompt_EN: enrichedVid,
       identity_lock_applied: Boolean(visibleChar),
@@ -2019,7 +2133,7 @@ JSON FORMAT:
   }
 
   function rebuildRawText(frms, s2done) {
-    let scriptTxt = frms.map((f, i) => `КАДР ${i+1} [${f.timecode || ''}]\n👁 Визуал: ${f.visual}\n🔊 SFX: ${f.sfx||''}\n🔤 Титры: ${f.text_on_screen||''}\n🎙 Диктор: «${f.voice}»`).join("\n\n");
+    let scriptTxt = frms.map((f, i) => `КАДР ${i+1} [${f.timecode || f.time || ''}]\n🎬 Режиссёрская сцена: ${f.visual_ru || f.visual || ''}\n⚡ Beat: ${f.viral_beat || 'AUTO'}\n🔊 SFX: ${f.sfx||''}\n🔤 Титры: ${f.text_on_screen||''}\n🎙 Диктор: «${f.voice || f.vo || ''}»`).join("\n\n");
     let imgTxt = s2done ? frms.map((f,i) => `[КАДР ${i+1}]\n${f.imgPrompt_EN||''}`).filter(x=>x.includes("\n")).join("\n\n") : "";
     let vidTxt = s2done ? frms.map((f,i) => `[КАДР ${i+1}]\n${f.vidPrompt_EN||''}`).filter(x=>x.includes("\n")).join("\n\n") : "";
     setRawScript(scriptTxt); setRawImg(imgTxt); setRawVid(vidTxt);
@@ -2312,15 +2426,16 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
           .trim();
 
         const allowXray = isXrayEngine(engine);
-        const cleanVid = sanitizeModeLeak(cleanPrompt(rawVid), { allowXray, frame: f });
-        const cleanImg = sanitizeModeLeak(cleanPrompt(rawImg), { allowXray, frame: f });
+        const viralBase = buildViralDirectorScene(f, i, framesForStep2.length);
+        const cleanVid = sanitizeModeLeak(buildViralVideoPrompt({ ...f, vidPrompt_EN: rawVid }, i, framesForStep2.length, finalStyle), { allowXray, frame: f });
+        const cleanImg = sanitizeModeLeak(buildViralImagePrompt({ ...f, imgPrompt_EN: rawImg }, i, framesForStep2.length, finalStyle), { allowXray, frame: f });
 
         // 🔒 SEED LOCK — фиксируем seed для консистентности между кадрами
         const seedSuffix = seedLocked ? ` --seed ${seedValue}` : "";
 
         const negPrompt = p.negative_prompt || DEFAULT_NEGATIVE;
 
-        return { ...f, imgPrompt_EN: cleanImg + seedSuffix, vidPrompt_EN: cleanVid + seedSuffix, negative_prompt: negPrompt };
+        return { ...f, visual_ru: viralBase.visual_RU, viral_theme: viralBase.theme, viral_beat: viralBase.beat, imgPrompt_EN: cleanImg + seedSuffix, vidPrompt_EN: cleanVid + seedSuffix, negative_prompt: negPrompt };
       });
 
       // ── AUTO IDENTITY LOCK (встроен из Pipeline) ──────────────────────────
