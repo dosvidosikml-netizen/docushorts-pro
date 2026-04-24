@@ -1166,6 +1166,15 @@ export default function Page() {
   const [fbData, setFbData] = useState(null);
   const [generatingFB, setGeneratingFB] = useState(false);
 
+  // ── REFERENCE STUDIO STATE ────────────────────────────────────────────────
+  const [refChar, setRefChar] = useState(null);        // base64 фото персонажа
+  const [refLoc, setRefLoc] = useState(null);          // base64 фото локации
+  const [refStyle, setRefStyle] = useState(null);      // base64 фото стиля
+  const [refCharDNA, setRefCharDNA] = useState("");    // проанализированная ДНК персонажа
+  const [refLocText, setRefLocText] = useState("");    // проанализированная локация
+  const [refStyleText, setRefStyleText] = useState(""); // проанализированный стиль
+  const [refAnalyzed, setRefAnalyzed] = useState(false);
+
   // ── PRODUCTION PIPELINE STATE ─────────────────────────────────────────────
   const [pipelineResult, setPipelineResult] = useState(null);
   const [pipelineRunning, setPipelineRunning] = useState(false);
@@ -1322,6 +1331,7 @@ export default function Page() {
     setTtsStudioData(null);
     setBusy(false);
     setView("form");
+    // Референсы не сбрасываем — пользователь мог их загрузить для нового проекта тоже
   };
 
   const deductToken = () => { setTokens(prev => { const next = prev - 1; localStorage.setItem("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
@@ -1407,6 +1417,38 @@ export default function Page() {
       }
     } catch (err) {
       alert("🚨 ОШИБКА АНАЛИЗА ФОТО: " + err.message);
+    } finally {
+      setBusy(false); setView("form");
+    }
+  }
+
+  async function handleAnalyzeRefs() {
+    if (!refChar && !refLoc && !refStyle) return alert("Загрузите хотя бы одно фото!");
+    setBusy(true); setView("loading");
+    try {
+      if (refChar) {
+        setLoadingMsg("👤 Сканируем лицо персонажа...");
+        const raw = await callVisionAPI(refChar, `You are an elite Character Designer for AI video production. Analyze this reference photo and describe the person's PHYSICAL appearance in English. Focus ONLY on: exact age range, face geometry (jaw shape, cheekbone prominence, nose bridge), eye color+shape+spacing, eyebrow thickness, hair (color/texture/length/style), facial hair details, skin tone, build, any unique marks/scars/features. Be maximally specific — this DNA will be used to lock character identity across all video frames. Return ONLY valid JSON: { "dna": "[CHAR_REF_DNA: very detailed physical description in English]" }`);
+        const p = cleanJSON(raw);
+        if (p?.dna) setRefCharDNA(p.dna);
+      }
+      if (refLoc) {
+        setLoadingMsg("🌍 Анализируем локацию...");
+        const raw = await callVisionAPI(refLoc, `You are a Location Scout for cinematic AI production. Analyze this reference photo. Describe the environment for AI image/video generation: architecture style, spatial layout, lighting quality+direction+color temperature, time of day, atmosphere, dominant colors+textures, era/period, key visual elements in foreground/background. Return ONLY valid JSON: { "location": "cinematic location description in English, 25-40 words" }`);
+        const p = cleanJSON(raw);
+        if (p?.location) setRefLocText(p.location);
+      }
+      if (refStyle) {
+        setLoadingMsg("🎨 Анализируем визуальный стиль...");
+        const raw = await callVisionAPI(refStyle, `You are an Art Director for AI video generation. Analyze this reference image's VISUAL STYLE: color grading (warm/cool/desaturated), lighting approach (hard/soft/rim/practical), film grain/texture, contrast ratio, mood, cinematography style (handheld/steady/wide/tight), era aesthetic, any specific visual effects or treatment. Return ONLY valid JSON: { "style": "cinematic style reference description in English, 20-35 words" }`);
+        const p = cleanJSON(raw);
+        if (p?.style) setRefStyleText(p.style);
+      }
+      setRefAnalyzed(true);
+      const analyzed = [refChar && "персонаж", refLoc && "локация", refStyle && "стиль"].filter(Boolean).join(", ");
+      alert(`✅ Проанализировано: ${analyzed}.\n\nТеперь запускайте Шаг 1 — раскадровка будет построена под ваши референсы!`);
+    } catch(e) {
+      alert("🚨 Ошибка анализа референсов: " + e.message);
     } finally {
       setBusy(false); setView("form");
     }
@@ -1860,9 +1902,15 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
 
         const isFirstBatch = batch === 0;
 
+        // Инжектируем проанализированные референсы в промпт (если есть)
+        const refCharBlock = refCharDNA ? `\nCHARACTER VISUAL REFERENCE (from uploaded photo — MANDATORY): ${refCharDNA}. Apply this EXACT appearance to the main character in EVERY frame. Do NOT invent or change any physical feature.` : "";
+        const refLocBlock  = refLocText  ? `\nLOCATION VISUAL REFERENCE (from uploaded photo): ${refLocText}. Match this environment throughout all frames.` : "";
+        const refStyleBlock= refStyleText? `\nSTYLE VISUAL REFERENCE (from uploaded photo): ${refStyleText}. Apply this visual style to every frame.` : "";
+        const refBlock = refCharBlock + refLocBlock + refStyleBlock;
+
         const batchReq = isFirstBatch
-          ? `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\n${studioInfo}\nПЕРСОНАЖИ: ${preGeneratedChars}.\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! 3 СЕК/КАДР. РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек.`
-          : `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nПРОДОЛЖЕНИЕ. ЖАНР: ${genre}.\nПЕРСОНАЖИ: ${JSON.stringify(data1A.characters_EN || [])}.\nЛОКАЦИЯ: ${data1A.location_ref_EN || ""}.\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек. Используй тех же персонажей.`;
+          ? `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nТЕМА: ${topic}. ЖАНР: ${genre}.\n${studioInfo}${refBlock}\nПЕРСОНАЖИ: ${preGeneratedChars}.\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! 3 СЕК/КАДР. РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек.`
+          : `LANGUAGE: ${lang === "RU" ? "РУССКИЙ" : "ENGLISH"}.\nПРОДОЛЖЕНИЕ. ЖАНР: ${genre}.\nПЕРСОНАЖИ: ${JSON.stringify(data1A.characters_EN || [])}.\nЛОКАЦИЯ: ${data1A.location_ref_EN || ""}.\n${refBlock}\nСЦЕНАРИЙ (кадры ${batchStart}–${batchEnd}): ${scriptChunk}.\nВЫДАЙ СТРОГО JSON! РОВНО ${batchCount} КАДРОВ. Тайм-коды с ${timecodeStart} сек. Используй тех же персонажей.`;
 
         const batchSys = isFirstBatch
           ? SYS_STEP_1A
@@ -1942,8 +1990,17 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
       const charsDict = generatedChars.map(c => `${c.id} DNA: ${c.dna || c.ref_sheet_prompt}`).join("\n");
       const textToRender = thumb?.text_for_rendering ? `\n\nNATIVE CYRILLIC REQUIRED: text_for_rendering = "${thumb.text_for_rendering}"` : "";
       
+      // Если загружен референс персонажа + I2V режим → специальный формат промпта
+      const hasRefChar = !!(refChar && refCharDNA);
+      const refI2VNote = hasRefChar
+        ? ` REFERENCE_IMAGE is provided (uploaded character photo). Each 'vidPrompt_EN' MUST start with: "Animate the reference image:" — then add ONLY: camera movement + subject action (max 12 words total after prefix). Zero DNA description. Zero appearance words.`
+        : "";
+      const refCharPromptNote = hasRefChar
+        ? `\nCHARACTER_REF_DNA (from uploaded photo — embed in imgPrompt_EN for T2V): ${refCharDNA}`
+        : "";
+
       const pipelineDirective = pipelineMode === "I2V" 
-        ? "PIPELINE_MODE = I2V (Studio). Keep 'vidPrompt_EN' very short — ONLY action and camera movement."
+        ? `PIPELINE_MODE = I2V (Studio). Keep 'vidPrompt_EN' very short — ONLY action and camera movement.${refI2VNote}`
         : "PIPELINE_MODE = T2V (Direct). 'vidPrompt_EN' = [DNA_BLOCK] + [Location] + [Action] + [Camera].";
 
       const PROMPT_BATCH = 5;
@@ -1996,7 +2053,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
           `Frame ${bStart+i+1} [bypass:${f.bypass_method||"none"}]: Visual: ${f.visual} | Voice: ${f.voice||""} | SFX: ${f.sfx||""} | Chars: ${(f.characters_in_frame || []).join(",")}`
         ).join("\n");
 
-        const batchReq = `PIPELINE RULE:\n${pipelineDirective}\n\nSTORYBOARD (frames ${bStart+1}–${bEnd}):\n${batchStoryboard}\n\nCHARACTERS:\n${charsDict}\n\nLOCATION:\n${locRef}${isLastBatch ? textToRender : ""}\n\nGenerate exactly ${batchFrames.length} prompts.${isLastBatch ? "\nAlso generate thumbnail_prompt_EN." : "\nSkip thumbnail_prompt_EN."}`;
+        const batchReq = `PIPELINE RULE:\n${pipelineDirective}\n\nSTORYBOARD (frames ${bStart+1}–${bEnd}):\n${batchStoryboard}\n\nCHARACTERS:\n${charsDict}${refCharPromptNote}\n\nLOCATION:\n${locRef}${isLastBatch ? textToRender : ""}\n\nGenerate exactly ${batchFrames.length} prompts.${isLastBatch ? "\nAlso generate thumbnail_prompt_EN." : "\nSkip thumbnail_prompt_EN."}`;
 
         let batchData;
         try {
@@ -2477,6 +2534,59 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
               }
             </div>
 
+            {/* REFERENCE STUDIO */}
+            <div className="glass panel" style={{padding:24}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <label style={{fontSize:10,fontWeight:900,letterSpacing:"2.5px",color:"#f97316",textTransform:"uppercase"}}>📸 REFERENCE STUDIO</label>
+                  {refAnalyzed && <span style={{fontSize:9,background:"rgba(34,197,94,.2)",color:"#4ade80",border:"1px solid rgba(34,197,94,.3)",padding:"2px 8px",borderRadius:10,fontWeight:900}}>✓ ГОТОВО</span>}
+                </div>
+                {(refChar||refLoc||refStyle)&&(
+                  <button onClick={()=>{setRefChar(null);setRefLoc(null);setRefStyle(null);setRefCharDNA("");setRefLocText("");setRefStyleText("");setRefAnalyzed(false);}} style={{background:"rgba(239,68,68,.1)",color:"#f87171",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"4px 10px",fontSize:10,fontWeight:900,cursor:"pointer"}}>✕ Очистить</button>
+                )}
+              </div>
+
+              <p style={{fontSize:11,color:"#64748b",marginBottom:16,lineHeight:1.6}}>
+                Загрузи фото → ИИ увидит лицо/место/стиль → раскадровка и I2V-промпты строятся под эти референсы.
+              </p>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+                {[
+                  {key:"char",  label:"👤 Персонаж", stateVal:refChar,  setFn:setRefChar,  dna:refCharDNA,  color:"#f472b6"},
+                  {key:"loc",   label:"🌍 Локация",   stateVal:refLoc,   setFn:setRefLoc,   dna:refLocText,  color:"#38bdf8"},
+                  {key:"style", label:"🎨 Стиль",     stateVal:refStyle, setFn:setRefStyle, dna:refStyleText,color:"#a78bfa"},
+                ].map(({key,label,stateVal,setFn,dna,color})=>(
+                  <div key={key} style={{display:"flex",flexDirection:"column",gap:6}}>
+                    <label style={{fontSize:9,color,fontWeight:900,textTransform:"uppercase",letterSpacing:"1px"}}>{label}</label>
+                    <div
+                      style={{position:"relative",aspectRatio:"1",background:"rgba(0,0,0,.5)",border:`2px dashed ${stateVal?color+"44":"rgba(255,255,255,.1)"}`,borderRadius:12,overflow:"hidden",cursor:"pointer",transition:"border-color .2s"}}
+                      onClick={()=>document.getElementById(`ref-upload-${key}`).click()}
+                    >
+                      {stateVal
+                        ? <img src={stateVal} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={label}/>
+                        : <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:4}}>
+                            <span style={{fontSize:22,opacity:.4}}>+</span>
+                            <span style={{fontSize:8,color:"#475569",textAlign:"center",lineHeight:1.3}}>Нажми<br/>загрузить</span>
+                          </div>
+                      }
+                      {dna && <div style={{position:"absolute",bottom:4,right:4,width:18,height:18,background:"#22c55e",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,color:"#fff",boxShadow:"0 2px 6px rgba(0,0,0,.5)"}}>✓</div>}
+                    </div>
+                    <input id={`ref-upload-${key}`} type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{
+                      const f=e.target.files[0]; if(!f) return;
+                      const b64=await resizeImageToBase64(f,1024); setFn(b64); setRefAnalyzed(false);
+                    }}/>
+                    {dna && <div style={{fontSize:8,color:"#6b7280",lineHeight:1.4,maxHeight:36,overflow:"hidden",fontFamily:"monospace",wordBreak:"break-all"}}>{dna.slice(0,65)}…</div>}
+                  </div>
+                ))}
+              </div>
+
+              {(refChar||refLoc||refStyle)&&(
+                <button onClick={handleAnalyzeRefs} disabled={busy||refAnalyzed} style={{width:"100%",padding:"12px",background:refAnalyzed?"rgba(34,197,94,.12)":"linear-gradient(135deg,rgba(249,115,22,.25),rgba(168,85,247,.25))",border:`1px solid ${refAnalyzed?"rgba(34,197,94,.4)":"rgba(249,115,22,.5)"}`,borderRadius:12,color:refAnalyzed?"#4ade80":"#fff",fontWeight:900,cursor:busy||refAnalyzed?"default":"pointer",fontSize:13,letterSpacing:"0.5px",transition:"all .2s"}}>
+                  {refAnalyzed?"✅ Референсы готовы — запускайте Шаг 1":busy?"⏳ Анализируем...":"🔍 АНАЛИЗИРОВАТЬ РЕФЕРЕНСЫ"}
+                </button>
+              )}
+            </div>
+
             {/* КУЗНИЦА ПЕРСОНАЖЕЙ */}
             <div className="glass panel" style={{padding:24}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
@@ -2890,6 +3000,22 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
               {step2Done&&promptView==="I2V"&&(
                 <div style={{background:"rgba(56,189,248,.06)",border:"1px solid rgba(56,189,248,.2)",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:11,color:"#7dd3fc"}}>
                   📸 <b>I2V режим:</b> ты загружаешь свой референс в Grok/Kling/Runway — промпты содержат только действие и камеру, без описания внешности
+                </div>
+              )}
+              {/* Баннер: Reference Studio активен */}
+              {refAnalyzed&&(refChar||refLoc||refStyle)&&(
+                <div style={{display:"flex",gap:10,alignItems:"center",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.3)",borderRadius:14,padding:"12px 16px",marginBottom:16}}>
+                  <div style={{display:"flex",gap:6}}>
+                    {refChar  && <img src={refChar}  style={{width:36,height:36,objectFit:"cover",borderRadius:8,border:"2px solid #f472b6"}} alt="char ref"/>}
+                    {refLoc   && <img src={refLoc}   style={{width:36,height:36,objectFit:"cover",borderRadius:8,border:"2px solid #38bdf8"}} alt="loc ref"/>}
+                    {refStyle && <img src={refStyle} style={{width:36,height:36,objectFit:"cover",borderRadius:8,border:"2px solid #a78bfa"}} alt="style ref"/>}
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:900,color:"#f97316",textTransform:"uppercase",letterSpacing:"1px"}}>📸 Reference Studio активен</div>
+                    <div style={{fontSize:10,color:"#94a3b8",lineHeight:1.4}}>
+                      {[refChar&&"👤 персонаж",refLoc&&"🌍 локация",refStyle&&"🎨 стиль"].filter(Boolean).join(" · ")} — встроены в промпты
+                    </div>
+                  </div>
                 </div>
               )}
               {/* ── FILM STRIP FRAMES ─────────────────────────────── */}
