@@ -1381,13 +1381,20 @@ export default function Page() {
     setPipelineResult(null);
     setPipelineProgress(null);
     setPipelineRunning(false);
+    setFbData(null);
+    setRefChar(null);
+    setRefLoc(null);
+    setRefStyle(null);
+    setRefCharDNA("");
+    setRefLocText("");
+    setRefStyleText("");
+    setRefAnalyzed(false);
     setBgImage(null);
     setLogoImage(null);
     setBusy(false);
     setTab("storyboard");
     setView("form");
     safeStorageRemove("ds_draft");
-    // Референсы не сбрасываем — пользователь мог их загрузить для нового проекта тоже
   };
 
   const deductToken = () => { setTokens(prev => { const next = prev - 1; safeStorageSet("ds_billing", JSON.stringify({ tokens: next, date: new Date().toLocaleDateString() })); return next; }); };
