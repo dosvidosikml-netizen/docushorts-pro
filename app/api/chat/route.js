@@ -21,7 +21,8 @@ const ALLOWED_MODELS = new Set([
   "openai/gpt-4o-mini",
 ]);
 
-const MAX_MESSAGE_LENGTH = 32_000;
+// Лимит поднят до 10 MB — base64 фото (vision / multi-character) требуют места
+const MAX_MESSAGE_LENGTH = 10 * 1024 * 1024;
 
 export async function POST(req) {
   try {
@@ -38,10 +39,10 @@ export async function POST(req) {
       );
     }
 
-    // 2. Optional server-to-server token.
-    // Browser requests from the app do not carry secrets; never expose APP_SECRET in client JS.
+    // 2. Защита от прямого вызова API извне приложения.
+    // Браузерные запросы не несут секрет — блокируем только если токен ПРИШЁЛ и оказался неверным.
     const appSecret = process.env.APP_SECRET;
-    const clientToken = req.headers.get("x-internal-app-token");
+    const clientToken = req.headers.get("X-App-Token");
     if (appSecret && clientToken && clientToken !== appSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
