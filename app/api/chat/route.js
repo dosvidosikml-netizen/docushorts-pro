@@ -3,22 +3,8 @@ const rateLimitMap = new Map();
 const RATE_LIMIT_MAX = 15;
 const RATE_LIMIT_WINDOW = 60_000;
 
-function cleanupRateLimit(now = Date.now()) {
-  for (const [ip, entry] of rateLimitMap.entries()) {
-    if (!entry || now > entry.resetAt) rateLimitMap.delete(ip);
-  }
-}
-
-// В serverless окружении модуль может жить долго; периодически чистим Map, чтобы IP-записи не копились бесконечно.
-const RATE_LIMIT_CLEANUP_INTERVAL = 60_000;
-if (!globalThis.__neurocineRateLimitCleanupStarted) {
-  globalThis.__neurocineRateLimitCleanupStarted = true;
-  setInterval(() => cleanupRateLimit(), RATE_LIMIT_CLEANUP_INTERVAL).unref?.();
-}
-
 function checkRateLimit(ip) {
   const now = Date.now();
-  cleanupRateLimit(now);
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
@@ -52,15 +38,16 @@ export async function POST(req) {
       );
     }
 
-    // 2. Optional server-to-server token.
-    // Browser requests from the app do not carry secrets; never expose APP_SECRET in client JS.
+    // 2. Защита от прямого вызова API извне приложения
     const appSecret = process.env.APP_SECRET;
-    const clientToken = req.headers.get("x-internal-app-token");
-    if (appSecret && clientToken && clientToken !== appSecret) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (appSecret) {
+      const clientToken = req.headers.get("X-App-Token");
+      if (clientToken !== appSecret) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = await req.json();
