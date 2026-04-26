@@ -75,7 +75,7 @@ export async function POST(req) {
         signal: controller.signal,
         headers: {
           // 🔥 ВСТАВЬ СЮДА СВОЙ КЛЮЧ
-          Authorization: `Bearer sk-or-PASTE_YOUR_KEY_HERE`,
+          Authorization: `Bearer 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`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
