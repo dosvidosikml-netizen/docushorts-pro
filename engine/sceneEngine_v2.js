@@ -34,12 +34,33 @@ export function buildStoryboardUserPrompt({ script = "", duration = 60, mode = "
   const normalizedMode = normalizeMode(mode);
   const modeConfig = STORYBOARD_MODES[normalizedMode];
 
-  return `Generate a production storyboard JSON for NeuroCine.\n\nMODE: ${normalizedMode}\nMODE INSTRUCTION: ${modeConfig.instruction}\n\nTarget duration: ${d} seconds.\nTarget scenes: ${preset.targetScenes}.\nTarget VO length: ${preset.wordsMin}-${preset.wordsMax} Russian words.\nAverage shot duration: 3 seconds.\nStrictly make total_duration equal ${d}.\n\nScene quality rule: internally score every scene from 1 to 10. If any scene is below 8, rewrite it until it reaches 8+. Do NOT output the score unless the JSON schema explicitly includes it.\n\nSCRIPT:\n${script}\n\njson`;
+  return `Generate a production storyboard JSON for NeuroCine Storyboard Engine v2.\n\nMODE: ${normalizedMode}\nMODE INSTRUCTION: ${modeConfig.instruction}\n\nTarget duration: ${d} seconds.\nTarget scenes: ${preset.targetScenes}.\nTarget VO length: ${preset.wordsMin}-${preset.wordsMax} Russian words.\nAverage shot duration: 3 seconds.\nStrictly make total_duration equal ${d}.\n\nRequired v2 fields:\n- global_video_lock\n- postprocess\n- cut_energy in every scene: low | medium | high\n\nImage prompt rule: keep image prompts clean. Use only compact optics/quality tags: ARRI Alexa 65, Zeiss Master Prime, T2.8, cinematic sharp focus, film-level detail, Kodak Vision3 500T grain. Do not spam negative prompts or 8k/no blur/no plastic skin style lists.\n\nVideo prompt rule: include grounded physical realism, camera behavior, sensory detail, fabric/breath/particles/weight/contact physics.\n\nScene quality rule: internally score every scene from 1 to 10. If any scene is below 8, rewrite it until it reaches 8+. Do NOT output the score unless the JSON schema explicitly includes it.\n\nSCRIPT:\n${script}\n\njson`;
 }
 
-const QUALITY_IMAGE_BOOST = "shot on ARRI Alexa 65, Zeiss Master Prime lens, T2.8, cinematic sharp focus, stabilized subject focus, ultra high detail, realistic skin texture, visible fabric weave, micro contrast, high frequency details, 8k texture fidelity, film-level clarity, realistic imperfections, high dynamic range";
-const QUALITY_IMAGE_NEGATIVE = "no blur, no soft focus, no smudged faces, no plastic skin, no low detail, no muddy textures, no waxy skin";
-const GROK_RAW_BOOST = "GROK RAW ENHANCEMENT: stronger cinematic tension, more aggressive camera energy, sharper subject lock, stronger atmosphere, heavier crowd pressure, more tactile physics, film-grade contrast, high-detail texture clarity, no explicit gore, non-erotic documentary framing";
+const CLEAN_IMAGE_BOOST = "shot on ARRI Alexa 65, Zeiss Master Prime lens, T2.8, cinematic sharp focus, film-level detail, Kodak Vision3 500T grain";
+const GLOBAL_VIDEO_LOCK = "grounded physical realism, no floaty motion, realistic inertia, organic camera operator behavior, documentary authenticity, visible environmental reaction";
+const PHYSICAL_REALISM_BLOCK = "PHYSICAL REALISM BOOST: increase inertia in movement, preserve weight and resistance in body motion, avoid floaty motion, enforce grounded contact with surfaces, emphasize micro-delays in reactions. CAMERA BEHAVIOR: imperfect handheld micro-shake, organic operator drift, slight focus breathing, natural exposure shifts. SENSORY DETAIL: visible breath in cold air, cloth reacting to wind, subtle skin imperfections, environmental particles moving with motion";
+const GROK_RAW_BOOST = "GROK RAW MASTER: stronger cinematic tension, more aggressive camera energy, sharper subject lock, stronger atmosphere, heavier crowd pressure, tactile physics, film-grade contrast. PHYSICAL REALISM BOOST: increase inertia in movement, preserve weight and resistance in body motion, avoid floaty motion, enforce grounded contact with surfaces, emphasize micro-delays in reactions. CAMERA BEHAVIOR: imperfect handheld micro-shake, organic operator drift, slight focus breathing, natural exposure shifts. SENSORY DETAIL: visible breath in cold air, cloth reacting to wind, subtle skin imperfections, environmental particles moving with motion. Keep no explicit gore, non-erotic documentary framing";
+
+const IMAGE_NOISE_PHRASES = [
+  "stabilized subject focus",
+  "ultra high detail",
+  "realistic skin texture",
+  "visible fabric weave",
+  "micro contrast",
+  "high frequency details",
+  "8k texture fidelity",
+  "film-level clarity",
+  "realistic imperfections",
+  "high dynamic range",
+  "no blur",
+  "no soft focus",
+  "no smudged faces",
+  "no plastic skin",
+  "no low detail",
+  "no muddy textures",
+  "no waxy skin",
+];
 
 function appendUniqueText(base = "", addition = "") {
   const b = String(base || "").trim();
@@ -49,26 +70,52 @@ function appendUniqueText(base = "", addition = "") {
   return `${b}${b ? ", " : ""}${a}`.trim();
 }
 
-function qualityBoostImagePrompt(prompt = "") {
-  let out = String(prompt || "").trim();
-  out = appendUniqueText(out, QUALITY_IMAGE_BOOST);
-  out = appendUniqueText(out, QUALITY_IMAGE_NEGATIVE);
-  return out;
+function removePromptNoise(prompt = "") {
+  let out = String(prompt || "");
+  for (const phrase of IMAGE_NOISE_PHRASES) {
+    out = out.split(phrase).join("");
+  }
+  return out
+    .replace(/,\s*,+/g, ",")
+    .replace(/\s+,/g, ",")
+    .replace(/\s+/g, " ")
+    .replace(/,\s*$/g, "")
+    .trim();
+}
+
+function cleanImagePrompt(prompt = "") {
+  return appendUniqueText(removePromptNoise(prompt), CLEAN_IMAGE_BOOST);
+}
+
+function enhanceVideoPrompt(prompt = "") {
+  return appendUniqueText(String(prompt || "").trim(), PHYSICAL_REALISM_BLOCK);
+}
+
+function getCutEnergy(scene = {}, index = 0) {
+  const raw = String(scene.cut_energy || "").toLowerCase();
+  if (["low", "medium", "high"].includes(raw)) return raw;
+  const beat = String(scene.beat_type || scene.beat || "").toLowerCase();
+  if (beat.includes("pause")) return "low";
+  if (beat.includes("reaction") || beat.includes("evidence") || beat.includes("hook")) return "medium";
+  if (beat.includes("aggression") || beat.includes("climax") || beat.includes("escalation")) return "high";
+  return index % 3 === 2 ? "low" : index % 2 === 0 ? "medium" : "high";
 }
 
 function buildGrokPromptFromSafe(scene = {}) {
-  const image = qualityBoostImagePrompt(scene.image_prompt_en || "");
-  const videoBase = String(scene.video_prompt_en || "").trim();
-  const video = appendUniqueText(videoBase, `${GROK_RAW_BOOST}. Keep the same scene order, timing, VO, character identity, and continuity. Amplify camera motion, atmosphere, crowd pressure, fabric movement, breathing, impact through reaction only. SFX: ${scene.sfx || "cinematic rumble, cloth movement, crowd pressure"}`);
+  const image = cleanImagePrompt(scene.image_prompt_en || "");
+  const videoBase = enhanceVideoPrompt(scene.video_prompt_en || "");
+  const video = appendUniqueText(
+    videoBase,
+    `${GROK_RAW_BOOST}. Keep the same scene order, timing, VO, character identity, and continuity. Amplify camera motion, atmosphere, crowd pressure, fabric movement, breathing, weight, contact physics, environmental particles and reaction timing only. SFX: ${scene.sfx || "cinematic rumble, cloth movement, crowd pressure"}`
+  );
   return {
     ...scene,
     image_prompt_grok_en: image,
     video_prompt_grok_en: video,
     grok_sfx: scene.sfx || "cinematic rumble, cloth movement, crowd pressure",
-    grok_camera: appendUniqueText(scene.camera || "", "stabilized subject focus, cinematic raw motion"),
+    grok_camera: appendUniqueText(scene.camera || "", "organic handheld operator drift, stabilized subject lock, cinematic raw motion"),
   };
 }
-
 
 function padFrame(n) {
   return `frame_${String(n).padStart(2, "0")}`;
@@ -102,7 +149,6 @@ export function normalizeStoryboard(raw = {}, requestedDuration = 60, requestedM
   let durations = inputScenes.map((s) => clampDuration(s.duration || 3));
   let sum = durations.reduce((a, b) => a + b, 0);
 
-  // Adjust durations gently to hit target exactly while staying in the 2-4s cinematic range.
   let guard = 0;
   while (sum !== target && guard < 2000) {
     guard += 1;
@@ -134,16 +180,18 @@ export function normalizeStoryboard(raw = {}, requestedDuration = 60, requestedM
       sfx: s.sfx || "",
       camera: s.camera || s.camera_movement || "",
       transition: s.transition || "cut",
+      cut_energy: getCutEnergy(s, i),
       continuity_note: s.continuity_note || "",
       safety_note: s.safety_note || (mode === "safe"
         ? "GPT SAFE: documentary framing, non-erotic, non-fetishized, non-graphic wording"
         : "GROK RAW: cinematic intensity, non-erotic, non-fetishized, non-instructional"),
     });
-    const withQuality = {
+    const withV2 = {
       ...normalized,
-      image_prompt_en: qualityBoostImagePrompt(normalized.image_prompt_en),
+      image_prompt_en: cleanImagePrompt(normalized.image_prompt_en),
+      video_prompt_en: enhanceVideoPrompt(normalized.video_prompt_en),
     };
-    const finalScene = mode === "safe" ? buildGrokPromptFromSafe(withQuality) : withQuality;
+    const finalScene = mode === "safe" ? buildGrokPromptFromSafe(withV2) : withV2;
     start += duration;
     return finalScene;
   });
@@ -155,15 +203,18 @@ export function normalizeStoryboard(raw = {}, requestedDuration = 60, requestedM
     aspect_ratio: raw.aspect_ratio || "9:16",
     total_duration: start,
     global_style_lock: raw.global_style_lock || "cinematic documentary realism, historical accuracy, 35mm anamorphic, handheld, natural overcast light, realistic textures, Kodak Vision3 500T grain, no subtitles/UI/watermarks",
+    global_video_lock: raw.global_video_lock || GLOBAL_VIDEO_LOCK,
     character_lock: raw.character_lock || [],
+    postprocess: raw.postprocess || { upscale: "x2", final_upscale: "x4", model: "real-esrgan", provider: "replicate" },
     scenes,
     export_meta: {
       ...(raw.export_meta || {}),
       engine_target: engineTarget,
       mode,
       model: modelUsed,
-      version: "neurocine_vFinal_plus_site",
+      version: "neurocine_storyboard_v2",
       auto_safe_to_grok: mode === "safe",
+      postprocess: { upscale: "x2", final_upscale: "x4", model: "real-esrgan", provider: "replicate" },
     },
   };
 }
@@ -172,6 +223,8 @@ export function validateStoryboard(data = {}, requestedMode = "safe") {
   const errors = [];
   const mode = normalizeMode(data?.export_meta?.mode || requestedMode);
   if (!data || typeof data !== "object") errors.push("Storyboard is not an object");
+  if (!data.global_video_lock) errors.push("global_video_lock is missing");
+  if (!data.postprocess?.upscale) errors.push("postprocess.upscale is missing");
   if (!Array.isArray(data.scenes) || data.scenes.length === 0) errors.push("scenes[] is empty");
   if (Array.isArray(data.scenes)) {
     let total = 0;
@@ -180,8 +233,10 @@ export function validateStoryboard(data = {}, requestedMode = "safe") {
       if (s.id !== expectedId) errors.push(`scene ${i + 1}: id must be ${expectedId}`);
       if (!String(s.image_prompt_en || "").startsWith("SCENE PRIMARY FOCUS:")) errors.push(`${expectedId}: image_prompt_en must start with SCENE PRIMARY FOCUS:`);
       if (!String(s.video_prompt_en || "").includes("Maintain EXACT same character appearance")) errors.push(`${expectedId}: video prompt missing exact character continuity line`);
+      if (!String(s.video_prompt_en || "").includes("PHYSICAL REALISM BOOST")) errors.push(`${expectedId}: video prompt missing physical realism block`);
       if (!String(s.video_prompt_en || "").toLowerCase().includes("sfx")) errors.push(`${expectedId}: video_prompt_en must include SFX`);
       if (!s.vo_ru) errors.push(`${expectedId}: vo_ru is empty`);
+      if (!["low", "medium", "high"].includes(String(s.cut_energy || "").toLowerCase())) errors.push(`${expectedId}: cut_energy must be low, medium, or high`);
       if (mode === "safe") {
         const risky = `${s.image_prompt_en || ""} ${s.video_prompt_en || ""}`.toLowerCase();
         ["naked", "nude", "bare torso", "exposed body", "explicit gore"].forEach((word) => {
