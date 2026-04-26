@@ -629,6 +629,56 @@ function getTimingPlan(durationLabel = "До 60 сек") {
   return { seconds, frameDuration, frames, minWords, maxWords };
 }
 
+// ── DURATION VALIDATOR ────────────────────────────────────────────────────────
+// Splits any frame > 4 seconds into multiple 3-second frames.
+// Recalculates all start times from scratch so the timeline is always clean.
+// This is the safety net: even if the AI ignores the prompt rule, the output is correct.
+function splitLongFrames(frames = []) {
+  const MAX_DURATION = 4;
+  const DEFAULT_DURATION = 3;
+  const result = [];
+
+  for (const frame of frames) {
+    // Parse timecode: "Xs–Ys", "X–Ys", "X-Ys", "Xs-Ys" etc.
+    const raw = String(frame.timecode || "");
+    const match = raw.match(/(\d+)[^0-9]+(\d+)/);
+    const startSec = match ? parseInt(match[1]) : 0;
+    const endSec   = match ? parseInt(match[2]) : startSec + DEFAULT_DURATION;
+    const duration = Math.max(1, endSec - startSec);
+
+    if (duration <= MAX_DURATION) {
+      result.push(frame);
+    } else {
+      // Split into chunks of 3s each (last chunk gets the remainder, clamped to 2–4)
+      const numChunks = Math.ceil(duration / DEFAULT_DURATION);
+      const chunkDur  = Math.min(MAX_DURATION, Math.ceil(duration / numChunks));
+      let offset = startSec;
+      for (let i = 0; i < numChunks; i++) {
+        const remaining = (startSec + duration) - offset;
+        const thisDur = i === numChunks - 1
+          ? Math.min(MAX_DURATION, Math.max(2, remaining))
+          : chunkDur;
+        result.push({
+          ...frame,
+          timecode: `${offset}s–${offset + thisDur}s`,
+        });
+        offset += thisDur;
+      }
+    }
+  }
+
+  // Recalculate all timecodes sequentially so there are no gaps or overlaps
+  let cursor = 0;
+  return result.map(frame => {
+    const raw = String(frame.timecode || "");
+    const match = raw.match(/(\d+)[^0-9]+(\d+)/);
+    const dur = match ? Math.min(MAX_DURATION, Math.max(2, parseInt(match[2]) - parseInt(match[1]))) : DEFAULT_DURATION;
+    const fixed = { ...frame, timecode: `${cursor}s–${cursor + dur}s` };
+    cursor += dur;
+    return fixed;
+  });
+}
+
 function buildReferenceSheetPrompt({ char = {}, index = 1, engine = "CINEMATIC", genre = "ТАЙНА", topic = "", style = "" } = {}) {
   const name = char.name || "CHAR_" + index;
   const desc = char.desc || "important story character, visually distinctive face, production-ready appearance";
@@ -705,6 +755,19 @@ CUT / EDITING LOGIC
 Each frame must imply a clear edit. Use cut types: hard cut, match cut, jump cut, reveal cut.
 At every cut, change at least ONE of: camera distance, camera angle, movement type, lighting emphasis, visual focus.
 Never use the same camera twice in a row.
+
+--------------------------------------------------
+STRICT SHOT DURATION RULE — NON-NEGOTIABLE
+--------------------------------------------------
+Every single frame "timecode" MUST span exactly 2, 3, or 4 seconds. Nothing else.
+FORBIDDEN durations: 5s, 6s, 7s, 8s, 9s, 10s or longer — these WILL break the Shorts/Reels format.
+Target pacing: 3 seconds per shot is the default. Use 2s for impact cuts, 4s for wide establishing shots.
+For 60-second video: generate exactly 18–22 frames (≈20 frames × 3s = 60s).
+For 30-second video: generate exactly 10–14 frames.
+For 15-second video: generate exactly 5–7 frames.
+Timecode format: always "Xs–Ys" where Y minus X equals 2, 3, or 4. Example: "34s–37s" (3s), "37s–41s" (4s), "41s–43s" (2s).
+NEVER write "34s–42s" (8s) or "42s–48s" (6s). These are ERRORS.
+Distribute shots evenly. If you run out of story content before the time is up — add detail shots, B-roll inserts, or reaction cutaways. Never stretch a single shot beyond 4 seconds.
 
 --------------------------------------------------
 VISUAL DESCRIPTION RULES
@@ -2247,7 +2310,7 @@ BANNED WORDS: "погрузимся", "давайте", "мало кто зна�
         if (batch < totalBatches - 1) await sleep(300);
       }
 
-      data1A.frames = allFrames;
+      data1A.frames = splitLongFrames(allFrames);
       
       setLoadingMsg("📊 Шаг 2/2: Генерируем SEO, музыку и обложку...");
       // Передаём только первые 10 кадров для SEO — не нужно всё
