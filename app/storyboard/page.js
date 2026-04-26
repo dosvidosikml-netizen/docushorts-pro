@@ -79,23 +79,32 @@ export default function StoryboardPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: "28px 18px 70px", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .sb-grid { grid-template-columns: 1fr !important; }
+          .sb-aside { position: static !important; }
+          .sb-header { flex-direction: column !important; align-items: flex-start !important; }
+          .sb-model-badge { min-width: unset !important; width: 100% !important; box-sizing: border-box; }
+          .sb-meta-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(circle at 20% 0%, rgba(168,85,247,.18), transparent 32%), radial-gradient(circle at 100% 12%, rgba(14,165,233,.14), transparent 28%), linear-gradient(180deg,#020617 0%,#05030a 100%)" }} />
       <section style={{ position: "relative", maxWidth: 1480, margin: "0 auto" }}>
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+        <header className="sb-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
           <div>
             <a href="/" style={{ color: "#94a3b8", textDecoration: "none", fontSize: 13 }}>← На главную</a>
-            <h1 style={{ fontSize: "clamp(30px,5vw,58px)", margin: "10px 0 6px", letterSpacing: "-.05em", lineHeight: 1 }}>NeuroCine Storyboard Engine</h1>
-            <p style={{ color: "#94a3b8", maxWidth: 760, margin: 0, lineHeight: 1.55 }}>GPT‑5.4 через OpenRouter. Сценарий → SAFE/GROK режим → scoring 8+ → строгий JSON → кадры → IMAGE PROMPT → VIDEO PROMPT → VO/TTS → continuity.</p>
+            <h1 style={{ fontSize: "clamp(22px,5vw,58px)", margin: "10px 0 6px", letterSpacing: "-.05em", lineHeight: 1 }}>NeuroCine Storyboard Engine</h1>
+            <p style={{ color: "#94a3b8", maxWidth: 760, margin: 0, lineHeight: 1.55, fontSize: "clamp(12px,3vw,15px)" }}>GPT‑5.4 через OpenRouter. Сценарий → SAFE/GROK режим → scoring 8+ → строгий JSON → кадры → IMAGE PROMPT → VIDEO PROMPT → VO/TTS → continuity.</p>
           </div>
-          <div style={{ border: "1px solid rgba(168,85,247,.32)", background: "rgba(15,23,42,.75)", borderRadius: 18, padding: "14px 16px", minWidth: 220 }}>
+          <div className="sb-model-badge" style={{ border: "1px solid rgba(168,85,247,.32)", background: "rgba(15,23,42,.75)", borderRadius: 18, padding: "14px 16px", minWidth: 220 }}>
             <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>Model</div>
             <div style={{ fontSize: 18, fontWeight: 950 }}>openai/gpt-5.4</div>
             <div style={{ fontSize: 11, color: "#64748b", marginTop: 5 }}>OpenRouter API · {mode === "safe" ? "GPT SAFE" : "GROK RAW"}</div>
           </div>
         </header>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 430px) 1fr", gap: 18, alignItems: "start" }}>
-          <aside style={{ border: "1px solid rgba(148,163,184,.16)", background: "rgba(15,23,42,.7)", backdropFilter: "blur(16px)", borderRadius: 24, padding: 18, position: "sticky", top: 18 }}>
+        <div className="sb-grid" style={{ display: "grid", gridTemplateColumns: "minmax(300px, 430px) 1fr", gap: 18, alignItems: "start" }}>
+          <aside className="sb-aside" style={{ border: "1px solid rgba(148,163,184,.16)", background: "rgba(15,23,42,.7)", backdropFilter: "blur(16px)", borderRadius: 24, padding: 18, position: "sticky", top: 18 }}>
             <Field title="Длительность">
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {DURATIONS.map((d) => (
@@ -171,7 +180,7 @@ export default function StoryboardPage() {
 
             {result && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div style={{ border: "1px solid rgba(148,163,184,.16)", background: "rgba(15,23,42,.72)", borderRadius: 24, padding: 18, display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 12 }}>
+                <div className="sb-meta-grid" style={{ border: "1px solid rgba(148,163,184,.16)", background: "rgba(15,23,42,.72)", borderRadius: 24, padding: 18, display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 12 }}>
                   <Field title="Project"><b>{result.project_name}</b></Field>
                   <Field title="Duration"><b>{result.total_duration}s</b></Field>
                   <Field title="Scenes"><b>{result.scenes?.length || 0}</b></Field>
