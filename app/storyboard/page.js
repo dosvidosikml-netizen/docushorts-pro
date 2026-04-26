@@ -168,7 +168,7 @@ export default function StoryboardPage() {
           <div>
             <a href="/" style={{ color: "#94a3b8", textDecoration: "none", fontSize: 13 }}>← На главную</a>
             <h1 style={{ fontSize: "clamp(22px,5vw,58px)", margin: "10px 0 6px", letterSpacing: "-.05em", lineHeight: 1 }}>NeuroCine Storyboard Engine</h1>
-            <p style={{ color: "#94a3b8", maxWidth: 760, margin: 0, lineHeight: 1.55, fontSize: "clamp(12px,3vw,15px)" }}>GPT‑5.4 через OpenRouter. Сценарий → SAFE/GROK режим → scoring 8+ → строгий JSON → кадры → IMAGE PROMPT → VIDEO PROMPT → VO/TTS → continuity.</p>
+            <p style={{ color: "#94a3b8", maxWidth: 760, margin: 0, lineHeight: 1.55, fontSize: "clamp(12px,3vw,15px)" }}>GPT‑5.4 через OpenRouter. Storyboard Engine v2: clean image prompts → physical realism → cut energy → SAFE→GROK → upscale metadata → строгий JSON.</p>
           </div>
           <div className="sb-model-badge" style={{ border: "1px solid rgba(168,85,247,.32)", background: "rgba(15,23,42,.75)", borderRadius: 18, padding: "14px 16px", minWidth: 220 }}>
             <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>Model</div>
@@ -311,6 +311,8 @@ export default function StoryboardPage() {
                   <Field title="Mode"><b>{result.export_meta?.mode || mode}</b></Field>
                   <Field title="Model"><b>{result.model_used || "openai/gpt-5.4"}</b></Field>
                   <div style={{ gridColumn: "1 / -1", color: "#94a3b8", fontSize: 12, lineHeight: 1.55 }}><b style={{ color: "#c4b5fd" }}>GLOBAL STYLE LOCK:</b> {result.global_style_lock}</div>
+                  <div style={{ gridColumn: "1 / -1", color: "#94a3b8", fontSize: 12, lineHeight: 1.55 }}><b style={{ color: "#38bdf8" }}>GLOBAL VIDEO LOCK:</b> {result.global_video_lock || "grounded physical realism, realistic inertia, organic camera behavior"}</div>
+                  <div style={{ gridColumn: "1 / -1", color: "#94a3b8", fontSize: 12, lineHeight: 1.55 }}><b style={{ color: "#86efac" }}>POSTPROCESS:</b> upscale {result.postprocess?.upscale || "x2"} · final {result.postprocess?.final_upscale || "x4"} · {result.postprocess?.model || "real-esrgan"} / {result.postprocess?.provider || "replicate"}</div>
                   <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <CopyButton text={JSON.stringify(result, null, 2)} label="Копировать JSON" />
                     <button onClick={downloadJson} style={{ border: "1px solid rgba(52,211,153,.35)", background: "rgba(16,185,129,.12)", color: "#86efac", borderRadius: 10, padding: "7px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>Скачать JSON</button>
@@ -328,7 +330,7 @@ export default function StoryboardPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1240 }}>
                     <thead>
                       <tr style={{ background: "rgba(15,23,42,.92)" }}>
-                        {['ID / TIME','BEAT','DESCRIPTION (RU)','IMAGE PROMPT (EN)','VIDEO PROMPT (EN)','GROK IMAGE (AUTO)','GROK VIDEO (AUTO)','VO (RU)','SFX','CAMERA','CONTINUITY / SAFETY'].map((h) => <th key={h} style={{ padding: 12, borderBottom: "1px solid rgba(148,163,184,.16)", borderRight: "1px solid rgba(148,163,184,.1)", textAlign: "left", fontSize: 10, color: "#c4b5fd", letterSpacing: 1, whiteSpace: "nowrap" }}>{h}</th>)}
+                        {['ID / TIME','BEAT','CUT ENERGY','DESCRIPTION (RU)','IMAGE PROMPT (EN)','VIDEO PROMPT (EN)','GROK IMAGE (AUTO)','GROK VIDEO (AUTO)','VO (RU)','SFX','CAMERA','CONTINUITY / SAFETY'].map((h) => <th key={h} style={{ padding: 12, borderBottom: "1px solid rgba(148,163,184,.16)", borderRight: "1px solid rgba(148,163,184,.1)", textAlign: "left", fontSize: 10, color: "#c4b5fd", letterSpacing: 1, whiteSpace: "nowrap" }}>{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -336,6 +338,7 @@ export default function StoryboardPage() {
                         <tr key={s.id} style={{ verticalAlign: "top" }}>
                           <td style={tdStyle}><b>{s.id}</b><br/><span style={muted}>{s.start}s / {s.duration}s</span></td>
                           <td style={tdStyle}><span style={{ color: "#f0abfc", fontWeight: 900 }}>{s.beat_type}</span></td>
+                          <td style={tdStyle}><span style={{ color: s.cut_energy === "high" ? "#fb7185" : s.cut_energy === "low" ? "#93c5fd" : "#fbbf24", fontWeight: 950 }}>{s.cut_energy || "medium"}</span></td>
                           <td style={tdStyle}>{s.description_ru}</td>
                           <td style={{ ...tdStyle, width: 280 }}><div style={mono}>{s.image_prompt_en}</div><CopyButton text={s.image_prompt_en} label="IMG" /></td>
                           <td style={{ ...tdStyle, width: 320 }}><div style={mono}>{s.video_prompt_en}</div><CopyButton text={s.video_prompt_en} label="VID" /></td>
