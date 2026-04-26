@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const DURATIONS = [30, 60, 90, 120, 180];
+const LS_KEY = "neurocine_storyboard_result";
+const LS_SCRIPT = "neurocine_storyboard_script";
 const sample = `Восемьсот лет люди платили за билеты. Смотреть, как умирает человек. Казнь называлась лин чи — тысяча порезов. Палач работал методично: сначала пальцы, потом плечи, потом грудь. Каждый надрез — отдельная цена в прейскуранте. Богатые семьи платили БОЛЬШЕ — чтобы смерть пришла быстрее. Бедные платили меньше — и человек умирал часами. Последняя публичная казнь зафиксирована в 1905 году. Фотограф стоял в трёх метрах. Снимки попали в Европу — шок был не от крови, а от детей на заднем плане, которые смеялись. Китай запретил лин чи в том же году. Эти фотографии существуют до сих пор. Вопрос один: вы хотите их видеть — или уже боитесь ответа?`;
 
 function CopyButton({ text, label = "Copy" }) {
@@ -43,6 +45,32 @@ export default function StoryboardPage() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
+  // Загружаем сохранённые данные при монтировании
+  useEffect(() => {
+    try {
+      const savedResult = localStorage.getItem(LS_KEY);
+      const savedScript = localStorage.getItem(LS_SCRIPT);
+      if (savedResult) setResult(JSON.parse(savedResult));
+      if (savedScript) setScript(savedScript);
+    } catch (e) {}
+  }, []);
+
+  // Автосохранение сценария
+  useEffect(() => {
+    try { localStorage.setItem(LS_SCRIPT, script); } catch (e) {}
+  }, [script]);
+
+  function clearAll() {
+    if (!confirm("Удалить раскадровку и сценарий? Это действие необратимо.")) return;
+    try {
+      localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(LS_SCRIPT);
+    } catch (e) {}
+    setResult(null);
+    setScript("");
+    setError("");
+  }
+
   const wordCount = useMemo(() => script.trim().split(/\s+/).filter(Boolean).length, [script]);
   const targetScenes = Math.round(duration / 3);
 
@@ -59,6 +87,7 @@ export default function StoryboardPage() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Ошибка генерации");
       setResult(data);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
     } catch (e) {
       setError(e.message || "Ошибка генерации");
     } finally {
@@ -190,6 +219,7 @@ export default function StoryboardPage() {
                   <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <CopyButton text={JSON.stringify(result, null, 2)} label="Копировать JSON" />
                     <button onClick={downloadJson} style={{ border: "1px solid rgba(52,211,153,.35)", background: "rgba(16,185,129,.12)", color: "#86efac", borderRadius: 10, padding: "7px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>Скачать JSON</button>
+                    <button onClick={clearAll} style={{ border: "1px solid rgba(239,68,68,.35)", background: "rgba(239,68,68,.12)", color: "#fca5a5", borderRadius: 10, padding: "7px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>🗑 Очистить всё</button>
                   </div>
                 </div>
 
