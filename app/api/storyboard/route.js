@@ -374,10 +374,34 @@ function extractJson(text = "") {
     return JSON.parse(cleaned);
   } catch (_) {}
 
+  // Пробуем найти полный объект между { и }
   const first = cleaned.indexOf("{");
   const last = cleaned.lastIndexOf("}");
-  if (first >= 0 && last > first) return JSON.parse(cleaned.slice(first, last + 1));
-  throw new Error("Model did not return valid JSON");
+  if (first >= 0 && last > first) {
+    try { return JSON.parse(cleaned.slice(first, last + 1)); } catch (_) {}
+  }
+
+  // Ответ обрезан (max_tokens) — пробуем восстановить частичный JSON.
+  // Закрываем незакрытые массивы/объекты в конце строки.
+  if (first >= 0) {
+    let partial = cleaned.slice(first);
+    // Убираем хвост начиная с последней запятой (незавершённый элемент)
+    partial = partial.replace(/,\s*$/, "");
+    // Считаем незакрытые [ и {
+    let opens = 0;
+    const stack = [];
+    for (const ch of partial) {
+      if (ch === "{" || ch === "[") { stack.push(ch); opens++; }
+      else if (ch === "}" || ch === "]") { stack.pop(); opens--; }
+    }
+    // Закрываем в обратном порядке
+    for (let i = stack.length - 1; i >= 0; i--) {
+      partial += stack[i] === "[" ? "]" : "}";
+    }
+    try { return JSON.parse(partial); } catch (_) {}
+  }
+
+  throw new Error("Модель вернула неполный JSON — попробуйте ещё раз или уменьшите длительность видео");
 }
 
 export async function POST(req) {
@@ -412,6 +436,7 @@ export async function POST(req) {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userInput },
         ],
+        max_tokens: 12000,
         temperature: mode === "raw" ? 0.55 : 0.3,
         top_p: 0.9,
         response_format: { type: "json_object" },
