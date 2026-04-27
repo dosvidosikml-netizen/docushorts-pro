@@ -146,15 +146,15 @@ export default function StoryboardPage() {
     setTtsError("");
     setTtsData(null);
     const voiceList = GOOGLE_VOICES.map(v => `${v.id} (${v.desc})`).join(", ");
-    const sys = `You are a PRO TTS Director for multi-platform voice production. Analyze the script and output ONLY valid JSON (no markdown, no text outside JSON):
+    const sys = `You are a PRO TTS Director for viral Shorts/Reels content. Analyze the script and output ONLY valid JSON (no markdown, no text outside JSON):
 {
   "scene": "Short location/atmosphere for TTS booth — 5-8 words, English.",
   "context": "Directing note — pacing and emotional arc in English, 1-2 sentences.",
   "voice_id": "Pick the single best voice from: ${voiceList}. Match to mood.",
   "voice_reason": "1 sentence in Russian why this voice fits.",
   "script_google": "Rewrite the FULL script with Google AI Studio emotion tags. Available: [intrigue] [desire] [shock] [information] [inspiration] [confident] [sad] [whisper] [aggressive] [calm]. Tag every 1-3 sentences. Preserve EXACT original language. Do NOT cut or summarize.",
-  "script_elevenlabs": "Rewrite the FULL script with ElevenLabs SSML-style tags: <break time='0.5s'/>, <prosody rate='slow'>, <emphasis level='strong'>. Preserve ALL original text.",
-  "script_clean": "The FULL script completely clean — no tags, no markdown. Ready to paste into any TTS.",
+  "script_fast": "Rewrite the FULL script for ultra-fast Shorts/Reels delivery (1.25x pace). Rules: split into very short punchy sentences (max 8 words each). Cut all filler words. Every sentence must hook. Add '—' between beats for micro-pauses. Keep ALL facts and story — just make it rapid-fire. Preserve original language.",
+  "script_cinematic": "Rewrite the FULL script for slow cinematic narration. Rules: add '...' for dramatic pauses after key words. Add line breaks between sentences. Use CAPS for 1-2 most important words per paragraph. Pacing is slow and heavy — like a movie trailer voice. Preserve ALL original text and language.",
   "pacing_tips": "3 short Russian tips for recording this specific script."
 }`;
     try {
@@ -167,7 +167,7 @@ export default function StoryboardPage() {
             { role: "system", content: sys },
             { role: "user", content: `Сценарий:\n${voScript}` },
           ],
-          max_tokens: 2000,
+          max_tokens: 8000,
         }),
       });
       const data = await res.json();
@@ -502,9 +502,9 @@ export default function StoryboardPage() {
                       {/* Script tabs */}
                       {(() => {
                         const tabs = {
-                          google:     { label: "🔵 Google AI",  color: "#38bdf8", text: ttsData.script_google     || "" },
-                          elevenlabs: { label: "🟣 ElevenLabs", color: "#a78bfa", text: ttsData.script_elevenlabs || "" },
-                          clean:      { label: "⚪ Чистый",     color: "#94a3b8", text: ttsData.script_clean       || "" },
+                          google:     { label: "🔵 Google AI",    color: "#38bdf8", text: ttsData.script_google     || "" },
+                          fast:       { label: "⚡ Shorts/Reels", color: "#fbbf24", text: ttsData.script_fast        || "" },
+                          cinematic:  { label: "🎭 Кино",         color: "#c084fc", text: ttsData.script_cinematic   || "" },
                         };
                         const active = tabs[activeTTSTab];
                         return (
