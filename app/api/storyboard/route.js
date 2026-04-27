@@ -421,7 +421,18 @@ export async function POST(req) {
     const payload = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json({ error: "OpenRouter request failed", details: payload }, { status: response.status });
+      const orError = payload?.error?.message || payload?.message || JSON.stringify(payload);
+      const status = response.status;
+      let hint = "";
+      if (status === 401) hint = " (Неверный OPENROUTER_API_KEY)";
+      else if (status === 402) hint = " (Недостаточно средств на счёте OpenRouter)";
+      else if (status === 429) hint = " (Rate limit — слишком много запросов, подождите минуту)";
+      else if (status === 503 || status === 502) hint = " (Модель временно недоступна, попробуйте позже)";
+      else if (status === 404) hint = " (Модель не найдена: " + (process.env.OPENROUTER_MODEL || "не задана") + ")";
+      return NextResponse.json(
+        { error: `OpenRouter ${status}${hint}: ${orError}` },
+        { status }
+      );
     }
 
     const content = payload?.choices?.[0]?.message?.content || "";
