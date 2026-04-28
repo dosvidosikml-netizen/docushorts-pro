@@ -66,6 +66,8 @@ function ExpandableText({ text = "" }) {
     </div>
   );
 }
+
+function Field({ color = "#a78bfa", title, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
       <div style={{ color, fontSize: 10, fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>{title}</div>
