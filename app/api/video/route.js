@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { buildVideoPromptFromAnalysis } from "../../../engine/directorEngine_v4.js";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { generateVideoPrompt } from "../../../engine/directorEngine_v4";
 
 export async function POST(req) {
   try {
-    const { frame, analysis, project } = await req.json();
-    if (!frame) return NextResponse.json({ error: "frame is required" }, { status: 400 });
-    const prompt = buildVideoPromptFromAnalysis(frame, analysis || "No image analysis provided. Use locked storyboard frame only.", project || {});
-    return NextResponse.json({ ok: true, prompt });
-  } catch (e) {
-    return NextResponse.json({ error: e.message || "video prompt failed" }, { status: 500 });
+    const body = await req.json();
+    const result = await generateVideoPrompt(body);
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error.message || "Video prompt failed" }, { status: 500 });
   }
 }
