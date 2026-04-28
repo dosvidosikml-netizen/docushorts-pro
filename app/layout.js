@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "NeuroCine Studio",
-  description: "AI storyboard studio for short cinematic videos"
+  title: "NeuroCine Director Studio",
+  description: "AI production pipeline: script → storyboard → frames → video prompts"
 };
 
 export default function RootLayout({ children }) {
