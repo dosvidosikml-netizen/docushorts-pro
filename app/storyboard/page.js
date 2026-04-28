@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   PROJECT_TYPES, STYLE_PRESETS,
-  build2KPrompt, buildScenarioLock, buildStoryGridPrompt,
-  getStyleProfile
+  build2KPrompt, buildStoryGridPrompt, getStyleProfile
 } from "../../engine/directorEngine_v4";
 import {
-  buildLocalStoryboard, normalizeStoryboard, storyboardToProjectJson
+  storyboardToProjectJson
 } from "../../engine/sceneEngine";
 import { downloadTextFile, safeFileName } from "../../lib/download";
 
-const SAVE_KEY = "neurocine_studio_v3";
+/* ─── autosave keys ─── */
+const KEY_TEXT  = "nc_text_v3";
+const KEY_IMGS  = "nc_imgs_v3";
 
+/* ─── helpers ─── */
 function readAsDataUrl(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -23,14 +25,39 @@ function readAsDataUrl(file) {
   });
 }
 
-/* ── tiny helpers ── */
+/* crop one quadrant (A/B/C/D) from a 2×2 image via canvas */
+function cropQuadrant(dataUrl, variant) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const w2 = Math.floor(img.width / 2);
+      const h2 = Math.floor(img.height / 2);
+      const cv = document.createElement("canvas");
+      cv.width = w2; cv.height = h2;
+      const sx = (variant === "B" || variant === "D") ? w2 : 0;
+      const sy = (variant === "C" || variant === "D") ? h2 : 0;
+      cv.getContext("2d").drawImage(img, sx, sy, w2, h2, 0, 0, w2, h2);
+      res(cv.toDataURL("image/jpeg", 0.92));
+    };
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
+}
+
+function safeJson(v) { try { return JSON.parse(v); } catch { return null; } }
+
+function tryLsSave(key, data) {
+  try { localStorage.setItem(key, JSON.stringify(data)); return true; }
+  catch { return false; }
+}
+
+/* ─── tiny components ─── */
 function CopyBtn({ text, label = "Копировать" }) {
   const [ok, setOk] = useState(false);
   async function go() {
     if (!text) return;
     await navigator.clipboard.writeText(String(text));
-    setOk(true);
-    setTimeout(() => setOk(false), 1400);
+    setOk(true); setTimeout(() => setOk(false), 1400);
   }
   return (
     <button className="btn btn-sm btn-ghost" onClick={go} disabled={!text}>
@@ -49,8 +76,7 @@ function OutBox({ label, text, empty = "Пусто", compact = false, mono = fal
       <div className="out-body">
         {text
           ? <pre className={`out-pre${compact ? " compact" : ""}${mono ? " mono" : ""}`}>{text}</pre>
-          : <div className="out-empty">{empty}</div>
-        }
+          : <div className="out-empty">{empty}</div>}
       </div>
     </div>
   );
@@ -59,13 +85,10 @@ function OutBox({ label, text, empty = "Пусто", compact = false, mono = fal
 function UploadZone({ label, hint, onFile, accept = "image/*" }) {
   return (
     <div className="upload-zone">
-      <input
-        type="file" accept={accept}
-        onChange={async e => {
-          const f = e.target.files?.[0];
-          if (f) { const url = await readAsDataUrl(f); onFile(url); e.target.value = ""; }
-        }}
-      />
+      <input type="file" accept={accept} onChange={async e => {
+        const f = e.target.files?.[0];
+        if (f) { const url = await readAsDataUrl(f); onFile(url); e.target.value = ""; }
+      }} />
       <div className="upload-icon">📎</div>
       <div className="upload-text">{label}</div>
       {hint && <div className="upload-hint">{hint}</div>}
@@ -73,10 +96,10 @@ function UploadZone({ label, hint, onFile, accept = "image/*" }) {
   );
 }
 
-/* ── main page ── */
+/* ─── main page ─── */
 export default function StudioPage() {
 
-  /* Step 1 – Script */
+  /* STEP 1 — Script */
   const [projectName, setProjectName] = useState("NeuroCine Project");
   const [topic, setTopic]             = useState("");
   const [projectType, setProjectType] = useState("film");
@@ -88,24 +111,32 @@ export default function StudioPage() {
   const [sBusy, setSBusy]             = useState(false);
   const [sStat, setSStat]             = useState("");
 
-  /* Step 2 – Storyboard */
+  /* STEP 2 — Storyboard */
   const [storyboard, setSB]   = useState(null);
   const [sbBusy, setSbBusy]   = useState(false);
   const [sbStat, setSbStat]   = useState("");
   const [jsonIn, setJsonIn]   = useState("");
 
-  /* Step 3 – Pipeline */
-  const [gridImg, setGridImg]         = useState(null);
-  const [frameIdx, setFrameIdx]       = useState(null);
-  const [exploreP, setExploreP]       = useState("");
-  const [expBusy, setExpBusy]         = useState(false);
-  const [variantImg, setVariantImg]   = useState(null);
-  const [selVariant, setSelVariant]   = useState(null);
-  const [p2k, setP2k]                 = useState("");
-  const [finalImg, setFinalImg]       = useState(null);
-  const [analysis, setAnalysis]       = useState(null);
-  const [videoP, setVideoP]           = useState("");
-  const [vidBusy, setVidBusy]         = useState(false);
+  /* STEP 3 — Pipeline */
+  const [gridImg, setGridImg]           = useState(null);
+  const [frameIdx, setFrameIdx]         = useState(null);
+  const [exploreP, setExploreP]         = useState("");
+  const [expBusy, setExpBusy]           = useState(false);
+
+  /* variant selection */
+  const [variantImg, setVariantImg]     = useState(null);
+  const [selVariant, setSelVariant]     = useState(null);
+  const [croppedVariant, setCropped]    = useState(null); // cropped quadrant
+  const [p2k, setP2k]                   = useState("");
+  const [p2kBusy, setP2kBusy]           = useState(false);
+
+  /* final */
+  const [finalImg, setFinalImg]         = useState(null);
+  const [analysis, setAnalysis]         = useState(null);
+  const [videoP, setVideoP]             = useState("");
+  const [vidBusy, setVidBusy]           = useState(false);
+
+  const [hydrated, setHydrated]         = useState(false);
 
   const styleProfile = useMemo(() => getStyleProfile(projectType, stylePreset), [projectType, stylePreset]);
   const scenes       = storyboard?.scenes || [];
@@ -120,42 +151,69 @@ export default function StudioPage() {
     ? JSON.stringify({ project_name: projectName, script, topic, duration, aspect_ratio: aspectRatio, style: stylePreset, project_type: projectType, tone }, null, 2)
     : "";
 
-  /* autosave load */
+  /* ── AUTOSAVE LOAD ── */
   useEffect(() => {
-    try {
-      const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
-      if (!d) return;
-      if (d.projectName) setProjectName(d.projectName);
-      if (d.topic)       setTopic(d.topic);
-      if (d.projectType) setProjectType(d.projectType);
-      if (d.stylePreset) setStylePreset(d.stylePreset);
-      if (d.duration)    setDuration(d.duration);
-      if (d.aspectRatio) setAspect(d.aspectRatio);
-      if (d.tone)        setTone(d.tone);
-      if (d.script)      setScript(d.script);
-      if (d.storyboard)  setSB(d.storyboard);
-    } catch {}
+    const text = safeJson(localStorage.getItem(KEY_TEXT));
+    const imgs = safeJson(localStorage.getItem(KEY_IMGS));
+
+    if (text) {
+      if (text.projectName) setProjectName(text.projectName);
+      if (text.topic)       setTopic(text.topic);
+      if (text.projectType) setProjectType(text.projectType);
+      if (text.stylePreset) setStylePreset(text.stylePreset);
+      if (text.duration)    setDuration(text.duration);
+      if (text.aspectRatio) setAspect(text.aspectRatio);
+      if (text.tone)        setTone(text.tone);
+      if (text.script)      setScript(text.script);
+      if (text.storyboard)  setSB(text.storyboard);
+      if (text.jsonIn)      setJsonIn(text.jsonIn);
+      if (text.frameIdx !== undefined && text.frameIdx !== null) setFrameIdx(text.frameIdx);
+      if (text.exploreP)    setExploreP(text.exploreP);
+      if (text.selVariant)  setSelVariant(text.selVariant);
+      if (text.p2k)         setP2k(text.p2k);
+      if (text.videoP)      setVideoP(text.videoP);
+      if (text.analysis)    setAnalysis(text.analysis);
+    }
+
+    if (imgs) {
+      if (imgs.gridImg)    setGridImg(imgs.gridImg);
+      if (imgs.variantImg) setVariantImg(imgs.variantImg);
+      if (imgs.croppedVariant) setCropped(imgs.croppedVariant);
+      if (imgs.finalImg)   setFinalImg(imgs.finalImg);
+    }
+
+    setHydrated(true);
   }, []);
 
-  /* autosave write */
+  /* ── AUTOSAVE WRITE (text) ── */
   useEffect(() => {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        projectName, topic, projectType, stylePreset, duration, aspectRatio: aspectRatio, tone, script, storyboard
-      }));
-    } catch {}
-  }, [projectName, topic, projectType, stylePreset, duration, aspectRatio, tone, script, storyboard]);
+    if (!hydrated) return;
+    tryLsSave(KEY_TEXT, {
+      projectName, topic, projectType, stylePreset, duration,
+      aspectRatio, tone, script, storyboard, jsonIn,
+      frameIdx, exploreP, selVariant, p2k, videoP, analysis
+    });
+  }, [hydrated, projectName, topic, projectType, stylePreset, duration, aspectRatio,
+      tone, script, storyboard, jsonIn, frameIdx, exploreP, selVariant, p2k, videoP, analysis]);
 
-  /* 2K prompt auto when variant picked */
+  /* ── AUTOSAVE WRITE (images — separate key, с защитой от quota) ── */
   useEffect(() => {
-    if (!curFrame || !selVariant) { setP2k(""); return; }
-    setP2k(build2KPrompt(curFrame, selVariant, storyboard, styleProfile));
-  }, [curFrame, selVariant, storyboard, styleProfile]);
+    if (!hydrated) return;
+    // limit: skip images > 2MB to avoid localStorage quota
+    const maxSize = 2_000_000;
+    const safe = (v) => (v && v.length <= maxSize ? v : null);
+    tryLsSave(KEY_IMGS, {
+      gridImg: safe(gridImg),
+      variantImg: safe(variantImg),
+      croppedVariant: safe(croppedVariant),
+      finalImg: safe(finalImg)
+    });
+  }, [hydrated, gridImg, variantImg, croppedVariant, finalImg]);
 
-  /* API calls */
+  /* ── API CALLS ── */
   async function doScript() {
     if (!topic.trim()) return;
-    setSBusy(true); setSStat("Генерация...");
+    setSBusy(true); setSStat("gen");
     try {
       const r = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -164,7 +222,7 @@ export default function StudioPage() {
       const d = await r.json();
       setScript(d.text || d.error || "");
       setSStat(d.text ? "ok" : "err");
-    } catch (e) { setSStat("err"); }
+    } catch { setSStat("err"); }
     finally { setSBusy(false); }
   }
 
@@ -174,7 +232,7 @@ export default function StudioPage() {
       try { const p = JSON.parse(jsonIn); src = p.script || p.text || script; } catch {}
     }
     if (!src.trim()) return;
-    setSbBusy(true); setSbStat("Генерация storyboard...");
+    setSbBusy(true); setSbStat("gen");
     try {
       const r = await fetch("/api/storyboard", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -200,10 +258,62 @@ export default function StudioPage() {
         body: JSON.stringify({ frame: curFrame, storyboard, styleProfile, projectType, stylePreset })
       });
       const d = await r.json();
-      setExploreP(d.prompt || "Ошибка");
+      setExploreP(d.prompt || "");
     } catch (e) { setExploreP("Ошибка: " + e.message); }
     finally { setExpBusy(false); }
   }
+
+  /* ── SELECT VARIANT: crop → analyze → build accurate 2K prompt ── */
+  const handleSelectVariant = useCallback(async (variant) => {
+    if (!variantImg || !curFrame) return;
+    setSelVariant(variant);
+    setCropped(null);
+    setP2k("");
+    setP2kBusy(true);
+
+    try {
+      // 1. Crop the selected quadrant from the 2×2 grid
+      const cropped = await cropQuadrant(variantImg, variant);
+      setCropped(cropped);
+
+      // 2. Analyze the cropped image to get real visual description
+      const rA = await fetch("/api/analyze", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frame: curFrame, variant,
+          imageDataUrl: cropped,
+          styleProfile, projectType, stylePreset
+        })
+      });
+      const dA = await rA.json();
+      const vis = dA.analysis || {};
+
+      // 3. Build 2K prompt that DESCRIBES the visual (no vague "use uploaded" instructions)
+      const base = build2KPrompt(curFrame, variant, storyboard, styleProfile);
+
+      // Inject real visual data into the prompt
+      const visual_insert = [
+        vis.camera    ? `CAMERA & COMPOSITION: ${vis.camera}` : "",
+        vis.lighting  ? `LIGHTING: ${vis.lighting}` : "",
+        vis.emotion   ? `EMOTION: ${vis.emotion}` : "",
+        vis.environment_motion ? `ENVIRONMENT: ${vis.environment_motion}` : "",
+      ].filter(Boolean).join("\n");
+
+      // Replace the generic reference line with the actual visual description
+      const enhanced = base
+        .replace(
+          "USE THE UPLOADED SELECTED VARIANT AS THE VISUAL REFERENCE. Preserve its camera angle, composition, lens feeling, lighting direction, atmosphere, character pose and emotional tone.",
+          `VISUAL REFERENCE FROM SELECTED VARIANT ${variant}:\n${visual_insert || "Preserve the composition, lighting, and atmosphere of the selected variant."}`
+        );
+
+      setP2k(enhanced);
+    } catch {
+      // fallback: use base prompt without enhancement
+      setP2k(build2KPrompt(curFrame, variant, storyboard, styleProfile));
+    } finally {
+      setP2kBusy(false);
+    }
+  }, [variantImg, curFrame, storyboard, styleProfile, projectType, stylePreset]);
 
   async function doVideoPrompt() {
     if (!curFrame || !finalImg) return;
@@ -215,6 +325,7 @@ export default function StudioPage() {
       });
       const d1 = await r1.json();
       setAnalysis(d1.analysis);
+
       const r2 = await fetch("/api/video", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ frame: curFrame, analysis: d1.analysis, storyboard, styleProfile, projectType, stylePreset })
@@ -225,11 +336,11 @@ export default function StudioPage() {
     finally { setVidBusy(false); }
   }
 
-  /* frame select / clear downstream */
+  /* ── FRAME SELECT + CLEAR DOWNSTREAM ── */
   function selectFrame(idx) {
     setFrameIdx(idx);
     setExploreP(""); setVariantImg(null); setSelVariant(null);
-    setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
+    setCropped(null); setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
   }
 
   function nextFrame() {
@@ -237,7 +348,7 @@ export default function StudioPage() {
     selectFrame(((frameIdx ?? -1) + 1) % scenes.length);
   }
 
-  /* export */
+  /* ── EXPORT ── */
   function exportJson() {
     const obj = storyboardToProjectJson(storyboard, { script, director: { styleProfile } });
     downloadTextFile(JSON.stringify(obj, null, 2), safeFileName(projectName) + ".json", "application/json;charset=utf-8");
@@ -250,14 +361,14 @@ export default function StudioPage() {
     downloadTextFile(lines.join(""), safeFileName(projectName) + ".txt");
   }
   function clearAll() {
-    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
     setScript(""); setSB(null); setTopic(""); setProjectName("NeuroCine Project");
     setGridImg(null); setFrameIdx(null); setExploreP(""); setVariantImg(null);
-    setSelVariant(null); setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
-    setSStat(""); setSbStat(""); setJsonIn("");
+    setSelVariant(null); setCropped(null); setP2k(""); setFinalImg(null);
+    setVideoP(""); setAnalysis(null); setSStat(""); setSbStat(""); setJsonIn("");
   }
 
-  /* ── render ── */
+  /* ── RENDER ── */
   return (
     <div className="studio">
 
@@ -279,7 +390,7 @@ export default function StudioPage() {
         </div>
       </nav>
 
-      {/* ══ STEP 01 — SCRIPT ══════════════════════════════════════ */}
+      {/* ══ STEP 01 — SCRIPT ══ */}
       <section className="step-section">
         <div className="step-header">
           <div className="step-num">01</div>
@@ -289,42 +400,34 @@ export default function StudioPage() {
           </div>
           {script && <span className="step-badge">✓ Готов</span>}
         </div>
-
         <div className="step-body">
           <div className="two-col lw">
-
-            {/* LEFT — settings */}
             <div className="col">
               <div className="field">
                 <label className="field-label">Название проекта</label>
                 <input className="inp" value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="NeuroCine Project" />
               </div>
-
               <div className="field">
                 <label className="field-label">Тема / задание</label>
                 <textarea className="inp tall" value={topic} onChange={e => setTopic(e.target.value)}
                   placeholder="Например: Ты бы не выжил в Средневековье — вот почему" />
               </div>
-
               <div className="frow frow2">
                 <div className="field">
                   <label className="field-label">Тип проекта</label>
                   <select className="inp" value={projectType} onChange={e => setProjectType(e.target.value)}>
                     {Object.entries(PROJECT_TYPES).map(([k, v]) =>
-                      <option key={k} value={k}>{v.label}</option>
-                    )}
+                      <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div className="field">
                   <label className="field-label">Стиль / пресет</label>
                   <select className="inp" value={stylePreset} onChange={e => setStylePreset(e.target.value)}>
                     {Object.entries(STYLE_PRESETS).map(([k, v]) =>
-                      <option key={k} value={k}>{v.label}</option>
-                    )}
+                      <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
               </div>
-
               <div className="frow frow3">
                 <div className="field">
                   <label className="field-label">Длительность</label>
@@ -350,23 +453,19 @@ export default function StudioPage() {
                   <input className="inp" value={tone} onChange={e => setTone(e.target.value)} placeholder="thriller, dark..." />
                 </div>
               </div>
-
               <button className="btn btn-red btn-full" onClick={doScript} disabled={sBusy || !topic.trim()}>
                 {sBusy ? "⏳ Генерация..." : "▶ СОЗДАТЬ СЦЕНАРИЙ"}
               </button>
-
               {sStat && (
                 <div className={`status-line${sStat === "ok" ? " ok" : sStat === "err" ? " err" : ""}`}>
-                  {sStat === "ok" ? "✓ Сценарий готов" : sStat === "err" ? "✗ Ошибка генерации" : sStat}
+                  {sStat === "ok" ? "✓ Сценарий готов" : sStat === "err" ? "✗ Ошибка генерации" : "⏳ Генерация..."}
                 </div>
               )}
             </div>
 
-            {/* RIGHT — output */}
             <div className="col">
               <OutBox label="Текст диктора (VO)" text={script} empty="Сценарий появится здесь" />
-
-              {script && <>
+              {script && (
                 <div className="out-box">
                   <div className="out-head">
                     <span className="out-label">Script JSON</span>
@@ -376,55 +475,45 @@ export default function StudioPage() {
                       <button className="btn btn-sm" onClick={() => downloadTextFile(script, safeFileName(projectName) + "-script.txt")}>⬇ .txt</button>
                     </div>
                   </div>
-                  <div className="json-box">
-                    <pre>{scriptJson}</pre>
-                  </div>
+                  <div className="json-box"><pre>{scriptJson}</pre></div>
                 </div>
-              </>}
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ══ STEP 02 — STORYBOARD ══════════════════════════════════ */}
+      {/* ══ STEP 02 — STORYBOARD ══ */}
       <section className="step-section">
         <div className="step-header">
           <div className="step-num">02</div>
           <div className="step-info">
             <div className="step-title">Storyboard</div>
-            <div className="step-desc">Разбивка на кадры + промт для генерации всей сетки</div>
+            <div className="step-desc">Разбивка на кадры + промт для генерации сетки</div>
           </div>
           {storyboard && <span className="step-badge">✓ {scenes.length} кадров</span>}
         </div>
-
         <div className="step-body">
           <div className="two-col lw">
-
-            {/* LEFT */}
             <div className="col">
               <div className="field">
                 <label className="field-label">Вставить JSON вручную (необязательно)</label>
-                <textarea className="inp mono"
-                  style={{ minHeight: 90 }}
-                  value={jsonIn} onChange={e => setJsonIn(e.target.value)}
-                  placeholder='{"script": "..."} — или оставь пустым, будет использован сценарий выше'
-                />
+                <textarea className="inp mono" style={{ minHeight: 90 }} value={jsonIn}
+                  onChange={e => setJsonIn(e.target.value)}
+                  placeholder='{"script": "..."} — или оставь пустым' />
               </div>
-
               <button className="btn btn-red" onClick={doStoryboard}
                 disabled={sbBusy || (!script.trim() && !jsonIn.trim())}>
                 {sbBusy ? "⏳ Генерация..." : "▶ СГЕНЕРИРОВАТЬ STORYBOARD"}
               </button>
-
               {sbStat && (() => {
                 const [type, msg] = sbStat.includes("|") ? sbStat.split("|") : ["", sbStat];
                 return (
                   <div className={`status-line${type === "ok" ? " ok" : type === "err" ? " err" : ""}`}>
-                    {type === "ok" ? `✓ Готово · ${msg}` : type === "err" ? `✗ ${msg}` : sbStat}
+                    {type === "ok" ? `✓ Готово · ${msg}` : type === "err" ? `✗ ${msg}` : "⏳ Генерация..."}
                   </div>
                 );
               })()}
-
               {storyboard && (
                 <div className="brow">
                   <button className="btn btn-sm" onClick={exportJson}>⬇ Проект .json</button>
@@ -432,38 +521,30 @@ export default function StudioPage() {
                 </div>
               )}
             </div>
-
-            {/* RIGHT — story grid prompt */}
             <div className="col">
               {storyGridPrompt
-                ? <OutBox label="Story Grid Prompt (для Flux / Midjourney)" text={storyGridPrompt} empty="" />
+                ? <OutBox label="Story Grid Prompt (Flux / Midjourney)" text={storyGridPrompt} />
                 : (
                   <div className="upload-zone" style={{ pointerEvents: "none", cursor: "default" }}>
                     <div className="upload-icon">🎬</div>
                     <div className="upload-text">Story Grid Prompt</div>
-                    <div className="upload-hint">Промт для генерации сетки всех кадров появится здесь</div>
+                    <div className="upload-hint">Промт для генерации сетки всех кадров</div>
                   </div>
-                )
-              }
+                )}
             </div>
           </div>
 
-          {/* Storyboard table */}
           {scenes.length > 0 && <>
             <hr className="divider" />
             <div className="out-box">
               <div className="out-head">
-                <span className="out-label">Все кадры ({scenes.length}) — нажми чтобы выбрать</span>
+                <span className="out-label">Все кадры ({scenes.length}) — нажми для выбора</span>
               </div>
               <div className="out-body" style={{ padding: 0 }}>
                 <div className="sb-wrap">
                   <table className="sb-t">
                     <thead>
-                      <tr>
-                        {["Кадр", "Тайм", "Beat", "VO", "SFX", "Camera"].map(h =>
-                          <th key={h}>{h}</th>
-                        )}
-                      </tr>
+                      <tr>{["Кадр", "Тайм", "Beat", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {scenes.map((s, i) => (
@@ -473,8 +554,7 @@ export default function StudioPage() {
                           <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
                           <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
                           <td style={{ maxWidth: 260 }}>{String(s.vo_ru || "").slice(0, 80)}</td>
-                          <td style={{ color: "var(--muted)", maxWidth: 160 }}>{String(s.sfx || "").slice(0, 50)}</td>
-                          <td style={{ color: "var(--muted)" }}>{String(s.camera || "").slice(0, 40)}</td>
+                          <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 50)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -486,7 +566,7 @@ export default function StudioPage() {
         </div>
       </section>
 
-      {/* ══ STEP 03 — PRODUCTION PIPELINE ════════════════════════ */}
+      {/* ══ STEP 03 — PRODUCTION PIPELINE ══ */}
       <section className="step-section">
         <div className="step-header">
           <div className="step-num">03</div>
@@ -496,42 +576,30 @@ export default function StudioPage() {
           </div>
           {curFrame && <span className="step-badge">{curFrame.id}</span>}
         </div>
-
         <div className="step-body">
 
-          {/* ── A: Upload storyboard grid ── */}
-          <div className={`pipe-step${gridImg ? "" : " on"}`}>
+          {/* A: storyboard grid + frame select */}
+          <div className={`pipe-step${gridImg && curFrame ? "" : " on"}`}>
             <div className="pipe-head">
-              <div className={`pipe-dot${gridImg ? " done" : " act"}`}>A</div>
+              <div className={`pipe-dot${curFrame ? " done" : gridImg ? " act" : " act"}`}>A</div>
               <div>
-                <div className="pipe-title">Загрузи storyboard сетку</div>
+                <div className="pipe-title">Загрузи storyboard сетку · Выбери кадр</div>
                 <div className="pipe-sub">JPG/PNG из Midjourney, Flux, DALL-E</div>
               </div>
             </div>
             <div className="pipe-body">
               <div className="two-col">
-
-                {/* image */}
                 <div className="col">
                   {gridImg ? (
-                    <div>
+                    <>
                       <div className="img-viewer"><img src={gridImg} alt="Storyboard grid" /></div>
-                      <div className="brow" style={{ marginTop: 10 }}>
-                        <button className="btn btn-sm" onClick={() => { setGridImg(null); setFrameIdx(null); }}>
-                          Заменить
-                        </button>
-                      </div>
-                    </div>
+                      <button className="btn btn-sm" style={{ marginTop: 8 }}
+                        onClick={() => { setGridImg(null); setFrameIdx(null); }}>Заменить</button>
+                    </>
                   ) : (
-                    <UploadZone
-                      label="Загрузи storyboard сетку"
-                      hint="Сетка кадров всего сценария"
-                      onFile={setGridImg}
-                    />
+                    <UploadZone label="Загрузи storyboard сетку" hint="Сетка кадров всего сценария" onFile={setGridImg} />
                   )}
                 </div>
-
-                {/* frame selector */}
                 <div className="col">
                   {scenes.length > 0 ? (
                     <>
@@ -539,15 +607,11 @@ export default function StudioPage() {
                         <label className="field-label">Выбери кадр</label>
                         <div className="frame-btns">
                           {scenes.map((s, i) => (
-                            <button key={s.id}
-                              className={`fb${frameIdx === i ? " active" : ""}`}
-                              onClick={() => selectFrame(i)}>
-                              {s.id}
-                            </button>
+                            <button key={s.id} className={`fb${frameIdx === i ? " active" : ""}`}
+                              onClick={() => selectFrame(i)}>{s.id}</button>
                           ))}
                         </div>
                       </div>
-
                       {curFrame && (
                         <div className="frame-card">
                           <div className="frame-card-id">{curFrame.id}</div>
@@ -578,7 +642,7 @@ export default function StudioPage() {
                     </>
                   ) : (
                     <div style={{ color: "var(--muted)", fontSize: 13, padding: 16, textAlign: "center" }}>
-                      Сначала создай storyboard в шаге 02
+                      Создай storyboard в шаге 02
                     </div>
                   )}
                 </div>
@@ -586,7 +650,7 @@ export default function StudioPage() {
             </div>
           </div>
 
-          {/* ── B: 4 variation prompts ── */}
+          {/* B: explore prompts */}
           {curFrame && (
             <div className={`pipe-step${exploreP ? "" : " on"}`}>
               <div className="pipe-head">
@@ -601,62 +665,69 @@ export default function StudioPage() {
                   <button className="btn btn-red" onClick={doExplore} disabled={expBusy}>
                     {expBusy ? "⏳ Генерация..." : "▶ СОЗДАТЬ ПРОМТ 4 ВАРИАНТОВ (2×2)"}
                   </button>
-                  {exploreP && <OutBox label="Explore Prompt — для Flux / Midjourney / DALL-E" text={exploreP} />}
+                  {exploreP && <OutBox label="Explore Prompt — Flux / Midjourney / DALL-E" text={exploreP} />}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── C: Upload 4-variant grid + select ── */}
+          {/* C: upload 4-variant + select */}
           {curFrame && (
-            <div className={`pipe-step${selVariant ? "" : variantImg ? " on" : ""}`}>
+            <div className={`pipe-step${croppedVariant ? "" : variantImg ? " on" : ""}`}>
               <div className="pipe-head">
-                <div className={`pipe-dot${selVariant ? " done" : variantImg ? " act" : ""}`}>C</div>
+                <div className={`pipe-dot${croppedVariant ? " done" : variantImg ? " act" : ""}`}>C</div>
                 <div>
                   <div className="pipe-title">Загрузи сетку 4 вариантов · Выбери лучший</div>
-                  <div className="pipe-sub">Нажми на вариант A / B / C / D</div>
+                  <div className="pipe-sub">Нажми A / B / C / D — система выкадрирует и построит точный 2K промт</div>
                 </div>
               </div>
               <div className="pipe-body">
                 <div className="two-col">
 
-                  {/* variant image with overlay */}
+                  {/* left: full grid + overlay */}
                   <div className="col">
                     {variantImg ? (
-                      <div>
+                      <>
                         <div className="variant-wrap">
                           <img src={variantImg} alt="4 variants" />
                           <div className="variant-overlay">
                             {["A","B","C","D"].map(v => (
                               <div key={v}
                                 className={`variant-cell${selVariant === v ? " sel" : ""}`}
-                                onClick={() => setSelVariant(v)}>
+                                onClick={() => handleSelectVariant(v)}>
                                 <div className="variant-badge">{v}</div>
                               </div>
                             ))}
                           </div>
                         </div>
-                        <div className="brow" style={{ marginTop: 10 }}>
-                          <button className="btn btn-sm" onClick={() => { setVariantImg(null); setSelVariant(null); }}>Заменить</button>
-                          {selVariant && <span style={{ fontSize: 12, color: "var(--muted)" }}>Выбран: <strong style={{ color: "#fff" }}>{selVariant}</strong></span>}
+                        <div className="brow" style={{ marginTop: 8 }}>
+                          <button className="btn btn-sm" onClick={() => { setVariantImg(null); setSelVariant(null); setCropped(null); setP2k(""); }}>
+                            Заменить
+                          </button>
+                          {p2kBusy && <span style={{ fontSize: 12, color: "var(--muted)" }}>⏳ Анализ варианта...</span>}
+                          {selVariant && !p2kBusy && <span style={{ fontSize: 12, color: "var(--muted)" }}>Выбран: <strong style={{ color: "#fff" }}>{selVariant}</strong></span>}
                         </div>
-                      </div>
+                      </>
                     ) : (
-                      <UploadZone
-                        label="Загрузи сетку 4 вариантов"
-                        hint="2×2 изображение из Midjourney / Flux"
-                        onFile={setVariantImg}
-                      />
+                      <UploadZone label="Загрузи сетку 4 вариантов" hint="2×2 из Midjourney / Flux" onFile={setVariantImg} />
                     )}
                   </div>
 
-                  {/* 2K prompt */}
+                  {/* right: cropped variant + 2K prompt */}
                   <div className="col">
-                    {p2k ? (
+                    {croppedVariant && (
+                      <div>
+                        <div className="field-label" style={{ marginBottom: 6 }}>Выбранный вариант {selVariant}</div>
+                        <div className="img-viewer"><img src={croppedVariant} alt={`Variant ${selVariant}`} /></div>
+                      </div>
+                    )}
+                    {p2kBusy ? (
+                      <div style={{ color: "var(--muted)", fontSize: 13, padding: 16 }}>⏳ Анализирую кадр, строю 2K промт...</div>
+                    ) : p2k ? (
                       <OutBox label={`2K IMAGE PROMPT — вариант ${selVariant}`} text={p2k} />
                     ) : (
                       <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                        {variantImg ? "Нажми на вариант A / B / C / D на изображении" : "Загрузи сетку вариантов слева"}
+                        {variantImg ? "Нажми на вариант A / B / C / D" : "Загрузи сетку 4 вариантов слева"}
                       </div>
                     )}
                   </div>
@@ -665,7 +736,7 @@ export default function StudioPage() {
             </div>
           )}
 
-          {/* ── D: Final 2K + video prompt ── */}
+          {/* D: final 2K + video prompt */}
           {curFrame && (
             <div className={`pipe-step${videoP ? "" : finalImg ? " on" : ""}`}>
               <div className="pipe-head">
@@ -677,49 +748,34 @@ export default function StudioPage() {
               </div>
               <div className="pipe-body">
                 <div className="two-col">
-
-                  {/* upload + analyze */}
                   <div className="col">
                     {finalImg ? (
-                      <div>
+                      <>
                         <div className="img-viewer"><img src={finalImg} alt="Final 2K frame" /></div>
                         <div className="brow" style={{ marginTop: 10 }}>
-                          <button className="btn btn-sm" onClick={() => { setFinalImg(null); setVideoP(""); setAnalysis(null); }}>
-                            Заменить
-                          </button>
+                          <button className="btn btn-sm" onClick={() => { setFinalImg(null); setVideoP(""); setAnalysis(null); }}>Заменить</button>
                           <button className="btn btn-red" onClick={doVideoPrompt} disabled={vidBusy}>
-                            {vidBusy ? "⏳ Анализ..." : "▶ ПОЛУЧИТЬ VIDEO PROMPT"}
+                            {vidBusy ? "⏳ Анализ..." : "▶ VIDEO PROMPT"}
                           </button>
                         </div>
-                      </div>
-                    ) : (
-                      <UploadZone
-                        label="Загрузи финальный 2K кадр"
-                        hint="Итоговое изображение для анимации"
-                        onFile={setFinalImg}
-                      />
-                    )}
-
-                    {/* analysis details */}
-                    {analysis && (
-                      <div className="frame-card" style={{ marginTop: 10 }}>
-                        <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Анализ кадра</div>
-                        {[
-                          ["Camera", analysis.camera],
-                          ["Lighting", analysis.lighting],
-                          ["Emotion", analysis.emotion],
-                          ["SFX", analysis.sfx],
-                        ].filter(([,v]) => v).map(([k, v]) => (
-                          <div key={k} className="frame-card-row">
-                            <div className="frame-card-lbl">{k}</div>
-                            <div className="frame-card-val" style={{ color: "var(--muted)" }}>{String(v).slice(0, 100)}</div>
+                        {analysis && (
+                          <div className="frame-card" style={{ marginTop: 10 }}>
+                            <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Анализ кадра</div>
+                            {[["Camera", analysis.camera],["Lighting", analysis.lighting],
+                              ["Emotion", analysis.emotion],["SFX", analysis.sfx]]
+                              .filter(([,v]) => v).map(([k, v]) => (
+                              <div key={k} className="frame-card-row">
+                                <div className="frame-card-lbl">{k}</div>
+                                <div className="frame-card-val" style={{ color: "var(--muted)" }}>{String(v).slice(0, 100)}</div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        )}
+                      </>
+                    ) : (
+                      <UploadZone label="Загрузи финальный 2K кадр" hint="Итоговое изображение для анимации" onFile={setFinalImg} />
                     )}
                   </div>
-
-                  {/* video prompt output */}
                   <div className="col">
                     {videoP ? (
                       <>
@@ -728,13 +784,12 @@ export default function StudioPage() {
                       </>
                     ) : (
                       <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                        {finalImg ? "Нажми «ПОЛУЧИТЬ VIDEO PROMPT»" : "Сначала загрузи финальный 2K кадр"}
+                        {finalImg ? "Нажми «VIDEO PROMPT»" : "Загрузи финальный 2K кадр"}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* NEXT FRAME */}
                 {videoP && scenes.length > 1 && (
                   <>
                     <hr className="divider" />
@@ -752,7 +807,6 @@ export default function StudioPage() {
             </div>
           )}
 
-          {/* empty state */}
           {!scenes.length && (
             <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--muted)", fontSize: 14 }}>
               Создай storyboard в шаге 02 — пайплайн откроется здесь
@@ -761,7 +815,6 @@ export default function StudioPage() {
 
         </div>
       </section>
-
     </div>
   );
 }
