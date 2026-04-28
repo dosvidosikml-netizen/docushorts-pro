@@ -1,38 +1,48 @@
+import Link from "next/link";
+import TopNav from "../components/TopNav";
 
-"use client";
-import {useState} from "react";
-import {generateScenes} from "../engine/sceneEngine";
-import FrameView from "../components/FrameView";
+export default function HomePage() {
+  return (
+    <main className="page">
+      <div className="wrap">
+        <header className="header">
+          <div className="brand">
+            <div>
+              <div className="kicker">NeuroCine Online</div>
+              <h1>AI Production Studio</h1>
+              <p className="subtitle">
+                Полный пайплайн: сценарий → storyboard → кадры → IMAGE / VIDEO prompts → VO → SFX → JSON.
+              </p>
+            </div>
+            <div className="actions">
+              <Link className="btn" href="/chat">Открыть Chat</Link>
+              <Link className="btn red" href="/storyboard">Storyboard Studio</Link>
+            </div>
+          </div>
+          <TopNav active="home" />
+        </header>
 
-export default function Page(){
- const [script,setScript]=useState("");
- const [scenes,setScenes]=useState([]);
- const [active,setActive]=useState(0);
+        <section className="grid two mt">
+          <div className="card">
+            <h2>Что внутри</h2>
+            <div className="grid">
+              <div className="drop">✅ /app/chat — генератор сценария и идей</div>
+              <div className="drop">✅ /app/storyboard — полный покадровый production workflow</div>
+              <div className="drop">✅ /app/api/storyboard — API под OpenRouter GPT-5.4 / Claude Sonnet 4.5</div>
+              <div className="drop">✅ engine fallback — работает даже без API ключа</div>
+            </div>
+          </div>
 
- const make=()=>setScenes(generateScenes(script));
+          <div className="card">
+            <h2>Быстрый старт</h2>
+            <pre>{`npm install
+cp .env.local.example .env.local
+npm run dev
 
- return (
-  <div style={{background:"#000",color:"#fff",minHeight:"100vh",padding:20}}>
-   <h1>NeuroCine Studio</h1>
-
-   <textarea value={script} onChange={e=>setScript(e.target.value)}
-    style={{width:"100%",height:200}}/>
-
-   <br/><br/>
-   <button onClick={make}>СДЕЛАТЬ ВИДЕО</button>
-
-   <div style={{display:"flex",gap:20,marginTop:20}}>
-    <div style={{width:200}}>
-     {scenes.map((s,i)=>(
-      <div key={s.id} onClick={()=>setActive(i)}
-       style={{padding:10,background:i===active?"red":"#111",marginBottom:10,cursor:"pointer"}}>
-       {s.id}
+http://localhost:3000`}</pre>
+          </div>
+        </section>
       </div>
-     ))}
-    </div>
-
-    <FrameView frame={scenes[active]}/>
-   </div>
-  </div>
- );
+    </main>
+  );
 }
