@@ -22,23 +22,31 @@ const GOOGLE_VOICES = [
   { id: "Puck",     desc: "Upbeat · Middle pitch",          best: [] },
 ];
 
-function CopyButton({ text, label = "Copy" }) {
+// CopyButton with flash feedback
+function CopyButton({ text, label = "Copy", small = false }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard?.writeText(text || "");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  }
   return (
     <button
-      onClick={() => navigator.clipboard?.writeText(text || "")}
+      onClick={handleCopy}
       style={{
-        border: "1px solid rgba(148,163,184,.25)",
-        background: "rgba(15,23,42,.75)",
-        color: "#c4b5fd",
+        border: copied ? "1px solid #4ade80" : "1px solid rgba(148,163,184,.25)",
+        background: copied ? "rgba(34,197,94,.15)" : "rgba(15,23,42,.75)",
+        color: copied ? "#4ade80" : "#c4b5fd",
         borderRadius: 10,
-        padding: "7px 10px",
-        fontSize: 11,
+        padding: small ? "5px 8px" : "7px 10px",
+        fontSize: small ? 10 : 11,
         fontWeight: 800,
         cursor: "pointer",
         whiteSpace: "nowrap",
+        transition: "all .2s",
       }}
     >
-      {label}
+      {copied ? "✓" : label}
     </button>
   );
 }
@@ -64,6 +72,9 @@ export default function StoryboardPage() {
   const [upscaleLoading, setUpscaleLoading] = useState(false);
   const [upscaleError, setUpscaleError] = useState("");
   const [upscaleResult, setUpscaleResult] = useState(null);
+  const [viewMode, setViewMode] = useState("cards"); // "cards" | "table"
+  // Per-frame image URLs entered by user (keyed by frame id)
+  const [frameImages, setFrameImages] = useState({});
 
   // ── TTS STUDIO STATE ──────────────────────────────────────────────────────
   const [ttsData, setTtsData] = useState(null);
@@ -383,6 +394,7 @@ export default function StoryboardPage() {
 
             {result && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* ── Meta block ── */}
                 <div className="sb-meta-grid" style={{ border: "1px solid rgba(148,163,184,.16)", background: "rgba(15,23,42,.72)", borderRadius: 24, padding: 18, display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 12 }}>
                   <Field title="Project"><b>{result.project_name}</b></Field>
                   <Field title="Duration"><b>{result.total_duration}s</b></Field>
@@ -392,10 +404,15 @@ export default function StoryboardPage() {
                   <div style={{ gridColumn: "1 / -1", color: "#94a3b8", fontSize: 12, lineHeight: 1.55 }}><b style={{ color: "#c4b5fd" }}>GLOBAL STYLE LOCK:</b> {result.global_style_lock}</div>
                   <div style={{ gridColumn: "1 / -1", color: "#94a3b8", fontSize: 12, lineHeight: 1.55 }}><b style={{ color: "#38bdf8" }}>GLOBAL VIDEO LOCK:</b> {result.global_video_lock || "grounded physical realism, realistic inertia, organic camera behavior"}</div>
                   <div style={{ gridColumn: "1 / -1", color: "#94a3b8", fontSize: 12, lineHeight: 1.55 }}><b style={{ color: "#86efac" }}>POSTPROCESS:</b> upscale {result.postprocess?.upscale || "x2"} · final {result.postprocess?.final_upscale || "x4"} · {result.postprocess?.model || "real-esrgan"} / {result.postprocess?.provider || "replicate"}</div>
-                  <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                     <CopyButton text={JSON.stringify(result, null, 2)} label="Копировать JSON" />
                     <button onClick={downloadJson} style={{ border: "1px solid rgba(52,211,153,.35)", background: "rgba(16,185,129,.12)", color: "#86efac", borderRadius: 10, padding: "7px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>Скачать JSON</button>
                     <button onClick={clearAll} style={{ border: "1px solid rgba(239,68,68,.35)", background: "rgba(239,68,68,.12)", color: "#fca5a5", borderRadius: 10, padding: "7px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>🗑 Очистить всё</button>
+                    {/* View mode toggle */}
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                      <button onClick={() => setViewMode("cards")} style={{ padding: "7px 14px", borderRadius: 10, border: viewMode === "cards" ? "1px solid #a78bfa" : "1px solid rgba(148,163,184,.2)", background: viewMode === "cards" ? "rgba(168,85,247,.18)" : "rgba(2,6,23,.75)", color: viewMode === "cards" ? "#e9d5ff" : "#64748b", fontWeight: 900, cursor: "pointer", fontSize: 11 }}>🎬 Карточки</button>
+                      <button onClick={() => setViewMode("table")} style={{ padding: "7px 14px", borderRadius: 10, border: viewMode === "table" ? "1px solid #38bdf8" : "1px solid rgba(148,163,184,.2)", background: viewMode === "table" ? "rgba(14,165,233,.16)" : "rgba(2,6,23,.75)", color: viewMode === "table" ? "#bae6fd" : "#64748b", fontWeight: 900, cursor: "pointer", fontSize: 11 }}>📋 Таблица</button>
+                    </div>
                   </div>
                 </div>
 
@@ -405,33 +422,122 @@ export default function StoryboardPage() {
                   </div>
                 )}
 
-                <div style={{ overflowX: "auto", border: "1px solid rgba(148,163,184,.16)", borderRadius: 24, background: "rgba(2,6,23,.84)" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1240 }}>
-                    <thead>
-                      <tr style={{ background: "rgba(15,23,42,.92)" }}>
-                        {['ID / TIME','BEAT','CUT ENERGY','DESCRIPTION (RU)','IMAGE PROMPT (EN)','VIDEO PROMPT (EN)','GROK IMAGE (AUTO)','GROK VIDEO (AUTO)','VO (RU)','SFX','CAMERA','CONTINUITY / SAFETY'].map((h) => <th key={h} style={{ padding: 12, borderBottom: "1px solid rgba(148,163,184,.16)", borderRight: "1px solid rgba(148,163,184,.1)", textAlign: "left", fontSize: 10, color: "#c4b5fd", letterSpacing: 1, whiteSpace: "nowrap" }}>{h}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(result.scenes || []).map((s) => (
-                        <tr key={s.id} style={{ verticalAlign: "top" }}>
-                          <td style={tdStyle}><b>{s.id}</b><br/><span style={muted}>{s.start}s / {s.duration}s</span></td>
-                          <td style={tdStyle}><span style={{ color: "#f0abfc", fontWeight: 900 }}>{s.beat_type}</span></td>
-                          <td style={tdStyle}><span style={{ color: s.cut_energy === "high" ? "#fb7185" : s.cut_energy === "low" ? "#93c5fd" : "#fbbf24", fontWeight: 950 }}>{s.cut_energy || "medium"}</span></td>
-                          <td style={tdStyle}>{s.description_ru}</td>
-                          <td style={{ ...tdStyle, width: 280 }}><div style={mono}>{s.image_prompt_en}</div><CopyButton text={s.image_prompt_en} label="IMG" /></td>
-                          <td style={{ ...tdStyle, width: 320 }}><div style={mono}>{s.video_prompt_en}</div><CopyButton text={s.video_prompt_en} label="VID" /></td>
-                          <td style={{ ...tdStyle, width: 300 }}><div style={mono}>{s.image_prompt_grok_en || s.image_prompt_en}</div><CopyButton text={s.image_prompt_grok_en || s.image_prompt_en} label="G-IMG" /></td>
-                          <td style={{ ...tdStyle, width: 340 }}><div style={mono}>{s.video_prompt_grok_en || s.video_prompt_en}</div><CopyButton text={s.video_prompt_grok_en || s.video_prompt_en} label="G-VID" /></td>
-                          <td style={tdStyle}>{s.vo_ru}</td>
-                          <td style={tdStyle}>{s.sfx}</td>
-                          <td style={tdStyle}>{s.camera}</td>
-                          <td style={tdStyle}><b>Continuity:</b> {s.continuity_note}<br/><br/><b>Safety:</b> {s.safety_note}</td>
+                {/* ── CARD VIEW ── */}
+                {viewMode === "cards" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+                    {(result.scenes || []).map((s, idx) => {
+                      const cutColor = s.cut_energy === "high" ? "#fb7185" : s.cut_energy === "low" ? "#93c5fd" : "#fbbf24";
+                      const imgUrl = frameImages[s.id] || "";
+                      return (
+                        <div key={s.id} style={{ border: "1px solid rgba(148,163,184,.14)", borderRadius: 20, background: "rgba(15,23,42,.85)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                          {/* Frame header */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid rgba(148,163,184,.1)", background: "rgba(2,6,23,.6)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 13, fontWeight: 950, color: "#e2e8f0" }}>{String(idx + 1).padStart(2, "0")}</span>
+                              <span style={{ fontSize: 11, color: "#64748b" }}>{s.start}–{s.start + s.duration}s</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span style={{ fontSize: 10, fontWeight: 900, color: "#f0abfc", background: "rgba(240,171,252,.1)", border: "1px solid rgba(240,171,252,.2)", borderRadius: 6, padding: "2px 7px" }}>{s.beat_type}</span>
+                              <span style={{ fontSize: 10, fontWeight: 950, color: cutColor, background: `${cutColor}18`, border: `1px solid ${cutColor}44`, borderRadius: 6, padding: "2px 7px" }}>{s.cut_energy}</span>
+                            </div>
+                          </div>
+
+                          {/* Image area */}
+                          <div style={{ position: "relative", aspectRatio: "9/16", background: "rgba(2,6,23,.9)", overflow: "hidden" }}>
+                            {imgUrl ? (
+                              <img src={imgUrl} alt={s.id} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 16 }}>
+                                <div style={{ fontSize: 28, opacity: .4 }}>🖼</div>
+                                <div style={{ fontSize: 10, color: "#334155", textAlign: "center", lineHeight: 1.4 }}>Вставь URL изображения снизу или сгенерируй в Midjourney / Flux</div>
+                              </div>
+                            )}
+                            {/* URL input overlay at bottom */}
+                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(2,6,23,.92))", padding: "24px 10px 10px" }}>
+                              <input
+                                value={imgUrl}
+                                onChange={e => setFrameImages(prev => ({ ...prev, [s.id]: e.target.value }))}
+                                placeholder="URL изображения..."
+                                style={{ width: "100%", background: "rgba(15,23,42,.9)", border: "1px solid rgba(148,163,184,.2)", borderRadius: 8, color: "#e2e8f0", padding: "6px 9px", fontSize: 10, outline: "none", boxSizing: "border-box" }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Card body */}
+                          <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                            {/* Description */}
+                            <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.5 }}>{s.description_ru}</div>
+
+                            {/* Camera + SFX row */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              <div>
+                                <div style={{ fontSize: 9, fontWeight: 950, color: "#38bdf8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>Камера</div>
+                                <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>{s.camera || "—"}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 9, fontWeight: 950, color: "#fbbf24", letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>SFX</div>
+                                <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>{s.sfx || "—"}</div>
+                              </div>
+                            </div>
+
+                            {/* VO */}
+                            <div style={{ background: "rgba(168,85,247,.07)", border: "1px solid rgba(168,85,247,.18)", borderRadius: 10, padding: "8px 10px" }}>
+                              <div style={{ fontSize: 9, fontWeight: 950, color: "#c4b5fd", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>VO</div>
+                              <div style={{ fontSize: 11, color: "#e9d5ff", lineHeight: 1.5 }}>{s.vo_ru || "—"}</div>
+                            </div>
+
+                            {/* Prompt copy buttons */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                              <CopyButton text={s.image_prompt_grok_en || s.image_prompt_en} label="📷 IMG промт" small />
+                              <CopyButton text={s.video_prompt_grok_en || s.video_prompt_en} label="🎬 VID промт" small />
+                            </div>
+
+                            {/* Upscale shortcut */}
+                            {imgUrl && (
+                              <button
+                                onClick={() => { setUpscaleInput(imgUrl); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                                style={{ background: "rgba(14,165,233,.1)", border: "1px solid rgba(14,165,233,.25)", color: "#38bdf8", borderRadius: 8, padding: "6px 10px", fontSize: 10, fontWeight: 800, cursor: "pointer" }}
+                              >
+                                ↑ Upscale этот кадр
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── TABLE VIEW ── */}
+                {viewMode === "table" && (
+                  <div style={{ overflowX: "auto", border: "1px solid rgba(148,163,184,.16)", borderRadius: 24, background: "rgba(2,6,23,.84)" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1240 }}>
+                      <thead>
+                        <tr style={{ background: "rgba(15,23,42,.92)" }}>
+                          {['ID / TIME','BEAT','CUT ENERGY','DESCRIPTION (RU)','IMAGE PROMPT (EN)','VIDEO PROMPT (EN)','GROK IMAGE (AUTO)','GROK VIDEO (AUTO)','VO (RU)','SFX','CAMERA','CONTINUITY / SAFETY'].map((h) => <th key={h} style={{ padding: 12, borderBottom: "1px solid rgba(148,163,184,.16)", borderRight: "1px solid rgba(148,163,184,.1)", textAlign: "left", fontSize: 10, color: "#c4b5fd", letterSpacing: 1, whiteSpace: "nowrap" }}>{h}</th>)}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {(result.scenes || []).map((s) => (
+                          <tr key={s.id} style={{ verticalAlign: "top" }}>
+                            <td style={tdStyle}><b>{s.id}</b><br/><span style={muted}>{s.start}s / {s.duration}s</span></td>
+                            <td style={tdStyle}><span style={{ color: "#f0abfc", fontWeight: 900 }}>{s.beat_type}</span></td>
+                            <td style={tdStyle}><span style={{ color: s.cut_energy === "high" ? "#fb7185" : s.cut_energy === "low" ? "#93c5fd" : "#fbbf24", fontWeight: 950 }}>{s.cut_energy || "medium"}</span></td>
+                            <td style={tdStyle}>{s.description_ru}</td>
+                            <td style={{ ...tdStyle, width: 280 }}><div style={mono}>{s.image_prompt_en}</div><CopyButton text={s.image_prompt_en} label="IMG" /></td>
+                            <td style={{ ...tdStyle, width: 320 }}><div style={mono}>{s.video_prompt_en}</div><CopyButton text={s.video_prompt_en} label="VID" /></td>
+                            <td style={{ ...tdStyle, width: 300 }}><div style={mono}>{s.image_prompt_grok_en || s.image_prompt_en}</div><CopyButton text={s.image_prompt_grok_en || s.image_prompt_en} label="G-IMG" /></td>
+                            <td style={{ ...tdStyle, width: 340 }}><div style={mono}>{s.video_prompt_grok_en || s.video_prompt_en}</div><CopyButton text={s.video_prompt_grok_en || s.video_prompt_en} label="G-VID" /></td>
+                            <td style={tdStyle}>{s.vo_ru}</td>
+                            <td style={tdStyle}>{s.sfx}</td>
+                            <td style={tdStyle}>{s.camera}</td>
+                            <td style={tdStyle}><b>Continuity:</b> {s.continuity_note}<br/><br/><b>Safety:</b> {s.safety_note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 
