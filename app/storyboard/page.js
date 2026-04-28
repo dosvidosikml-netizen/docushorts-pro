@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import TopNav from "../../components/TopNav";
 import StoryboardTable from "../../components/StoryboardTable";
 import FrameList from "../../components/FrameList";
@@ -29,6 +29,21 @@ function readFileAsDataUrl(file) {
 function shortText(value = "", max = 120) {
   const t = String(value || "").replace(/\s+/g, " ").trim();
   return t.length > max ? `${t.slice(0, max)}...` : t;
+}
+
+
+const AUTOSAVE_KEY = "neurocine_director_autosave_v4";
+const AUTOSAVE_VERSION = 1;
+
+function safeJsonParse(value) {
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function compactImage(value) {
+  if (!value?.dataUrl) return null;
+  // localStorage is limited. Save small/medium previews, skip very large images instead of breaking the whole autosave.
+  if (String(value.dataUrl).length > 1800000) return { fileName: value.fileName || "image", skipped: true };
+  return value;
 }
 
 function CopyBox({ title, text, onClear }) {
@@ -67,6 +82,7 @@ export default function StoryboardPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Готово");
   const [working, setWorking] = useState("");
+  const hydratedRef = useRef(false);
 
   const [storyGridPrompt, setStoryGridPrompt] = useState("");
   const [explorePrompt, setExplorePrompt] = useState("");
@@ -92,6 +108,87 @@ export default function StoryboardPage() {
     if (!storyboard) return null;
     return storyboardToProjectJson(storyboard, { script, director: { styleProfile, scenarioLock } });
   }, [storyboard, script, styleProfile, scenarioLock]);
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = safeJsonParse(window.localStorage.getItem(AUTOSAVE_KEY));
+    if (!saved || saved.version !== AUTOSAVE_VERSION || !saved.state) {
+      hydratedRef.current = true;
+      return;
+    }
+    const st = saved.state;
+    setProjectName(st.projectName || "NeuroCine Project");
+    setScript(st.script || "");
+    setDuration(Number(st.duration || 60));
+    setStyle(st.style || "cinematic");
+    setProjectType(st.projectType || "film");
+    setStylePreset(st.stylePreset || "cinematic");
+    setAspectRatio(st.aspectRatio || "9:16");
+    setStoryboard(st.storyboard || null);
+    setActiveFrame(Number(st.activeFrame || 0));
+    setTab(st.tab || "script");
+    setStatus(st.status || "Проект восстановлен из автосохранения");
+    setStoryGridPrompt(st.storyGridPrompt || "");
+    setExplorePrompt(st.explorePrompt || "");
+    setGridImage(st.gridImage || null);
+    setLockedImage(st.lockedImage || null);
+    setSelectedVariant(st.selectedVariant || "A");
+    setLockedPrompt(st.lockedPrompt || "");
+    setAnalysis(st.analysis || null);
+    setAnalysisText(st.analysisText || "");
+    setVideoPrompt(st.videoPrompt || "");
+    hydratedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hydratedRef.current) return;
+    const state = {
+      projectName,
+      script,
+      duration,
+      style,
+      projectType,
+      stylePreset,
+      aspectRatio,
+      storyboard,
+      activeFrame,
+      tab,
+      status,
+      storyGridPrompt,
+      explorePrompt,
+      gridImage: compactImage(gridImage),
+      lockedImage: compactImage(lockedImage),
+      selectedVariant,
+      lockedPrompt,
+      analysis,
+      analysisText,
+      videoPrompt
+    };
+    try {
+      window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ version: AUTOSAVE_VERSION, savedAt: new Date().toISOString(), state }));
+    } catch (e) {
+      try {
+        window.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+          version: AUTOSAVE_VERSION,
+          savedAt: new Date().toISOString(),
+          state: { ...state, gridImage: null, lockedImage: null }
+        }));
+        setStatus("Автосейв сохранён без изображений: файл слишком большой");
+      } catch {}
+    }
+  }, [projectName, script, duration, style, projectType, stylePreset, aspectRatio, storyboard, activeFrame, tab, status, storyGridPrompt, explorePrompt, gridImage, lockedImage, selectedVariant, lockedPrompt, analysis, analysisText, videoPrompt]);
+
+  function saveProjectLocal() {
+    if (typeof window === "undefined") return;
+    hydratedRef.current = true;
+    setStatus("Проект сохранён в браузере");
+  }
+
+  function clearLocalProject() {
+    if (typeof window !== "undefined") window.localStorage.removeItem(AUTOSAVE_KEY);
+    setStatus("Автосохранение очищено");
+  }
 
   async function makeVideo() {
     setBusy(true);
@@ -316,6 +413,8 @@ export default function StoryboardPage() {
                 Импорт .json
                 <input type="file" accept=".json,application/json" hidden onChange={(e) => importJson(e.target.files?.[0])} />
               </label>
+              <button className="btn" onClick={saveProjectLocal}>Сохранить</button>
+              <button className="btn" onClick={clearLocalProject}>Очистить сейв</button>
               <button className="btn" onClick={exportProject}>Экспорт JSON</button>
               <button className="btn" onClick={exportTxt}>Экспорт TXT</button>
               <button className="btn red" onClick={makeVideo} disabled={busy || !script.trim()}>
