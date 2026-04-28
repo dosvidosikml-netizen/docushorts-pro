@@ -51,7 +51,21 @@ function CopyButton({ text, label = "Copy", small = false }) {
   );
 }
 
-function Field({ title, children, color = "#a78bfa" }) {
+// Expandable text — shows first 120 chars, click to expand
+function ExpandableText({ text = "" }) {
+  const [open, setOpen] = useState(false);
+  const short = text.length > 120;
+  return (
+    <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.55 }}>
+      {short && !open ? text.slice(0, 120) + "…" : text}
+      {short && (
+        <button onClick={() => setOpen(o => !o)} style={{ marginLeft: 6, background: "none", border: "none", color: "#a78bfa", cursor: "pointer", fontSize: 11, fontWeight: 800, padding: 0 }}>
+          {open ? "скрыть" : "ещё"}
+        </button>
+      )}
+    </div>
+  );
+}
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
       <div style={{ color, fontSize: 10, fontWeight: 950, letterSpacing: 1.2, textTransform: "uppercase" }}>{title}</div>
@@ -511,29 +525,57 @@ export default function StoryboardPage() {
                 {/* ── TABLE VIEW ── */}
                 {viewMode === "table" && (
                   <div style={{ overflowX: "auto", border: "1px solid rgba(148,163,184,.16)", borderRadius: 24, background: "rgba(2,6,23,.84)" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1240 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
                       <thead>
                         <tr style={{ background: "rgba(15,23,42,.92)" }}>
-                          {['ID / TIME','BEAT','CUT ENERGY','DESCRIPTION (RU)','IMAGE PROMPT (EN)','VIDEO PROMPT (EN)','GROK IMAGE (AUTO)','GROK VIDEO (AUTO)','VO (RU)','SFX','CAMERA','CONTINUITY / SAFETY'].map((h) => <th key={h} style={{ padding: 12, borderBottom: "1px solid rgba(148,163,184,.16)", borderRight: "1px solid rgba(148,163,184,.1)", textAlign: "left", fontSize: 10, color: "#c4b5fd", letterSpacing: 1, whiteSpace: "nowrap" }}>{h}</th>)}
+                          {['#','BEAT / ENERGY','ОПИСАНИЕ','IMAGE PROMPT','VIDEO PROMPT','VO','SFX · CAMERA'].map((h) => (
+                            <th key={h} style={{ padding: "10px 12px", borderBottom: "1px solid rgba(148,163,184,.16)", borderRight: "1px solid rgba(148,163,184,.08)", textAlign: "left", fontSize: 10, color: "#c4b5fd", letterSpacing: 1, whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {(result.scenes || []).map((s) => (
-                          <tr key={s.id} style={{ verticalAlign: "top" }}>
-                            <td style={tdStyle}><b>{s.id}</b><br/><span style={muted}>{s.start}s / {s.duration}s</span></td>
-                            <td style={tdStyle}><span style={{ color: "#f0abfc", fontWeight: 900 }}>{s.beat_type}</span></td>
-                            <td style={tdStyle}><span style={{ color: s.cut_energy === "high" ? "#fb7185" : s.cut_energy === "low" ? "#93c5fd" : "#fbbf24", fontWeight: 950 }}>{s.cut_energy || "medium"}</span></td>
-                            <td style={tdStyle}>{s.description_ru}</td>
-                            <td style={{ ...tdStyle, width: 280 }}><div style={mono}>{s.image_prompt_en}</div><CopyButton text={s.image_prompt_en} label="IMG" /></td>
-                            <td style={{ ...tdStyle, width: 320 }}><div style={mono}>{s.video_prompt_en}</div><CopyButton text={s.video_prompt_en} label="VID" /></td>
-                            <td style={{ ...tdStyle, width: 300 }}><div style={mono}>{s.image_prompt_grok_en || s.image_prompt_en}</div><CopyButton text={s.image_prompt_grok_en || s.image_prompt_en} label="G-IMG" /></td>
-                            <td style={{ ...tdStyle, width: 340 }}><div style={mono}>{s.video_prompt_grok_en || s.video_prompt_en}</div><CopyButton text={s.video_prompt_grok_en || s.video_prompt_en} label="G-VID" /></td>
-                            <td style={tdStyle}>{s.vo_ru}</td>
-                            <td style={tdStyle}>{s.sfx}</td>
-                            <td style={tdStyle}>{s.camera}</td>
-                            <td style={tdStyle}><b>Continuity:</b> {s.continuity_note}<br/><br/><b>Safety:</b> {s.safety_note}</td>
-                          </tr>
-                        ))}
+                        {(result.scenes || []).map((s) => {
+                          const cutColor = s.cut_energy === "high" ? "#fb7185" : s.cut_energy === "low" ? "#93c5fd" : "#fbbf24";
+                          const imgPrompt = s.image_prompt_grok_en || s.image_prompt_en || "";
+                          const vidPrompt = s.video_prompt_grok_en || s.video_prompt_en || "";
+                          return (
+                            <tr key={s.id} style={{ verticalAlign: "top", borderBottom: "1px solid rgba(148,163,184,.07)" }}>
+                              {/* # */}
+                              <td style={{ ...tdStyle, whiteSpace: "nowrap", width: 60 }}>
+                                <b style={{ color: "#e2e8f0" }}>{s.id?.replace("frame_", "") || ""}</b>
+                                <div style={{ color: "#475569", fontSize: 10 }}>{s.start}s/{s.duration}s</div>
+                              </td>
+                              {/* BEAT / ENERGY */}
+                              <td style={{ ...tdStyle, width: 100 }}>
+                                <div style={{ color: "#f0abfc", fontWeight: 800, fontSize: 11 }}>{s.beat_type}</div>
+                                <span style={{ fontSize: 10, fontWeight: 950, color: cutColor }}>{s.cut_energy}</span>
+                              </td>
+                              {/* ОПИСАНИЕ */}
+                              <td style={{ ...tdStyle, maxWidth: 180 }}>
+                                <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.5 }}>{s.description_ru}</div>
+                              </td>
+                              {/* IMAGE PROMPT */}
+                              <td style={{ ...tdStyle, maxWidth: 260 }}>
+                                <ExpandableText text={imgPrompt} />
+                                <div style={{ marginTop: 6 }}><CopyButton text={imgPrompt} label="📷 Копировать" small /></div>
+                              </td>
+                              {/* VIDEO PROMPT */}
+                              <td style={{ ...tdStyle, maxWidth: 260 }}>
+                                <ExpandableText text={vidPrompt} />
+                                <div style={{ marginTop: 6 }}><CopyButton text={vidPrompt} label="🎬 Копировать" small /></div>
+                              </td>
+                              {/* VO */}
+                              <td style={{ ...tdStyle, maxWidth: 180 }}>
+                                <div style={{ fontSize: 12, color: "#e9d5ff", lineHeight: 1.5 }}>{s.vo_ru}</div>
+                              </td>
+                              {/* SFX · CAMERA */}
+                              <td style={{ ...tdStyle, maxWidth: 160 }}>
+                                <div style={{ fontSize: 11, color: "#fbbf24", marginBottom: 5 }}>{s.sfx}</div>
+                                <div style={{ fontSize: 11, color: "#38bdf8" }}>{s.camera}</div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
