@@ -124,12 +124,84 @@ export function buildScenarioLock(storyboard = {}, script = "", styleProfile = {
 
 export function buildStoryGridPrompt(storyboard = {}, styleProfile = {}) {
   const scenes = storyboard?.scenes || [];
-  return `Create one vertical 9:16 cinematic storyboard grid image.\n\nLAYOUT:\n- ${scenes.length || 20} frames total\n- clean grid, equal cells\n- each cell is a different frame from the same story\n- no text, no numbers, no labels, no UI, no subtitles, no watermark\n\nSTYLE LOCK:\n${styleProfile.style_lock || storyboard.global_style_lock || STYLE_LOCKS.cinematic}\n\nSCENARIO LOCK:\nDo not change the story order. Preserve the same characters, locations, chronology, emotional logic and visual continuity.\n\nFRAMES:\n${scenes.map((s, i) => `${i + 1}. ${s.description_ru || s.vo_ru || s.image_prompt_en}`).join("\n")}`;
+  const n = scenes.length || 12;
+  const cols = n <= 8 ? 2 : 3;
+  const rows = Math.ceil(n / cols);
+  const aspect = storyboard?.aspect_ratio || "9:16";
+  const charLock = (storyboard?.character_lock || [])
+    .map(c => `${c.name} — ${c.description}`)
+    .join("\n");
+
+  const framesEN = scenes.map((s, i) => {
+    const en = (s.image_prompt_en || "")
+      .replace(/^SCENE PRIMARY FOCUS:\s*/i, "")
+      .trim();
+    return `${i + 1}. ${en || s.vo_ru || ""}`;
+  }).join("\n");
+
+  return `STORYBOARD GRID — ${storyboard.project_name || "NeuroCine Project"}
+FORMAT: Vertical ${aspect}
+TOTAL FRAMES: ${n}
+GRID LAYOUT: ${cols} columns × ${rows} rows — exactly ${n} equal cells, no more, no less
+
+CRITICAL LAYOUT RULES:
+- Generate EXACTLY ${n} frames. Not ${n - 1}, not ${n + 1}. Exactly ${n}.
+- Arrange them in a strict ${cols}×${rows} grid with equal-size cells
+- Every cell must show a different scene from the story
+- Each cell must be in ${aspect} aspect ratio
+- No text, no numbers, no frame labels, no subtitles, no UI, no watermark anywhere
+
+STYLE LOCK:
+${styleProfile.style_lock || storyboard.global_style_lock || STYLE_LOCKS.cinematic}
+
+${charLock ? `CHARACTER LOCK (maintain across all frames):\n${charLock}\n` : ""}SCENARIO LOCK:
+Do not change story order. Preserve same characters, locations, chronology, emotional logic and visual continuity across all ${n} cells.
+
+FRAMES (in order, left-to-right, top-to-bottom):
+${framesEN}`;
 }
 
 export function buildExplorePrompt(frame = {}, storyboard = {}, styleProfile = {}, variantCount = 4) {
-  const base = frame.image_prompt_en || frame.description_ru || frame.vo_ru || "selected storyboard frame";
-  return `ULTRA CINEMATIC VARIATION GRID — DIRECTOR MODE\n\nTASK:\nCreate a 2x2 grid with ${variantCount} shot variations of the EXACT SAME FRAME.\n\nLOCKED FRAME ID:\n${frame.id || "frame"}\n\nLOCKED STORY ACTION:\n${frame.description_ru || "Use the selected frame action only."}\n\nLOCKED VO MEANING:\n${frame.vo_ru || "Preserve the story meaning."}\n\nBASE IMAGE PROMPT:\n${base}\n\nSTYLE LOCK:\n${styleProfile.style_lock || storyboard.global_style_lock || STYLE_LOCKS.cinematic}\n\nSCENARIO LOCK — NON-NEGOTIABLE:\n- same story event\n- same character identity and condition\n- same wardrobe / character model\n- same location and time of day\n- same emotional meaning\n- same historical / genre logic\n- no new plot, no new objects that change the story\n\nALLOWED TO CHANGE ONLY:\n- camera angle\n- camera height\n- lens feeling\n- framing\n- composition\n- camera distance\n- depth of field\n\nMANDATORY VARIATIONS:\nA — EXTREME CLOSE-UP: emotional face/detail focus, shallow DOF, intimate tension.\nB — LOW / GROUND ANGLE: strong foreground texture, weight, perspective, physical presence.\nC — WIDE ENVIRONMENTAL: full spatial storytelling, isolation, readable location geometry.\nD — OBSTRUCTED / OVER-SHOULDER: layered depth, partial foreground obstruction, voyeuristic documentary feeling.\n\nOUTPUT:\n- single image\n- 2x2 grid\n- four clearly different compositions\n- no text, no subtitles, no UI, no watermark\n\nNEGATIVE:\n${NEGATIVE_LOCK}`;
+  const base = (frame.image_prompt_en || "")
+    .replace(/^SCENE PRIMARY FOCUS:\s*/i, "")
+    .trim() || frame.description_ru || frame.vo_ru || "selected storyboard frame";
+
+  const charLock = (storyboard?.character_lock || [])
+    .map(c => `${c.name}: ${c.description}`)
+    .join("\n");
+
+  return `ULTRA CINEMATIC VARIATION GRID — DIRECTOR MODE
+
+Create a single vertical 9:16 image arranged as a strict 2x2 grid containing 4 clearly distinct shot variations of the exact same locked storyboard frame: ${frame.id || "frame"}. Preserve the identical story event, character identity, wardrobe, location, time of day, emotional meaning, chronology, historical logic and genre across all four cells. Do not introduce new plot information or story-changing objects.
+
+LOCKED FRAME ID: ${frame.id || "frame"}
+TIME: ${frame.start ?? "?"}–${frame.end ?? "?"}s
+
+BASE SCENE (reproduce this exact visual in all 4 cells — only camera changes):
+${base}
+
+${charLock ? `CHARACTER LOCK — MANDATORY IN ALL 4 CELLS:\n${charLock}\n` : ""}STYLE LOCK: ${styleProfile.style_lock || storyboard.global_style_lock || STYLE_LOCKS.cinematic}
+
+SCENARIO LOCK — NON-NEGOTIABLE:
+- same story event and props
+- same character identity, face, age, wardrobe as described in CHARACTER LOCK above
+- same location and time of day
+- same emotional meaning
+- same historical / genre logic
+- no new characters, no new plot, no new objects that change the story
+
+ALLOWED VARIATION AXES ONLY:
+- camera angle, camera height, lens feeling, framing, composition, camera distance, depth of field
+
+MANDATORY VARIATIONS:
+A — EXTREME CLOSE-UP: intimate detail-driven composition focused on the key element or tense facial detail; very shallow depth of field; emotional tension.
+B — LOW / GROUND ANGLE: low camera position with strong foreground texture, emphasizing physical presence and perspective weight; same event and layout.
+C — WIDE ENVIRONMENTAL: wider spatial view showing the full location geometry, all characters and props in context; isolation and readable environment.
+D — OBSTRUCTED / OVER-SHOULDER: layered composition with partial foreground obstruction or over-shoulder framing, documentary voyeuristic feeling, deeper spatial layering.
+
+OUTPUT: one single image, strict 2x2 grid, four compositions visibly different only through cinematography choices, no text, no subtitles, no UI, no watermark, no labels.
+
+NEGATIVE: ${NEGATIVE_LOCK}`;
 }
 
 export function build2KPrompt(frame = {}, variant = "A", storyboard = {}, styleProfile = {}) {
