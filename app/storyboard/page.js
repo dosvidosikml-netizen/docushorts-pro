@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   PROJECT_TYPES, STYLE_PRESETS,
-  build2KPrompt, buildStoryGridPrompt, getStyleProfile
+  build2KPrompt, buildStoryGridPrompt, buildExplorePrompt, getStyleProfile
 } from "../../engine/directorEngine_v4";
 import {
   storyboardToProjectJson
@@ -14,6 +14,44 @@ import { downloadTextFile, safeFileName } from "../../lib/download";
 /* ─── autosave keys ─── */
 const KEY_TEXT  = "nc_text_v3";
 const KEY_IMGS  = "nc_imgs_v3";
+
+/* ─── grid cols helper ─── */
+function gridCols(n) { return n <= 8 ? 2 : 3; }
+
+/* ─── Flow/VEO TXT export ─── */
+function buildFlowTxt(storyboard, styleProfile) {
+  if (!storyboard) return "";
+  const sb = storyboard;
+  const chars = (sb.character_lock || [])
+    .map(c => `${c.name} — ${c.description}`)
+    .join("\n");
+  const lines = [
+    `STORYBOARD GRID — ${sb.project_name || "NeuroCine Project"}`,
+    `FORMAT: Vertical ${sb.aspect_ratio || "9:16"}`,
+    `STYLE LOCK: ${styleProfile?.style_lock || sb.global_style_lock || ""}`,
+    "",
+    chars ? `CHARACTER LOCK:\n${chars}` : "",
+    "",
+  ].filter(l => l !== null);
+
+  (sb.scenes || []).forEach(s => {
+    const vis = (s.image_prompt_en || "").replace(/^SCENE PRIMARY FOCUS:\s*/i, "").trim();
+    // strip SFX from video_prompt_en for ANIMATION field
+    const anim = (s.video_prompt_en || "")
+      .replace(/^ANIMATE CURRENT FRAME:\s*/i, "")
+      .replace(/\s*SFX:.*$/is, "")
+      .trim();
+    lines.push(
+      `FRAME ${String(s.id || "").replace("frame_", "").padStart(2, "0")} / ${s.start ?? "?"}–${s.end ?? "?"}s`,
+      `VISUAL: ${vis}`,
+      `ANIMATION: ${anim}`,
+      `VO: ${s.vo_ru || ""}`,
+      `SFX: ${s.sfx || ""}`,
+      ""
+    );
+  });
+  return lines.join("\n");
+}
 
 /* ─── helpers ─── */
 function readAsDataUrl(file) {
@@ -137,15 +175,32 @@ export default function StudioPage() {
   const [vidBusy, setVidBusy]           = useState(false);
 
   const [hydrated, setHydrated]         = useState(false);
+  const [showRu, setShowRu]             = useState(false);
+  const [showFrameRu, setShowFrameRu]   = useState(false);
 
   const styleProfile = useMemo(() => getStyleProfile(projectType, stylePreset), [projectType, stylePreset]);
   const scenes       = storyboard?.scenes || [];
   const curFrame     = frameIdx !== null ? scenes[frameIdx] : null;
 
-  const storyGridPrompt = useMemo(
-    () => storyboard ? buildStoryGridPrompt(storyboard, styleProfile) : "",
-    [storyboard, styleProfile]
-  );
+  // Story grid prompt with English frame descriptions (for AI generators)
+  const storyGridPrompt = useMemo(() => {
+    if (!storyboard) return "";
+    const base = buildStoryGridPrompt(storyboard, styleProfile);
+    const sc = storyboard.scenes || [];
+    // Use image_prompt_en (English) — strip the "SCENE PRIMARY FOCUS: " prefix for cleaner grid prompt
+    const enFrames = sc.map((s, i) =>
+      `${i + 1}. ${(s.image_prompt_en || "").replace(/^SCENE PRIMARY FOCUS:\s*/i, "") || s.description_ru || s.vo_ru}`
+    ).join("\n");
+    return base.replace(/FRAMES:\n[\s\S]*$/, `FRAMES:\n${enFrames}`);
+  }, [storyboard, styleProfile]);
+
+  // Russian frame descriptions for reference (hidden by default)
+  const storyGridRu = useMemo(() => {
+    if (!storyboard) return "";
+    return (storyboard.scenes || []).map((s, i) =>
+      `${i + 1}. [${s.id}] ${s.description_ru || s.vo_ru || ""}`
+    ).join("\n");
+  }, [storyboard]);
 
   const scriptJson = script
     ? JSON.stringify({ project_name: projectName, script, topic, duration, aspect_ratio: aspectRatio, style: stylePreset, project_type: projectType, tone }, null, 2)
@@ -253,14 +308,19 @@ export default function StudioPage() {
     if (!curFrame) return;
     setExpBusy(true); setExploreP("");
     try {
+      // Build locally from engine — richer CHARACTER LOCK + full EN image_prompt_en
+      const localPrompt = buildExplorePrompt(curFrame, storyboard, styleProfile);
+      // Also try API for enhanced version
       const r = await fetch("/api/explore", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ frame: curFrame, storyboard, styleProfile, projectType, stylePreset })
       });
       const d = await r.json();
-      setExploreP(d.prompt || "");
-    } catch (e) { setExploreP("Ошибка: " + e.message); }
-    finally { setExpBusy(false); }
+      setExploreP(d.prompt || localPrompt);
+    } catch {
+      // fallback to local build
+      setExploreP(buildExplorePrompt(curFrame, storyboard, styleProfile));
+    } finally { setExpBusy(false); }
   }
 
   /* ── SELECT VARIANT: crop → analyze → build accurate 2K prompt ── */
@@ -339,6 +399,7 @@ export default function StudioPage() {
   /* ── FRAME SELECT + CLEAR DOWNSTREAM ── */
   function selectFrame(idx) {
     setFrameIdx(idx);
+    setShowFrameRu(false);
     setExploreP(""); setVariantImg(null); setSelVariant(null);
     setCropped(null); setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
   }
@@ -359,6 +420,10 @@ export default function StudioPage() {
       lines.push(`\n[${s.id}] ${s.start}s–${s.end ?? "?"}s | ${s.beat_type}\nVO: ${s.vo_ru}\nIMAGE: ${s.image_prompt_en}\nVIDEO: ${s.video_prompt_en}\nSFX: ${s.sfx}\n`);
     });
     downloadTextFile(lines.join(""), safeFileName(projectName) + ".txt");
+  }
+  function exportFlow() {
+    const txt = buildFlowTxt(storyboard, styleProfile);
+    downloadTextFile(txt, safeFileName(projectName) + "-flow-veo.txt");
   }
   function clearAll() {
     localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
@@ -385,6 +450,7 @@ export default function StudioPage() {
           {storyboard && <>
             <button className="nav-btn" onClick={exportJson}>⬇ JSON</button>
             <button className="nav-btn" onClick={exportTxt}>⬇ TXT</button>
+            <button className="nav-btn" onClick={exportFlow}>⬇ Flow/VEO</button>
           </>}
           <button className="nav-btn danger" onClick={clearAll}>Очистить</button>
         </div>
@@ -518,19 +584,34 @@ export default function StudioPage() {
                 <div className="brow">
                   <button className="btn btn-sm" onClick={exportJson}>⬇ Проект .json</button>
                   <button className="btn btn-sm" onClick={exportTxt}>⬇ Полный .txt</button>
+                  <button className="btn btn-sm btn-red" onClick={exportFlow}>⬇ Flow/VEO .txt</button>
                 </div>
               )}
             </div>
             <div className="col">
-              {storyGridPrompt
-                ? <OutBox label="Story Grid Prompt (Flux / Midjourney)" text={storyGridPrompt} />
-                : (
-                  <div className="upload-zone" style={{ pointerEvents: "none", cursor: "default" }}>
-                    <div className="upload-icon">🎬</div>
-                    <div className="upload-text">Story Grid Prompt</div>
-                    <div className="upload-hint">Промт для генерации сетки всех кадров</div>
+              {storyGridPrompt ? (
+                <>
+                  <OutBox label="Story Grid Prompt EN (Flux / Midjourney)" text={storyGridPrompt} />
+                  {/* Russian descriptions — collapsible */}
+                  <div className="out-box">
+                    <div className="out-head" style={{ cursor: "pointer" }} onClick={() => setShowRu(v => !v)}>
+                      <span className="out-label">Описания кадров на русском</span>
+                      <span style={{ fontSize: 11, color: "var(--muted)" }}>{showRu ? "▲ скрыть" : "▼ показать"}</span>
+                    </div>
+                    {showRu && (
+                      <div className="out-body">
+                        <pre className="out-pre compact" style={{ color: "var(--muted)", fontSize: 12 }}>{storyGridRu}</pre>
+                      </div>
+                    )}
                   </div>
-                )}
+                </>
+              ) : (
+                <div className="upload-zone" style={{ pointerEvents: "none", cursor: "default" }}>
+                  <div className="upload-icon">🎬</div>
+                  <div className="upload-text">Story Grid Prompt</div>
+                  <div className="upload-hint">Промт для генерации сетки всех кадров</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -581,10 +662,10 @@ export default function StudioPage() {
           {/* A: storyboard grid + frame select */}
           <div className={`pipe-step${gridImg && curFrame ? "" : " on"}`}>
             <div className="pipe-head">
-              <div className={`pipe-dot${curFrame ? " done" : gridImg ? " act" : " act"}`}>A</div>
+              <div className={`pipe-dot${curFrame ? " done" : " act"}`}>A</div>
               <div>
                 <div className="pipe-title">Загрузи storyboard сетку · Выбери кадр</div>
-                <div className="pipe-sub">JPG/PNG из Midjourney, Flux, DALL-E</div>
+                <div className="pipe-sub">Нажми прямо на кадр в сетке или выбери кнопкой ниже</div>
               </div>
             </div>
             <div className="pipe-body">
@@ -592,7 +673,57 @@ export default function StudioPage() {
                 <div className="col">
                   {gridImg ? (
                     <>
-                      <div className="img-viewer"><img src={gridImg} alt="Storyboard grid" /></div>
+                      {/* Clickable grid overlay */}
+                      {scenes.length > 0 ? (() => {
+                        const cols = gridCols(scenes.length);
+                        const rows = Math.ceil(scenes.length / cols);
+                        return (
+                          <div style={{ position: "relative", borderRadius: 12, overflow: "hidden" }}>
+                            <img src={gridImg} alt="Storyboard grid" style={{ width: "100%", display: "block" }} />
+                            <div style={{
+                              position: "absolute", inset: 0,
+                              display: "grid",
+                              gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                              gridTemplateRows: `repeat(${rows}, 1fr)`
+                            }}>
+                              {scenes.map((s, i) => (
+                                <div key={s.id}
+                                  onClick={() => selectFrame(i)}
+                                  title={s.id}
+                                  style={{
+                                    cursor: "pointer",
+                                    border: frameIdx === i
+                                      ? "2px solid var(--red)"
+                                      : "1px solid rgba(255,255,255,0.06)",
+                                    background: frameIdx === i
+                                      ? "rgba(229,53,53,0.12)"
+                                      : "transparent",
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    justifyContent: "flex-start",
+                                    padding: 5,
+                                    transition: "all 0.12s"
+                                  }}
+                                  onMouseEnter={e => { if (frameIdx !== i) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+                                  onMouseLeave={e => { if (frameIdx !== i) e.currentTarget.style.background = "transparent"; }}
+                                >
+                                  <span style={{
+                                    fontSize: 9, fontWeight: 900,
+                                    background: frameIdx === i ? "var(--red)" : "rgba(0,0,0,0.65)",
+                                    color: "#fff", borderRadius: 4,
+                                    padding: "2px 5px", lineHeight: 1.3,
+                                    pointerEvents: "none"
+                                  }}>
+                                    {String(i + 1).padStart(2, "0")}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })() : (
+                        <div className="img-viewer"><img src={gridImg} alt="Storyboard grid" /></div>
+                      )}
                       <button className="btn btn-sm" style={{ marginTop: 8 }}
                         onClick={() => { setGridImg(null); setFrameIdx(null); }}>Заменить</button>
                     </>
@@ -619,18 +750,44 @@ export default function StudioPage() {
                             {curFrame.start}–{curFrame.end ?? "?"}s · {curFrame.beat_type}
                             {curFrame.emotion ? ` · ${curFrame.emotion}` : ""}
                           </div>
-                          {curFrame.description_ru && (
+
+                          {/* EN description (visible) */}
+                          {curFrame.image_prompt_en && (
                             <div className="frame-card-row">
-                              <div className="frame-card-lbl">Описание</div>
-                              <div className="frame-card-val">{String(curFrame.description_ru).slice(0, 140)}</div>
+                              <div className="frame-card-lbl">Visual (EN)</div>
+                              <div className="frame-card-val" style={{ fontSize: 12, color: "var(--muted)" }}>
+                                {curFrame.image_prompt_en.replace(/^SCENE PRIMARY FOCUS:\s*/i, "").slice(0, 180)}
+                              </div>
                             </div>
                           )}
+
+                          {/* RU description — collapsible */}
+                          {curFrame.description_ru && (
+                            <div className="frame-card-row">
+                              <div
+                                className="frame-card-lbl"
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => setShowFrameRu(v => !v)}
+                              >
+                                Описание RU {showFrameRu ? "▲" : "▼"}
+                              </div>
+                              {showFrameRu && (
+                                <div className="frame-card-val" style={{ color: "var(--muted)", fontSize: 12 }}>
+                                  {curFrame.description_ru}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* VO — always RU */}
                           {curFrame.vo_ru && (
                             <div className="frame-card-row">
                               <div className="frame-card-lbl">VO</div>
                               <div className="frame-card-val">{curFrame.vo_ru}</div>
                             </div>
                           )}
+
+                          {/* SFX — EN */}
                           {curFrame.sfx && (
                             <div className="frame-card-row">
                               <div className="frame-card-lbl">SFX</div>
