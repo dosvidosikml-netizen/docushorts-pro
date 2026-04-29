@@ -2,27 +2,51 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function fallbackScript({ topic, duration }) {
-  return `Ты бы не поверил, но ${topic || "эта история"} начинается с одной детали.
-
-Сначала кажется, что это обычный факт.
-Но через несколько секунд становится понятно: за ним скрыта настоящая тьма.
-
-Люди жили в условиях, где ошибка стоила жизни.
-Грязь, страх, болезни и власть работали против человека каждый день.
-
-Самое страшное было не в одном событии.
-Самое страшное — это было нормой.
-
-И теперь вопрос:
-ты бы выдержал это хотя бы одну неделю?`;
+  return `Ты бы не поверил, но ${topic || "эта история"} начинается с одной детали.\n\nСначала кажется, что это обычный факт.\nНо через несколько секунд становится понятно: за ним скрыта настоящая тьма.\n\nЛюди жили в условиях, где ошибка стоила жизни.\nГрязь, страх, болезни и власть работали против человека каждый день.\n\nСамое страшное было не в одном событии.\nСамое страшное — это было нормой.\n\nИ теперь вопрос:\nты бы выдержал это хотя бы одну неделю?`;
 }
+
+const SYSTEM_PROMPT = `
+Ты профессиональный сценарист коротких вирусных видео для YouTube Shorts, Reels, TikTok.
+Пиши только готовый текст диктора — без заголовков, без markdown, без объяснений.
+
+СТРУКТУРА АКТА (обязательная):
+
+ACT 1 — HOOK (первые 3–5 сек):
+- Один сильный факт или вопрос который ломает ожидания
+- Зритель должен остановить скролл
+- Формула: "Ты не знал что..." / "В [год] произошло..." / "Представь: ..."
+
+ACT 2 — BUILD (основная часть):
+- Нарастание через конкретные детали и факты
+- Каждое предложение — отдельная мысль
+- Ритм: короткое → длиннее → короткое → длиннее
+- Каждые 2–3 предложения — смена угла или новый факт
+- Никаких абстракций — только конкретика
+
+ACT 3 — CLIMAX (пик):
+- Самый неожиданный или шокирующий факт
+- Эмоциональный пик всего ролика
+
+ACT 4 — OUTRO + ВОПРОС (последние 3–5 сек):
+- Одна финальная мысль которая переворачивает всё
+- Вопрос для комментариев — открытый, провокационный
+
+ТЕХНИЧЕСКИЕ ПРАВИЛА:
+- Только внешний диктор, никаких диалогов персонажей
+- Короткие фразы, максимум 12–15 слов в предложении
+- Без субтитров и UI в тексте
+- Темп: ~2–2.5 слова в секунду (60 сек ≈ 130–150 слов)
+- Тон должен быть документальным но захватывающим
+`;
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const topic = String(body.topic || "").trim();
-    const tone = String(body.tone || "cinematic documentary thriller").trim();
+    const body     = await req.json();
+    const topic    = String(body.topic || "").trim();
+    const tone     = String(body.tone || "cinematic documentary thriller").trim();
     const duration = Number(body.duration || 60);
+
+    const wordsTarget = Math.round(duration * 2.2);
 
     if (!process.env.OPENROUTER_API_KEY) {
       return Response.json({ text: fallbackScript({ topic, duration }) });
@@ -30,18 +54,16 @@ export async function POST(req) {
 
     const model = process.env.OPENROUTER_MODEL || "openai/gpt-5.4";
 
-    const prompt = `
+    const userPrompt = `
 Напиши вирусный сценарий на русском для Shorts/Reels/TikTok.
-Длительность: ${duration} секунд.
+
 Тема: ${topic}
 Тон: ${tone}
+Длительность: ${duration} секунд
+Целевой объём: ~${wordsTarget} слов
 
-Требования:
-- первые 2 секунды — сильный hook;
-- короткие фразы;
-- без субтитров в тексте;
-- финал с вопросом для комментариев;
-- только текст диктора, без markdown.
+Соблюдай 4-актную структуру: Hook → Build → Climax → Outro+Вопрос.
+Только текст диктора. Никаких заголовков актов в тексте.
 `;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -55,15 +77,15 @@ export async function POST(req) {
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: "Ты профессиональный сценарист коротких вирусных исторических видео. Отвечай только готовым текстом диктора." },
-          { role: "user", content: prompt }
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt }
         ],
         temperature: 0.45,
-        max_tokens: 1600
+        max_tokens: 2000
       })
     });
 
-    const raw = await response.text();
+    const raw  = await response.text();
     const data = JSON.parse(raw);
     const text = data.choices?.[0]?.message?.content || fallbackScript({ topic, duration });
     return Response.json({ text });
