@@ -154,6 +154,8 @@ export default function StudioPage() {
   const [sbBusy, setSbBusy]   = useState(false);
   const [sbStat, setSbStat]   = useState("");
   const [jsonIn, setJsonIn]   = useState("");
+  const [sbMode, setSbMode]   = useState("safe");
+  const [validation, setValidation] = useState(null);
 
   /* STEP 3 — Pipeline */
   const [gridImg, setGridImg]           = useState(null);
@@ -222,6 +224,8 @@ export default function StudioPage() {
       if (text.script)      setScript(text.script);
       if (text.storyboard)  setSB(text.storyboard);
       if (text.jsonIn)      setJsonIn(text.jsonIn);
+      if (text.sbMode)      setSbMode(text.sbMode);
+      if (text.validation)  setValidation(text.validation);
       if (text.frameIdx !== undefined && text.frameIdx !== null) setFrameIdx(text.frameIdx);
       if (text.exploreP)    setExploreP(text.exploreP);
       if (text.selVariant)  setSelVariant(text.selVariant);
@@ -245,11 +249,11 @@ export default function StudioPage() {
     if (!hydrated) return;
     tryLsSave(KEY_TEXT, {
       projectName, topic, projectType, stylePreset, duration,
-      aspectRatio, tone, script, storyboard, jsonIn,
+      aspectRatio, tone, script, storyboard, jsonIn, sbMode, validation,
       frameIdx, exploreP, selVariant, p2k, videoP, analysis
     });
   }, [hydrated, projectName, topic, projectType, stylePreset, duration, aspectRatio,
-      tone, script, storyboard, jsonIn, frameIdx, exploreP, selVariant, p2k, videoP, analysis]);
+      tone, script, storyboard, jsonIn, sbMode, validation, frameIdx, exploreP, selVariant, p2k, videoP, analysis]);
 
   /* ── AUTOSAVE WRITE (images — separate key, с защитой от quota) ── */
   useEffect(() => {
@@ -287,16 +291,28 @@ export default function StudioPage() {
       try { const p = JSON.parse(jsonIn); src = p.script || p.text || script; } catch {}
     }
     if (!src.trim()) return;
-    setSbBusy(true); setSbStat("gen");
+    setSbBusy(true); setSbStat("gen"); setValidation(null);
     try {
       const r = await fetch("/api/storyboard", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script: src, duration, aspect_ratio: aspectRatio, style: stylePreset, project_name: projectName })
+        body: JSON.stringify({
+          script: src, duration,
+          aspect_ratio: aspectRatio,
+          style: stylePreset,
+          project_name: projectName,
+          mode: sbMode
+        })
       });
       const d = await r.json();
       if (d.storyboard) {
-        setSB(d.storyboard);
-        setSbStat(`ok|${d.storyboard.scenes?.length || 0} кадров · ${d.mode}`);
+        // inject aspect_ratio from request into storyboard
+        const sb = { ...d.storyboard, aspect_ratio: aspectRatio };
+        setSB(sb);
+        setValidation(d.validation || null);
+        const valInfo = d.validation
+          ? (d.validation.ok ? " · ✓ valid" : ` · ⚠ ${d.validation.errors?.length} issues`)
+          : "";
+        setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${d.mode}${valInfo}`);
       } else {
         setSbStat("err|" + (d.error || "unknown"));
       }
@@ -425,12 +441,18 @@ export default function StudioPage() {
     const txt = buildFlowTxt(storyboard, styleProfile);
     downloadTextFile(txt, safeFileName(projectName) + "-flow-veo.txt");
   }
+  function copyAllVo() {
+    const all = scenes.map(s => `[${s.id}] ${s.vo_ru || ""}`).join("\n\n");
+    navigator.clipboard.writeText(all);
+  }
+
   function clearAll() {
     localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
     setScript(""); setSB(null); setTopic(""); setProjectName("NeuroCine Project");
     setGridImg(null); setFrameIdx(null); setExploreP(""); setVariantImg(null);
     setSelVariant(null); setCropped(null); setP2k(""); setFinalImg(null);
     setVideoP(""); setAnalysis(null); setSStat(""); setSbStat(""); setJsonIn("");
+    setValidation(null); setSbMode("safe");
   }
 
   /* ── RENDER ── */
@@ -563,6 +585,29 @@ export default function StudioPage() {
           <div className="two-col lw">
             <div className="col">
               <div className="field">
+                <label className="field-label">Режим генерации</label>
+                <div className="brow">
+                  <button
+                    className={`btn${sbMode === "safe" ? " btn-red" : ""}`}
+                    onClick={() => setSbMode("safe")}
+                    style={{ flex: 1 }}
+                  >
+                    🛡 Safe
+                  </button>
+                  <button
+                    className={`btn${sbMode === "raw" ? " btn-red" : ""}`}
+                    onClick={() => setSbMode("raw")}
+                    style={{ flex: 1 }}
+                  >
+                    ⚡ Raw
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+                  {sbMode === "safe" ? "Safe — документальный стиль, без жёсткого контента" : "Raw — сильная камера, интенсивная атмосфера, кинематографичнее"}
+                </div>
+              </div>
+
+              <div className="field">
                 <label className="field-label">Вставить JSON вручную (необязательно)</label>
                 <textarea className="inp mono" style={{ minHeight: 90 }} value={jsonIn}
                   onChange={e => setJsonIn(e.target.value)}
@@ -580,11 +625,40 @@ export default function StudioPage() {
                   </div>
                 );
               })()}
+
+              {/* Validation badge */}
+              {validation && (
+                <div className="out-box">
+                  <div className="out-head">
+                    <span className="out-label">Validation</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 100,
+                      background: validation.ok ? "rgba(34,197,94,0.15)" : "rgba(229,53,53,0.15)",
+                      color: validation.ok ? "#22c55e" : "#fca5a5",
+                      border: `1px solid ${validation.ok ? "rgba(34,197,94,0.3)" : "rgba(229,53,53,0.3)"}`
+                    }}>
+                      {validation.ok ? "✓ Всё верно" : `⚠ ${validation.errors?.length} issue${validation.errors?.length !== 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  {!validation.ok && validation.errors?.length > 0 && (
+                    <div className="out-body">
+                      {validation.errors.slice(0, 5).map((e, i) => (
+                        <div key={i} style={{ fontSize: 11, color: "#fca5a5", marginBottom: 3 }}>· {e}</div>
+                      ))}
+                      {validation.errors.length > 5 && (
+                        <div style={{ fontSize: 11, color: "var(--muted)" }}>...ещё {validation.errors.length - 5}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {storyboard && (
                 <div className="brow">
-                  <button className="btn btn-sm" onClick={exportJson}>⬇ Проект .json</button>
-                  <button className="btn btn-sm" onClick={exportTxt}>⬇ Полный .txt</button>
-                  <button className="btn btn-sm btn-red" onClick={exportFlow}>⬇ Flow/VEO .txt</button>
+                  <button className="btn btn-sm" onClick={exportJson}>⬇ .json</button>
+                  <button className="btn btn-sm" onClick={exportTxt}>⬇ .txt</button>
+                  <button className="btn btn-sm btn-red" onClick={exportFlow}>⬇ Flow/VEO</button>
+                  <button className="btn btn-sm" onClick={copyAllVo} title="Копировать все VO для TTS">📋 Все VO</button>
                 </div>
               )}
             </div>
@@ -625,19 +699,34 @@ export default function StudioPage() {
                 <div className="sb-wrap">
                   <table className="sb-t">
                     <thead>
-                      <tr>{["Кадр", "Тайм", "Beat", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
+                      <tr>{["Кадр", "Тайм", "Beat", "Energy", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
-                      {scenes.map((s, i) => (
-                        <tr key={s.id} onClick={() => selectFrame(i)}
-                          style={{ outline: frameIdx === i ? "2px solid rgba(229,53,53,0.5)" : "none" }}>
-                          <td style={{ color: "#fca5a5", fontWeight: 800 }}>{s.id}</td>
-                          <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
-                          <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
-                          <td style={{ maxWidth: 260 }}>{String(s.vo_ru || "").slice(0, 80)}</td>
-                          <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 50)}</td>
-                        </tr>
-                      ))}
+                      {scenes.map((s, i) => {
+                        const energy = String(s.cut_energy || "").toLowerCase();
+                        const eColor = energy === "high" ? "#f87171" : energy === "low" ? "#60a5fa" : "#a78bfa";
+                        return (
+                          <tr key={s.id} onClick={() => selectFrame(i)}
+                            style={{ outline: frameIdx === i ? "2px solid rgba(229,53,53,0.5)" : "none" }}>
+                            <td style={{ color: "#fca5a5", fontWeight: 800 }}>{s.id}</td>
+                            <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
+                            <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
+                            <td>
+                              {energy && (
+                                <span style={{
+                                  fontSize: 9, fontWeight: 900, padding: "2px 6px",
+                                  borderRadius: 100, color: eColor,
+                                  border: `1px solid ${eColor}33`,
+                                  background: `${eColor}18`,
+                                  textTransform: "uppercase", letterSpacing: "0.08em"
+                                }}>{energy}</span>
+                              )}
+                            </td>
+                            <td style={{ maxWidth: 240 }}>{String(s.vo_ru || "").slice(0, 70)}</td>
+                            <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 45)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -800,6 +889,22 @@ export default function StudioPage() {
                   ) : (
                     <div style={{ color: "var(--muted)", fontSize: 13, padding: 16, textAlign: "center" }}>
                       Создай storyboard в шаге 02
+                    </div>
+                  )}
+
+                  {/* Character Lock display */}
+                  {storyboard?.character_lock?.length > 0 && (
+                    <div className="frame-card" style={{ marginTop: 8 }}>
+                      <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🎭 Character Lock</div>
+                      {storyboard.character_lock.map((c, i) => (
+                        <div key={i} className="frame-card-row">
+                          <div className="frame-card-lbl">{c.name || `P${i + 1}`}</div>
+                          <div className="frame-card-val" style={{ fontSize: 12, color: "var(--muted)" }}>
+                            {[c.age, c.clothing, c.hair, c.face_features, c.physical_condition]
+                              .filter(Boolean).join(" · ").slice(0, 160)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
