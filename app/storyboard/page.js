@@ -223,7 +223,7 @@ export default function StudioPage() {
   const [autoPrevPartAnchor, setAutoPrevPartAnchor] = useState(null);
   const [autoPartPrompt, setAutoPartPrompt] = useState("");
   const [autoVideoPack, setAutoVideoPack] = useState("");
-  const [autoStat, setAutoStat] = useState("");
+  const [autoAllPromptText, setAutoAllPromptText] = useState("");
 
   const styleProfile = useMemo(() => getStyleProfile(projectType, stylePreset), [projectType, stylePreset]);
   const scenes       = storyboard?.scenes || [];
@@ -344,8 +344,30 @@ export default function StudioPage() {
         .catch(() => {});
     }
   }, [gridColsOverride]);
+  function resetStoryboardOutputs({ keepAnchors = true } = {}) {
+    setSB(null); setValidation(null); setSbStat(""); setFrameIdx(null);
+    setGridImg(null); setGridColsOverride(null); setCroppedFrame(null);
+    setExploreP(""); setVariantImg(null); setSelVariant(null); setCropped(null);
+    setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
+    setActiveChunk(0); setContAnchor([]); setContAnchorGrid(null); setContPrompt(""); setShowCont(false);
+    setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText("");
+    if (!keepAnchors) { setAutoHeroAnchor(null); setAutoPrevPartAnchor(null); }
+  }
+
+  function handleTopicChange(value) {
+    setTopic(value);
+    if (storyboard || autoPartPrompt || autoAllPromptText) resetStoryboardOutputs({ keepAnchors: true });
+  }
+
+  function handleManualJsonChange(value) {
+    setJsonIn(value);
+    if (storyboard || autoPartPrompt || autoAllPromptText) resetStoryboardOutputs({ keepAnchors: true });
+  }
+
   async function doScript() {
     if (!topic.trim()) return;
+    resetStoryboardOutputs({ keepAnchors: true });
+    setJsonIn("");
     setSBusy(true); setSStat("gen");
     try {
       const r = await fetch("/api/chat", {
@@ -360,11 +382,14 @@ export default function StudioPage() {
   }
 
   async function doStoryboard() {
-    let src = script;
-    if (jsonIn.trim()) {
-      try { const p = JSON.parse(jsonIn); src = p.script || p.text || script; } catch {}
+    let src = script.trim();
+    // New script always wins. Manual JSON is used only when script is empty.
+    if (!src && jsonIn.trim()) {
+      try { const p = JSON.parse(jsonIn); src = String(p.script || p.text || "").trim(); } catch {}
     }
     if (!src.trim()) return;
+    setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText("");
+    setGridImg(null); setFrameIdx(null); setCroppedFrame(null);
     setSbBusy(true); setSbStat("gen"); setValidation(null);
     try {
       const r = await fetch("/api/storyboard", {
@@ -386,7 +411,9 @@ export default function StudioPage() {
         const valInfo = d.validation
           ? (d.validation.ok ? " · ✓ valid" : ` · ⚠ ${d.validation.errors?.length} issues`)
           : "";
-        setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${d.mode}${valInfo}`);
+        const modeLabel = String(d.mode || "");
+        const fallbackWarn = modeLabel.includes("fallback") ? " · ⚠ FALLBACK: API не списал баланс" : "";
+        setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${modeLabel}${fallbackWarn}${valInfo}`);
       } else {
         setSbStat("err|" + (d.error || "unknown"));
       }
@@ -507,31 +534,6 @@ export default function StudioPage() {
     selectFrame(((frameIdx ?? -1) + 1) % scenes.length);
   }
 
-  function buildAutoAnchorNote() {
-    const lines = [];
-    if (autoPartIndex === 0) {
-      if (autoHeroAnchor && autoReferenceMode !== "previousPart") {
-        lines.push("📎 В Flow/VEO прикрепи Hero anchor / style reference — он задаёт героя и визуальную ДНК для PART 1.");
-      }
-      if (!autoHeroAnchor && autoReferenceMode !== "previousPart") {
-        lines.push("⚠ Hero anchor не загружен. PART 1 будет только текстовым prompt без визуального reference.");
-      }
-      lines.push("ℹ PART 1 не может иметь Previous PART — предыдущей сетки ещё нет.");
-    } else {
-      if (autoReferenceMode !== "previousPart") {
-        lines.push(autoHeroAnchor
-          ? "📎 В Flow/VEO прикрепи Hero anchor — он держит главного героя, когда герой есть в сценарии."
-          : "⚠ Hero anchor не загружен. Герой может плавать, если он повторяется в PART.");
-      }
-      if (autoReferenceMode !== "heroOnly") {
-        lines.push(autoPrevPartAnchor
-          ? "📎 В Flow/VEO прикрепи Previous PART — это последняя готовая сетка для continuity мира/стиля."
-          : "⚠ Previous PART не загружен. Для PART 2+ continuity будет слабее: сайт не может сам взять картинку из Flow, её нужно загрузить сюда вручную.");
-      }
-    }
-    return `\n\n━━━ FLOW/VEO REFERENCE SETUP ━━━\n${lines.join("\n")}\n\nВажно: NeuroCine сейчас создаёт точный PART PROMPT. Саму картинку-сетку генерирует Flow/VEO; загруженные здесь reference не передаются в Flow автоматически.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-  }
-
   function generateAutoChainPart() {
     if (!storyboard || !autoPartScenes.length) return;
     const prompt = buildAutoChainPartPrompt({
@@ -545,29 +547,34 @@ export default function StudioPage() {
       referenceMode: autoReferenceMode
     });
 
+    // Build anchor attachment instructions
+    const anchorLines = [];
+    if (autoHeroAnchor && autoReferenceMode !== "previousPart") {
+      anchorLines.push("📎 ПРИКРЕПИ К ЗАПРОСУ: Hero anchor (reference card героя) — загружен в поле выше");
+    }
+    if (autoPrevPartAnchor && autoReferenceMode !== "heroOnly") {
+      anchorLines.push("📎 ПРИКРЕПИ К ЗАПРОСУ: Previous PART (последняя сгенерированная сетка) — загружен в поле выше");
+    }
+
+    const anchorNote = anchorLines.length
+      ? `\n\n━━━ ИНСТРУКЦИЯ ПО ЗАГРУЗКЕ ЯКОРЕЙ ━━━\nДля этого PART нужно прикрепить изображения к запросу в генераторе:\n${anchorLines.join("\n")}\n\nСайт сформировал промт — якоря нужно загрузить в Flow/Midjourney/DALL-E вручную.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+      : "";
+
     const video = buildAutoVideoPack({ storyboard, styleProfile, partScenes: autoPartScenes, chainMode: autoChainMode });
-    setAutoPartPrompt(prompt + buildAutoAnchorNote());
+    setAutoPartPrompt(prompt + anchorNote);
     setAutoVideoPack(video);
-    setAutoStat(`✓ PART ${autoPartIndex + 1} prompt готов. Скопируй его в Flow/VEO и прикрепи нужные reference-картинки там вручную.`);
-    setTimeout(() => document.getElementById("auto-chain-output")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
 
-  function generateAllAutoChainParts() {
+  function generateAllAutoChainPrompts() {
     if (!storyboard || !autoParts.length) return;
-    const all = autoParts.map((partScenes, i) => buildAutoChainPartPrompt({
-      storyboard, styleProfile,
-      partScenes,
-      partIndex: i,
-      totalScenes: scenes.length,
-      partSize: autoPartSize,
-      chainMode: autoChainMode,
-      strictLevel: autoStrictLevel,
+    const all = buildAutoChainAllParts({
+      storyboard, styleProfile, partSize: autoPartSize,
+      chainMode: autoChainMode, strictLevel: autoStrictLevel,
       referenceMode: autoReferenceMode
-    })).map((prompt, i) => `===== AUTO-CHAIN PART ${i + 1} / ${autoParts.length} =====\n\n${prompt}`).join("\n\n");
-    setAutoPartPrompt(all + "\n\n━━━ FLOW/VEO WORKFLOW ━━━\n1) Сначала сгенерируй PART 1 по первому prompt.\n2) Скачай готовую сетку PART 1.\n3) Вернись сюда, загрузи её в Previous PART.\n4) Сгенерируй/скопируй prompt для PART 2 и прикрепи Previous PART в Flow/VEO.\n5) Повторяй цепочку.\n━━━━━━━━━━━━━━━━━━━━━━");
-    setAutoVideoPack(buildAutoVideoPack({ storyboard, styleProfile, partScenes: scenes, chainMode: autoChainMode }));
-    setAutoStat(`✓ Сформированы prompts для всех PART: ${autoParts.length}. Это не картинки, а готовые команды для Flow/VEO.`);
-    setTimeout(() => document.getElementById("auto-chain-output")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }).map((p, i) => `===== AUTO-CHAIN PART ${i + 1} =====\n\n${p}`).join("\n\n");
+    setAutoAllPromptText(all);
+    setAutoPartPrompt("");
+    setAutoVideoPack("");
   }
 
   function nextAutoPart() {
@@ -611,12 +618,9 @@ export default function StudioPage() {
 
   function clearAll() {
     localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
-    setScript(""); setSB(null); setTopic(""); setProjectName("NeuroCine Project");
-    setGridImg(null); setFrameIdx(null); setGridColsOverride(null);
-    setCroppedFrame(null); setExploreP(""); setVariantImg(null);
-    setSelVariant(null); setCropped(null); setP2k(""); setFinalImg(null);
-    setVideoP(""); setAnalysis(null); setSStat(""); setSbStat(""); setJsonIn("");
-    setValidation(null); setSbMode("safe");
+    setScript(""); setTopic(""); setProjectName("NeuroCine Project"); setJsonIn("");
+    setSStat(""); setSbMode("safe");
+    resetStoryboardOutputs({ keepAnchors: false });
   }
 
   /* ── RENDER ── */
@@ -661,7 +665,7 @@ export default function StudioPage() {
               </div>
               <div className="field">
                 <label className="field-label">Тема / задание</label>
-                <textarea className="inp tall" value={topic} onChange={e => setTopic(e.target.value)}
+                <textarea className="inp tall" value={topic} onChange={e => handleTopicChange(e.target.value)}
                   placeholder="Например: Ты бы не выжил в Средневековье — вот почему" />
               </div>
               <div className="frow frow2">
@@ -735,147 +739,178 @@ export default function StudioPage() {
         </div>
       </section>
 
-      {/* ══ STEP 02B — AUTO-CHAIN STRICT ENGINE ══ */}
-      {storyboard && scenes.length > 0 && (
-        <section className="step-section">
-          <div className="step-header">
-            <div className="step-num">02B</div>
-            <div className="step-info">
-              <div className="step-title">Auto-Chain Strict Engine · Вариант 2.5</div>
-              <div className="step-desc">Новый режим рядом со старым: берёт сценарий из 01/02, но держит старый live-action стиль и строит PART-промты строго по кадрам без выдумывания</div>
-            </div>
-            <span className="step-badge">V2 · {autoParts.length} PART</span>
+      {/* ══ STEP 02B — AUTO-CHAIN STRICT ENGINE (BEFORE CLASSIC GENERATION) ══ */}
+      <section className="step-section">
+        <div className="step-header">
+          <div className="step-num">02B</div>
+          <div className="step-info">
+            <div className="step-title">Auto-Chain Strict Engine · Вариант 2.6</div>
+            <div className="step-desc">Отдельный режим ДО старого Storyboard: сначала якоря и PART, потом storyboard JSON и PART-prompts. Старый режим ниже не трогаем.</div>
           </div>
-          <div className="step-body">
-            <div className="two-col lw">
-              <div className="col">
-                <div className="frame-card">
-                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>⚙️ Режим V2</div>
-                  <div className="frow frow2">
-                    <div className="field">
-                      <label className="field-label">Логика</label>
-                      <select className="inp" value={autoChainMode} onChange={e => { setAutoChainMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value="worldHero">World + Hero — мир + главный герой</option>
-                        <option value="worldOnly">World Only — разные персонажи, один мир</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label className="field-label">Строгость</label>
-                      <select className="inp" value={autoStrictLevel} onChange={e => { setAutoStrictLevel(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value="hard">Hard — строго по сценарию</option>
-                        <option value="maximum">Maximum — буквально, без украшений</option>
-                        <option value="soft">Soft — чуть больше кинематографа</option>
-                      </select>
-                    </div>
+          <span className="step-badge">V2.6 · {autoParts.length || 0} PART</span>
+        </div>
+        <div className="step-body">
+          <div className="out-box" style={{ marginBottom: 14 }}>
+            <div className="out-head">
+              <span className="out-label">Что делает V2.6</span>
+            </div>
+            <div className="out-body" style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.55 }}>
+              1) Hero Anchor / Previous PART загружаются здесь ДО подготовки PART-prompts.<br />
+              2) Сначала нужно получить storyboard JSON из сценария — кнопка ниже использует новый сценарий. Старый ручной JSON не перебивает новый сценарий.<br />
+              3) NeuroCine создаёт строгий prompt для Flow/VEO. Саму картинку-сетку всё ещё генерирует Flow/VEO, поэтому загруженные якоря нужно прикрепить в Flow вручную вместе с prompt.
+            </div>
+          </div>
+
+          <div className="two-col lw">
+            <div className="col">
+              <div className="frame-card">
+                <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🧬 Anchors — вход до генерации</div>
+                <div className="two-col">
+                  <div className="col">
+                    {autoHeroAnchor ? (
+                      <>
+                        <div className="img-viewer"><img src={autoHeroAnchor} alt="Hero anchor" /></div>
+                        <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => { setAutoHeroAnchor(null); setAutoPartPrompt(""); setAutoAllPromptText(""); }}>Заменить hero anchor</button>
+                      </>
+                    ) : (
+                      <UploadZone label="Hero anchor" hint="Главный герой / style DNA" onFile={(url) => { setAutoHeroAnchor(url); setAutoPartPrompt(""); setAutoAllPromptText(""); }} />
+                    )}
                   </div>
-                  <div className="frow frow2">
-                    <div className="field">
-                      <label className="field-label">Reference mode</label>
-                      <select className="inp" value={autoReferenceMode} onChange={e => { setAutoReferenceMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value="heroAndPrevious">Hero anchor + previous PART</option>
-                        <option value="previousPart">Previous PART only</option>
-                        <option value="heroOnly">Hero anchor only</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label className="field-label">Кадров в PART</label>
-                      <select className="inp" value={autoPartSize} onChange={e => { setAutoPartSize(Number(e.target.value)); setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value={4}>4 кадра · 2×2</option>
-                        <option value={6}>6 кадров · 2×3</option>
-                        <option value={8}>8 кадров · 2×4</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-                    Вариант 2 ничего не удаляет и не заменяет. Он использует уже созданный storyboard как источник правды: кадр = только то, что написано в сценарии/scene JSON.
+                  <div className="col">
+                    {autoPrevPartAnchor ? (
+                      <>
+                        <div className="img-viewer"><img src={autoPrevPartAnchor} alt="Previous PART" /></div>
+                        <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => { setAutoPrevPartAnchor(null); setAutoPartPrompt(""); setAutoAllPromptText(""); }}>Заменить previous PART</button>
+                      </>
+                    ) : (
+                      <UploadZone label="Previous PART" hint="Для PART 2+ загрузи последнюю готовую сетку" onFile={(url) => { setAutoPrevPartAnchor(url); setAutoPartPrompt(""); setAutoAllPromptText(""); }} />
+                    )}
                   </div>
                 </div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
+                  PART 1 может работать только с Hero Anchor. Для PART 2+ Previous PART нужен как continuity anchor, если предыдущая сетка была сделана во Flow/VEO.
+                </div>
+              </div>
 
-                <div className="frame-card" style={{ marginTop: 10 }}>
-                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🧬 Anchors</div>
-                  <div className="two-col">
-                    <div className="col">
-                      {autoHeroAnchor ? (
-                        <>
-                          <div className="img-viewer"><img src={autoHeroAnchor} alt="Hero anchor" /></div>
-                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoHeroAnchor(null)}>Заменить</button>
-                        </>
-                      ) : (
-                        <UploadZone label="Hero anchor" hint="Reference card героя" onFile={setAutoHeroAnchor} />
-                      )}
-                    </div>
-                    <div className="col">
-                      {autoPrevPartAnchor ? (
-                        <>
-                          <div className="img-viewer"><img src={autoPrevPartAnchor} alt="Previous PART" /></div>
-                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoPrevPartAnchor(null)}>Заменить</button>
-                        </>
-                      ) : (
-                        <UploadZone label="Previous PART" hint="Для Part 2+ загрузи предыдущую сетку" onFile={setAutoPrevPartAnchor} />
-                      )}
-                    </div>
+              <div className="frame-card" style={{ marginTop: 10 }}>
+                <div className="frame-card-lbl" style={{ marginBottom: 8 }}>⚙️ Настройки V2</div>
+                <div className="frow frow2">
+                  <div className="field">
+                    <label className="field-label">Логика</label>
+                    <select className="inp" value={autoChainMode} onChange={e => { setAutoChainMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}>
+                      <option value="worldHero">World + Hero — мир + главный герой</option>
+                      <option value="worldOnly">World Only — разные персонажи, один мир</option>
+                    </select>
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
-                    Это входы для prompt-сборки. Картинки НЕ отправляются в Flow автоматически: после копирования PART prompt прикрепи те же reference в Flow/VEO вручную. Для PART 1 нужен Hero anchor; для PART 2+ нужен Previous PART.
+                  <div className="field">
+                    <label className="field-label">Строгость</label>
+                    <select className="inp" value={autoStrictLevel} onChange={e => { setAutoStrictLevel(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}>
+                      <option value="hard">Hard — строго по сценарию</option>
+                      <option value="maximum">Maximum — буквально, без украшений</option>
+                      <option value="soft">Soft — чуть больше кинематографа</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="frow frow2">
+                  <div className="field">
+                    <label className="field-label">Reference mode</label>
+                    <select className="inp" value={autoReferenceMode} onChange={e => { setAutoReferenceMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}>
+                      <option value="heroAndPrevious">Hero anchor + previous PART</option>
+                      <option value="previousPart">Previous PART only</option>
+                      <option value="heroOnly">Hero anchor only</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Кадров в PART</label>
+                    <select className="inp" value={autoPartSize} onChange={e => { setAutoPartSize(Number(e.target.value)); setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}>
+                      <option value={4}>4 кадра · 2×2</option>
+                      <option value={6}>6 кадров · 2×3</option>
+                      <option value={8}>8 кадров · 2×4</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
-              <div className="col">
-                <div className="field">
-                  <label className="field-label">PART</label>
-                  <div className="chunk-tabs">
-                    {autoParts.map((part, i) => (
-                      <button key={i}
-                        className={`chunk-tab${autoPartIndex === i ? " active" : ""}`}
-                        onClick={() => { setAutoPartIndex(i); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        PART {i + 1} · {part[0]?.id}–{part[part.length - 1]?.id}
-                      </button>
+              <div className="brow" style={{ marginTop: 10 }}>
+                <button className="btn btn-red" onClick={doStoryboard} disabled={sbBusy || (!script.trim() && !jsonIn.trim())}>
+                  {sbBusy ? "⏳ Генерация..." : storyboard ? "↻ Обновить storyboard JSON" : "▶ Создать storyboard JSON для V2"}
+                </button>
+              </div>
+              {sbStat && (() => {
+                const [type, msg] = sbStat.includes("|") ? sbStat.split("|") : ["", sbStat];
+                const isFallback = String(msg || "").includes("fallback") || String(msg || "").includes("FALLBACK");
+                return (
+                  <div className={`status-line${type === "ok" ? " ok" : type === "err" ? " err" : ""}`} style={isFallback ? { color: "#fca5a5" } : undefined}>
+                    {type === "ok" ? `✓ Storyboard JSON готов · ${msg}` : type === "err" ? `✗ ${msg}` : "⏳ Генерация..."}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="col">
+              {!storyboard ? (
+                <div className="out-box">
+                  <div className="out-head"><span className="out-label">PART prompts</span></div>
+                  <div className="out-body" style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
+                    После создания storyboard JSON здесь появятся PART 1 / PART 2 / PART 3… и кнопки для сборки prompt под сетку 2×2.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="field">
+                    <label className="field-label">PART</label>
+                    <div className="chunk-tabs">
+                      {autoParts.map((part, i) => (
+                        <button key={i}
+                          className={`chunk-tab${autoPartIndex === i ? " active" : ""}`}
+                          onClick={() => { setAutoPartIndex(i); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}>
+                          PART {i + 1} · {part[0]?.id}–{part[part.length - 1]?.id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="brow" style={{ marginBottom: 10 }}>
+                    <button className="btn btn-red" onClick={generateAutoChainPart}>▶ Создать prompt для выбранного PART</button>
+                    <button className="btn" onClick={generateAllAutoChainPrompts}>📦 Собрать prompts для всего сценария</button>
+                    <button className="btn" onClick={nextAutoPart} disabled={autoPartIndex >= autoParts.length - 1}>NEXT PART →</button>
+                  </div>
+
+                  <div className="brow" style={{ marginBottom: 10 }}>
+                    <button className="btn btn-sm" onClick={exportAutoChainTxt}>⬇ Все PART .txt</button>
+                    <button className="btn btn-sm" onClick={exportAutoChainJson}>⬇ V2 .json</button>
+                  </div>
+
+                  <div className="frame-card" style={{ marginBottom: 10 }}>
+                    <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Кадры в выбранном PART</div>
+                    {autoPartScenes.map((s, i) => (
+                      <div key={s.id || i} className="frame-card-row">
+                        <div className="frame-card-lbl">{s.id || `F${i + 1}`}</div>
+                        <div className="frame-card-val" style={{ color: "var(--muted)", fontSize: 12 }}>
+                          {(s.description_ru || s.vo_ru || s.image_prompt_en || "").slice(0, 160)}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
 
-                <div className="brow" style={{ marginBottom: 10 }}>
-                  <button className="btn btn-red" onClick={generateAutoChainPart}>▶ СОЗДАТЬ PROMPT ДЛЯ ВЫБРАННОГО PART</button>
-                  <button className="btn" onClick={generateAllAutoChainParts}>⚡ СОБРАТЬ PROMPTS ДЛЯ ВСЕГО СЦЕНАРИЯ</button>
-                  <button className="btn" onClick={nextAutoPart} disabled={autoPartIndex >= autoParts.length - 1}>NEXT PART →</button>
-                </div>
-                {autoStat && <div className="status-line ok" style={{ marginBottom: 10 }}>{autoStat}</div>}
-
-                <div className="brow" style={{ marginBottom: 10 }}>
-                  <button className="btn btn-sm" onClick={exportAutoChainTxt}>⬇ Все PART .txt</button>
-                  <button className="btn btn-sm" onClick={exportAutoChainJson}>⬇ V2 .json</button>
-                </div>
-
-                <div className="frame-card" style={{ marginBottom: 10 }}>
-                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Кадры в выбранном PART</div>
-                  {autoPartScenes.map((s, i) => (
-                    <div key={s.id || i} className="frame-card-row">
-                      <div className="frame-card-lbl">{s.id || `F${i + 1}`}</div>
-                      <div className="frame-card-val" style={{ color: "var(--muted)", fontSize: 12 }}>
-                        {(s.description_ru || s.vo_ru || s.image_prompt_en || "").slice(0, 160)}
-                      </div>
+                  {autoAllPromptText ? (
+                    <OutBox label="AUTO-CHAIN PROMPTS — ВЕСЬ СЦЕНАРИЙ" text={autoAllPromptText} />
+                  ) : autoPartPrompt ? (
+                    <>
+                      <OutBox label={`AUTO-CHAIN IMAGE PROMPT — PART ${autoPartIndex + 1}`} text={autoPartPrompt} />
+                      <OutBox label={`VIDEO PACK — PART ${autoPartIndex + 1}`} text={autoVideoPack} />
+                    </>
+                  ) : (
+                    <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                      Выбери PART и нажми «Создать prompt». Эти prompts вставляются в Flow/VEO вместе с загруженными выше anchor-картинками.
                     </div>
-                  ))}
-                </div>
-
-                <div id="auto-chain-output" />
-                {autoPartPrompt ? (
-                  <>
-                    <OutBox label={`AUTO-CHAIN IMAGE PROMPT — PART ${autoPartIndex + 1}`} text={autoPartPrompt} />
-                    <OutBox label={`VIDEO PACK — PART ${autoPartIndex + 1}`} text={autoVideoPack} />
-                  </>
-                ) : (
-                  <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                    Выбери PART и нажми «Создать prompt». Это создаёт команду для Flow/VEO, а не генерирует картинку внутри сайта.
-                  </div>
-                )}
-              </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
-        </section>
-      )}
-
+        </div>
+      </section>
 
       {/* ══ STEP 02 — STORYBOARD ══ */}
       <section className="step-section">
@@ -916,7 +951,7 @@ export default function StudioPage() {
               <div className="field">
                 <label className="field-label">Вставить JSON вручную (необязательно)</label>
                 <textarea className="inp mono" style={{ minHeight: 90 }} value={jsonIn}
-                  onChange={e => setJsonIn(e.target.value)}
+                  onChange={e => handleManualJsonChange(e.target.value)}
                   placeholder='{"script": "..."} — или оставь пустым' />
               </div>
               <button className="btn btn-red" onClick={doStoryboard}
