@@ -10,6 +10,10 @@ import {
 import {
   storyboardToProjectJson
 } from "../../engine/sceneEngine";
+import {
+  splitScenesIntoParts, buildAutoChainPartPrompt, buildAutoChainAllParts,
+  buildAutoVideoPack, buildAutoChainJson
+} from "../../engine/autoChainEngine";
 import { downloadTextFile, safeFileName } from "../../lib/download";
 
 /* ─── autosave keys ─── */
@@ -209,6 +213,17 @@ export default function StudioPage() {
   const [contPrompt, setContPrompt]     = useState("");
   const [showCont, setShowCont]         = useState(false);
 
+  /* STEP 02B — Auto-Chain Strict Engine v2 */
+  const [autoPartSize, setAutoPartSize] = useState(4);
+  const [autoPartIndex, setAutoPartIndex] = useState(0);
+  const [autoChainMode, setAutoChainMode] = useState("worldHero");
+  const [autoStrictLevel, setAutoStrictLevel] = useState("hard");
+  const [autoReferenceMode, setAutoReferenceMode] = useState("heroAndPrevious");
+  const [autoHeroAnchor, setAutoHeroAnchor] = useState(null);
+  const [autoPrevPartAnchor, setAutoPrevPartAnchor] = useState(null);
+  const [autoPartPrompt, setAutoPartPrompt] = useState("");
+  const [autoVideoPack, setAutoVideoPack] = useState("");
+
   const styleProfile = useMemo(() => getStyleProfile(projectType, stylePreset), [projectType, stylePreset]);
   const scenes       = storyboard?.scenes || [];
   const curFrame     = frameIdx !== null ? scenes[frameIdx] : null;
@@ -224,6 +239,10 @@ export default function StudioPage() {
   }, [scenes, chunkSize]);
 
   const activeChunkScenes = chunks[activeChunk] || [];
+
+  const autoParts = useMemo(() => splitScenesIntoParts(scenes, autoPartSize), [scenes, autoPartSize]);
+  const autoPartScenes = autoParts[autoPartIndex] || [];
+  const autoAllPrompts = useMemo(() => buildAutoChainAllParts({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode }), [storyboard, styleProfile, autoPartSize, autoChainMode, autoStrictLevel, autoReferenceMode]);
 
   const chunkGridPrompt = useMemo(() => {
     if (!activeChunkScenes.length) return "";
@@ -485,6 +504,32 @@ export default function StudioPage() {
   function nextFrame() {
     if (!scenes.length) return;
     selectFrame(((frameIdx ?? -1) + 1) % scenes.length);
+  }
+
+  function generateAutoChainPart() {
+    if (!storyboard || !autoPartScenes.length) return;
+    const prompt = buildAutoChainPartPrompt({ storyboard, styleProfile, partScenes: autoPartScenes, partIndex: autoPartIndex, totalScenes: scenes.length, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode });
+    const video = buildAutoVideoPack({ storyboard, styleProfile, partScenes: autoPartScenes, chainMode: autoChainMode });
+    setAutoPartPrompt(prompt);
+    setAutoVideoPack(video);
+  }
+
+  function nextAutoPart() {
+    if (!autoParts.length) return;
+    const next = Math.min(autoPartIndex + 1, autoParts.length - 1);
+    setAutoPartIndex(next);
+    setAutoPartPrompt("");
+    setAutoVideoPack("");
+  }
+
+  function exportAutoChainJson() {
+    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode });
+    downloadTextFile(JSON.stringify(obj, null, 2), safeFileName(projectName) + "-auto-chain-v2.json", "application/json;charset=utf-8");
+  }
+
+  function exportAutoChainTxt() {
+    const txt = autoAllPrompts.map((p, i) => `===== AUTO-CHAIN PART ${i + 1} =====\n\n${p}`).join("\n\n");
+    downloadTextFile(txt, safeFileName(projectName) + "-auto-chain-v2.txt");
   }
 
   /* ── EXPORT ── */
@@ -892,6 +937,145 @@ export default function StudioPage() {
           </>}
         </div>
       </section>
+
+
+      {/* ══ STEP 02B — AUTO-CHAIN STRICT ENGINE ══ */}
+      {storyboard && scenes.length > 0 && (
+        <section className="step-section">
+          <div className="step-header">
+            <div className="step-num">02B</div>
+            <div className="step-info">
+              <div className="step-title">Auto-Chain Strict Engine · Вариант 2</div>
+              <div className="step-desc">Новый режим рядом со старым: берёт сценарий из 01/02, но строит PART-промты строго по кадрам без выдумывания</div>
+            </div>
+            <span className="step-badge">V2 · {autoParts.length} PART</span>
+          </div>
+          <div className="step-body">
+            <div className="two-col lw">
+              <div className="col">
+                <div className="frame-card">
+                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>⚙️ Режим V2</div>
+                  <div className="frow frow2">
+                    <div className="field">
+                      <label className="field-label">Логика</label>
+                      <select className="inp" value={autoChainMode} onChange={e => { setAutoChainMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value="worldHero">World + Hero — мир + главный герой</option>
+                        <option value="worldOnly">World Only — разные персонажи, один мир</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label className="field-label">Строгость</label>
+                      <select className="inp" value={autoStrictLevel} onChange={e => { setAutoStrictLevel(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value="hard">Hard — строго по сценарию</option>
+                        <option value="maximum">Maximum — буквально, без украшений</option>
+                        <option value="soft">Soft — чуть больше кинематографа</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="frow frow2">
+                    <div className="field">
+                      <label className="field-label">Reference mode</label>
+                      <select className="inp" value={autoReferenceMode} onChange={e => { setAutoReferenceMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value="heroAndPrevious">Hero anchor + previous PART</option>
+                        <option value="previousPart">Previous PART only</option>
+                        <option value="heroOnly">Hero anchor only</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label className="field-label">Кадров в PART</label>
+                      <select className="inp" value={autoPartSize} onChange={e => { setAutoPartSize(Number(e.target.value)); setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value={4}>4 кадра · 2×2</option>
+                        <option value={6}>6 кадров · 2×3</option>
+                        <option value={8}>8 кадров · 2×4</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+                    Вариант 2 ничего не удаляет и не заменяет. Он использует уже созданный storyboard как источник правды: кадр = только то, что написано в сценарии/scene JSON.
+                  </div>
+                </div>
+
+                <div className="frame-card" style={{ marginTop: 10 }}>
+                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🧬 Anchors</div>
+                  <div className="two-col">
+                    <div className="col">
+                      {autoHeroAnchor ? (
+                        <>
+                          <div className="img-viewer"><img src={autoHeroAnchor} alt="Hero anchor" /></div>
+                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoHeroAnchor(null)}>Заменить hero anchor</button>
+                        </>
+                      ) : (
+                        <UploadZone label="Hero anchor" hint="Один лучший кадр героя (если герой есть)" onFile={setAutoHeroAnchor} />
+                      )}
+                    </div>
+                    <div className="col">
+                      {autoPrevPartAnchor ? (
+                        <>
+                          <div className="img-viewer"><img src={autoPrevPartAnchor} alt="Previous PART anchor" /></div>
+                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoPrevPartAnchor(null)}>Заменить previous PART</button>
+                        </>
+                      ) : (
+                        <UploadZone label="Previous PART" hint="Последняя сгенерированная сетка для continuity" onFile={setAutoPrevPartAnchor} />
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
+                    Картинки нужны как visual DNA. Промт специально запрещает копировать один и тот же кадр в каждую ячейку.
+                  </div>
+                </div>
+              </div>
+
+              <div className="col">
+                <div className="field">
+                  <label className="field-label">PART</label>
+                  <div className="chunk-tabs">
+                    {autoParts.map((part, i) => (
+                      <button key={i}
+                        className={`chunk-tab${autoPartIndex === i ? " active" : ""}`}
+                        onClick={() => { setAutoPartIndex(i); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        PART {i + 1} · {part[0]?.id}–{part[part.length - 1]?.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="brow" style={{ marginBottom: 10 }}>
+                  <button className="btn btn-red" onClick={generateAutoChainPart}>▶ СОЗДАТЬ PART PROMPT</button>
+                  <button className="btn" onClick={nextAutoPart} disabled={autoPartIndex >= autoParts.length - 1}>NEXT PART →</button>
+                </div>
+
+                <div className="brow" style={{ marginBottom: 10 }}>
+                  <button className="btn btn-sm" onClick={exportAutoChainTxt}>⬇ Все PART .txt</button>
+                  <button className="btn btn-sm" onClick={exportAutoChainJson}>⬇ V2 .json</button>
+                </div>
+
+                <div className="frame-card" style={{ marginBottom: 10 }}>
+                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Кадры в выбранном PART</div>
+                  {autoPartScenes.map((s, i) => (
+                    <div key={s.id || i} className="frame-card-row">
+                      <div className="frame-card-lbl">{s.id || `F${i + 1}`}</div>
+                      <div className="frame-card-val" style={{ color: "var(--muted)", fontSize: 12 }}>
+                        {(s.description_ru || s.vo_ru || s.image_prompt_en || "").slice(0, 160)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {autoPartPrompt ? (
+                  <>
+                    <OutBox label={`AUTO-CHAIN IMAGE PROMPT — PART ${autoPartIndex + 1}`} text={autoPartPrompt} />
+                    <OutBox label={`VIDEO PACK — PART ${autoPartIndex + 1}`} text={autoVideoPack} />
+                  </>
+                ) : (
+                  <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                    Выбери PART и нажми «Создать PART Prompt». Старый pipeline ниже остаётся без изменений.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ══ STEP 03 — PRODUCTION PIPELINE ══ */}
       <section className="step-section">
