@@ -702,6 +702,145 @@ export default function StudioPage() {
         </div>
       </section>
 
+      {/* ══ STEP 02B — AUTO-CHAIN STRICT ENGINE ══ */}
+      {storyboard && scenes.length > 0 && (
+        <section className="step-section">
+          <div className="step-header">
+            <div className="step-num">02B</div>
+            <div className="step-info">
+              <div className="step-title">Auto-Chain Strict Engine · Вариант 2.2</div>
+              <div className="step-desc">Новый режим рядом со старым: берёт сценарий из 01/02, но держит старый live-action стиль и строит PART-промты строго по кадрам без выдумывания</div>
+            </div>
+            <span className="step-badge">V2 · {autoParts.length} PART</span>
+          </div>
+          <div className="step-body">
+            <div className="two-col lw">
+              <div className="col">
+                <div className="frame-card">
+                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>⚙️ Режим V2</div>
+                  <div className="frow frow2">
+                    <div className="field">
+                      <label className="field-label">Логика</label>
+                      <select className="inp" value={autoChainMode} onChange={e => { setAutoChainMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value="worldHero">World + Hero — мир + главный герой</option>
+                        <option value="worldOnly">World Only — разные персонажи, один мир</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label className="field-label">Строгость</label>
+                      <select className="inp" value={autoStrictLevel} onChange={e => { setAutoStrictLevel(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value="hard">Hard — строго по сценарию</option>
+                        <option value="maximum">Maximum — буквально, без украшений</option>
+                        <option value="soft">Soft — чуть больше кинематографа</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="frow frow2">
+                    <div className="field">
+                      <label className="field-label">Reference mode</label>
+                      <select className="inp" value={autoReferenceMode} onChange={e => { setAutoReferenceMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value="heroAndPrevious">Hero anchor + previous PART</option>
+                        <option value="previousPart">Previous PART only</option>
+                        <option value="heroOnly">Hero anchor only</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label className="field-label">Кадров в PART</label>
+                      <select className="inp" value={autoPartSize} onChange={e => { setAutoPartSize(Number(e.target.value)); setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        <option value={4}>4 кадра · 2×2</option>
+                        <option value={6}>6 кадров · 2×3</option>
+                        <option value={8}>8 кадров · 2×4</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+                    Вариант 2 ничего не удаляет и не заменяет. Он использует уже созданный storyboard как источник правды: кадр = только то, что написано в сценарии/scene JSON.
+                  </div>
+                </div>
+
+                <div className="frame-card" style={{ marginTop: 10 }}>
+                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🧬 Anchors</div>
+                  <div className="two-col">
+                    <div className="col">
+                      {autoHeroAnchor ? (
+                        <>
+                          <div className="img-viewer"><img src={autoHeroAnchor} alt="Hero anchor" /></div>
+                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoHeroAnchor(null)}>Заменить</button>
+                        </>
+                      ) : (
+                        <UploadZone label="Hero anchor" hint="Reference card героя" onFile={setAutoHeroAnchor} />
+                      )}
+                    </div>
+                    <div className="col">
+                      {autoPrevPartAnchor ? (
+                        <>
+                          <div className="img-viewer"><img src={autoPrevPartAnchor} alt="Previous PART" /></div>
+                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoPrevPartAnchor(null)}>Заменить</button>
+                        </>
+                      ) : (
+                        <UploadZone label="Previous PART" hint="Для Part 2+ загрузи предыдущую сетку" onFile={setAutoPrevPartAnchor} />
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
+                    После генерации промта — прикрепи эти изображения в Flow / Midjourney вручную.
+                  </div>
+                </div>
+              </div>
+
+              <div className="col">
+                <div className="field">
+                  <label className="field-label">PART</label>
+                  <div className="chunk-tabs">
+                    {autoParts.map((part, i) => (
+                      <button key={i}
+                        className={`chunk-tab${autoPartIndex === i ? " active" : ""}`}
+                        onClick={() => { setAutoPartIndex(i); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
+                        PART {i + 1} · {part[0]?.id}–{part[part.length - 1]?.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="brow" style={{ marginBottom: 10 }}>
+                  <button className="btn btn-red" onClick={generateAutoChainPart}>▶ СОЗДАТЬ PART PROMPT</button>
+                  <button className="btn" onClick={nextAutoPart} disabled={autoPartIndex >= autoParts.length - 1}>NEXT PART →</button>
+                </div>
+
+                <div className="brow" style={{ marginBottom: 10 }}>
+                  <button className="btn btn-sm" onClick={exportAutoChainTxt}>⬇ Все PART .txt</button>
+                  <button className="btn btn-sm" onClick={exportAutoChainJson}>⬇ V2 .json</button>
+                </div>
+
+                <div className="frame-card" style={{ marginBottom: 10 }}>
+                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Кадры в выбранном PART</div>
+                  {autoPartScenes.map((s, i) => (
+                    <div key={s.id || i} className="frame-card-row">
+                      <div className="frame-card-lbl">{s.id || `F${i + 1}`}</div>
+                      <div className="frame-card-val" style={{ color: "var(--muted)", fontSize: 12 }}>
+                        {(s.description_ru || s.vo_ru || s.image_prompt_en || "").slice(0, 160)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {autoPartPrompt ? (
+                  <>
+                    <OutBox label={`AUTO-CHAIN IMAGE PROMPT — PART ${autoPartIndex + 1}`} text={autoPartPrompt} />
+                    <OutBox label={`VIDEO PACK — PART ${autoPartIndex + 1}`} text={autoVideoPack} />
+                  </>
+                ) : (
+                  <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                    Выбери PART и нажми «Создать PART Prompt». Старый pipeline ниже остаётся без изменений.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+
       {/* ══ STEP 02 — STORYBOARD ══ */}
       <section className="step-section">
         <div className="step-header">
@@ -914,197 +1053,53 @@ export default function StudioPage() {
             </div>
           </div>
 
+          {scenes.length > 0 && <>
+            <hr className="divider" />
+            <div className="out-box">
+              <div className="out-head">
+                <span className="out-label">Все кадры ({scenes.length}) — нажми для выбора</span>
+              </div>
+              <div className="out-body" style={{ padding: 0 }}>
+                <div className="sb-wrap">
+                  <table className="sb-t">
+                    <thead>
+                      <tr>{["Кадр", "Тайм", "Beat", "Energy", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {scenes.map((s, i) => {
+                        const energy = String(s.cut_energy || "").toLowerCase();
+                        const eColor = energy === "high" ? "#f87171" : energy === "low" ? "#60a5fa" : "#a78bfa";
+                        return (
+                          <tr key={s.id} onClick={() => selectFrame(i)}
+                            style={{ outline: frameIdx === i ? "2px solid rgba(229,53,53,0.5)" : "none" }}>
+                            <td style={{ color: "#fca5a5", fontWeight: 800 }}>{s.id}</td>
+                            <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
+                            <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
+                            <td>
+                              {energy && (
+                                <span style={{
+                                  fontSize: 9, fontWeight: 900, padding: "2px 6px",
+                                  borderRadius: 100, color: eColor,
+                                  border: `1px solid ${eColor}33`,
+                                  background: `${eColor}18`,
+                                  textTransform: "uppercase", letterSpacing: "0.08em"
+                                }}>{energy}</span>
+                              )}
+                            </td>
+                            <td style={{ maxWidth: 240 }}>{String(s.vo_ru || "").slice(0, 70)}</td>
+                            <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 45)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </>}
         </div>
       </section>
 
-
-      {/* ══ STEP 02B — AUTO-CHAIN STRICT ENGINE ══ */}
-      {storyboard && scenes.length > 0 && (
-        <section className="step-section">
-          <div className="step-header">
-            <div className="step-num">02B</div>
-            <div className="step-info">
-              <div className="step-title">Auto-Chain Strict Engine · Вариант 2.2</div>
-              <div className="step-desc">Новый режим рядом со старым: берёт сценарий из 01/02, но держит старый live-action стиль и строит PART-промты строго по кадрам без выдумывания</div>
-            </div>
-            <span className="step-badge">V2 · {autoParts.length} PART</span>
-          </div>
-          <div className="step-body">
-            <div className="two-col lw">
-              <div className="col">
-                <div className="frame-card">
-                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>⚙️ Режим V2</div>
-                  <div className="frow frow2">
-                    <div className="field">
-                      <label className="field-label">Логика</label>
-                      <select className="inp" value={autoChainMode} onChange={e => { setAutoChainMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value="worldHero">World + Hero — мир + главный герой</option>
-                        <option value="worldOnly">World Only — разные персонажи, один мир</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label className="field-label">Строгость</label>
-                      <select className="inp" value={autoStrictLevel} onChange={e => { setAutoStrictLevel(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value="hard">Hard — строго по сценарию</option>
-                        <option value="maximum">Maximum — буквально, без украшений</option>
-                        <option value="soft">Soft — чуть больше кинематографа</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="frow frow2">
-                    <div className="field">
-                      <label className="field-label">Reference mode</label>
-                      <select className="inp" value={autoReferenceMode} onChange={e => { setAutoReferenceMode(e.target.value); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value="heroAndPrevious">Hero anchor + previous PART</option>
-                        <option value="previousPart">Previous PART only</option>
-                        <option value="heroOnly">Hero anchor only</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label className="field-label">Кадров в PART</label>
-                      <select className="inp" value={autoPartSize} onChange={e => { setAutoPartSize(Number(e.target.value)); setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        <option value={4}>4 кадра · 2×2</option>
-                        <option value={6}>6 кадров · 2×3</option>
-                        <option value={8}>8 кадров · 2×4</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-                    Вариант 2 ничего не удаляет и не заменяет. Он использует уже созданный storyboard как источник правды: кадр = только то, что написано в сценарии/scene JSON.
-                  </div>
-                </div>
-
-                <div className="frame-card" style={{ marginTop: 10 }}>
-                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🧬 Anchors</div>
-                  <div className="two-col">
-                    <div className="col">
-                      {autoHeroAnchor ? (
-                        <>
-                          <div className="img-viewer"><img src={autoHeroAnchor} alt="Hero anchor" /></div>
-                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoHeroAnchor(null)}>Заменить</button>
-                        </>
-                      ) : (
-                        <UploadZone label="Hero anchor" hint="Reference card героя" onFile={setAutoHeroAnchor} />
-                      )}
-                    </div>
-                    <div className="col">
-                      {autoPrevPartAnchor ? (
-                        <>
-                          <div className="img-viewer"><img src={autoPrevPartAnchor} alt="Previous PART" /></div>
-                          <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setAutoPrevPartAnchor(null)}>Заменить</button>
-                        </>
-                      ) : (
-                        <UploadZone label="Previous PART" hint="Для Part 2+ загрузи предыдущую сетку" onFile={setAutoPrevPartAnchor} />
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
-                    После генерации промта — прикрепи эти изображения в Flow / Midjourney вручную.
-                  </div>
-                </div>
-              </div>
-
-              <div className="col">
-                <div className="field">
-                  <label className="field-label">PART</label>
-                  <div className="chunk-tabs">
-                    {autoParts.map((part, i) => (
-                      <button key={i}
-                        className={`chunk-tab${autoPartIndex === i ? " active" : ""}`}
-                        onClick={() => { setAutoPartIndex(i); setAutoPartPrompt(""); setAutoVideoPack(""); }}>
-                        PART {i + 1} · {part[0]?.id}–{part[part.length - 1]?.id}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="brow" style={{ marginBottom: 10 }}>
-                  <button className="btn btn-red" onClick={generateAutoChainPart}>▶ СОЗДАТЬ PART PROMPT</button>
-                  <button className="btn" onClick={nextAutoPart} disabled={autoPartIndex >= autoParts.length - 1}>NEXT PART →</button>
-                </div>
-
-                <div className="brow" style={{ marginBottom: 10 }}>
-                  <button className="btn btn-sm" onClick={exportAutoChainTxt}>⬇ Все PART .txt</button>
-                  <button className="btn btn-sm" onClick={exportAutoChainJson}>⬇ V2 .json</button>
-                </div>
-
-                <div className="frame-card" style={{ marginBottom: 10 }}>
-                  <div className="frame-card-lbl" style={{ marginBottom: 8 }}>Кадры в выбранном PART</div>
-                  {autoPartScenes.map((s, i) => (
-                    <div key={s.id || i} className="frame-card-row">
-                      <div className="frame-card-lbl">{s.id || `F${i + 1}`}</div>
-                      <div className="frame-card-val" style={{ color: "var(--muted)", fontSize: 12 }}>
-                        {(s.description_ru || s.vo_ru || s.image_prompt_en || "").slice(0, 160)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {autoPartPrompt ? (
-                  <>
-                    <OutBox label={`AUTO-CHAIN IMAGE PROMPT — PART ${autoPartIndex + 1}`} text={autoPartPrompt} />
-                    <OutBox label={`VIDEO PACK — PART ${autoPartIndex + 1}`} text={autoVideoPack} />
-                  </>
-                ) : (
-                  <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                    Выбери PART и нажми «Создать PART Prompt». Старый pipeline ниже остаётся без изменений.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ══ FRAMES TABLE — между 02B и 03 ══ */}
-      {scenes.length > 0 && (
-        <section className="step-section">
-          <div className="step-header">
-            <div className="step-num" style={{ fontSize: 28 }}>📋</div>
-            <div className="step-info">
-              <div className="step-title">Все кадры</div>
-              <div className="step-desc">Нажми на кадр для выбора в пайплайне (шаг 03)</div>
-            </div>
-            <span className="step-badge">{scenes.length} кадров</span>
-          </div>
-          <div className="step-body" style={{ padding: 0 }}>
-            <div className="sb-wrap">
-              <table className="sb-t">
-                <thead>
-                  <tr>{["Кадр", "Тайм", "Beat", "Energy", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {scenes.map((s, i) => {
-                    const energy = String(s.cut_energy || "").toLowerCase();
-                    const eColor = energy === "high" ? "#f87171" : energy === "low" ? "#60a5fa" : "#a78bfa";
-                    return (
-                      <tr key={s.id} onClick={() => selectFrame(i)}
-                        style={{ outline: frameIdx === i ? "2px solid rgba(229,53,53,0.5)" : "none" }}>
-                        <td style={{ color: "#fca5a5", fontWeight: 800 }}>{s.id}</td>
-                        <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
-                        <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
-                        <td>
-                          {energy && (
-                            <span style={{
-                              fontSize: 9, fontWeight: 900, padding: "2px 6px",
-                              borderRadius: 100, color: eColor,
-                              border: `1px solid ${eColor}33`,
-                              background: `${eColor}18`,
-                              textTransform: "uppercase", letterSpacing: "0.08em"
-                            }}>{energy}</span>
-                          )}
-                        </td>
-                        <td style={{ maxWidth: 240 }}>{String(s.vo_ru || "").slice(0, 70)}</td>
-                        <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 45)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ══ STEP 03 — PRODUCTION PIPELINE ══ */}
       <section className="step-section">
