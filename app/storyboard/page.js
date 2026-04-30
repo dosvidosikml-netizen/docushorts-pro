@@ -64,7 +64,25 @@ function readAsDataUrl(file) {
   });
 }
 
-/* crop one quadrant (A/B/C/D) from a 2×2 image via canvas */
+/* crop one frame from a storyboard grid by index */
+function cropGridFrame(dataUrl, frameIndex, totalFrames, cols) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const rows = Math.ceil(totalFrames / cols);
+      const cellW = Math.floor(img.width / cols);
+      const cellH = Math.floor(img.height / rows);
+      const col = frameIndex % cols;
+      const row = Math.floor(frameIndex / cols);
+      const cv = document.createElement("canvas");
+      cv.width = cellW; cv.height = cellH;
+      cv.getContext("2d").drawImage(img, col * cellW, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
+      res(cv.toDataURL("image/jpeg", 0.95));
+    };
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
+}
 function cropQuadrant(dataUrl, variant) {
   return new Promise((res, rej) => {
     const img = new Image();
@@ -160,6 +178,8 @@ export default function StudioPage() {
 
   /* STEP 3 — Pipeline */
   const [gridImg, setGridImg]           = useState(null);
+  const [gridColsOverride, setGridColsOverride] = useState(null);
+  const [croppedFrame, setCroppedFrame] = useState(null); // cropped single frame from grid
   const [frameIdx, setFrameIdx]         = useState(null);
   const [exploreP, setExploreP]         = useState("");
   const [expBusy, setExpBusy]           = useState(false);
@@ -295,7 +315,15 @@ export default function StudioPage() {
     });
   }, [hydrated, gridImg, variantImg, croppedVariant, finalImg]);
 
-  /* ── API CALLS ── */
+  /* Re-crop if cols override changes while frame is selected */
+  useEffect(() => {
+    if (gridImg && frameIdx !== null && scenes.length > 0) {
+      const cols = gridColsOverride ?? gridCols(scenes.length);
+      cropGridFrame(gridImg, frameIdx, scenes.length, cols)
+        .then(url => setCroppedFrame(url))
+        .catch(() => {});
+    }
+  }, [gridColsOverride]);
   async function doScript() {
     if (!topic.trim()) return;
     setSBusy(true); setSStat("gen");
@@ -442,8 +470,16 @@ export default function StudioPage() {
   function selectFrame(idx) {
     setFrameIdx(idx);
     setShowFrameRu(false);
+    setCroppedFrame(null);
     setExploreP(""); setVariantImg(null); setSelVariant(null);
     setCropped(null); setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
+    // Auto-crop the selected frame from the grid image
+    if (gridImg && scenes.length > 0) {
+      const cols = gridColsOverride ?? gridCols(scenes.length);
+      cropGridFrame(gridImg, idx, scenes.length, cols)
+        .then(url => setCroppedFrame(url))
+        .catch(() => {});
+    }
   }
 
   function nextFrame() {
@@ -475,7 +511,8 @@ export default function StudioPage() {
   function clearAll() {
     localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
     setScript(""); setSB(null); setTopic(""); setProjectName("NeuroCine Project");
-    setGridImg(null); setFrameIdx(null); setExploreP(""); setVariantImg(null);
+    setGridImg(null); setFrameIdx(null); setGridColsOverride(null);
+    setCroppedFrame(null); setExploreP(""); setVariantImg(null);
     setSelVariant(null); setCropped(null); setP2k(""); setFinalImg(null);
     setVideoP(""); setAnalysis(null); setSStat(""); setSbStat(""); setJsonIn("");
     setValidation(null); setSbMode("safe");
@@ -882,9 +919,28 @@ export default function StudioPage() {
                 <div className="col">
                   {gridImg ? (
                     <>
+                      {/* Columns selector — user tells us how many cols the image actually has */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 10, fontWeight: 900, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.15em" }}>
+                          Колонок в сетке:
+                        </span>
+                        {[2, 3, 4].map(c => {
+                          const active = (gridColsOverride ?? gridCols(scenes.length)) === c;
+                          const isAuto = gridColsOverride === null && gridCols(scenes.length) === c;
+                          return (
+                            <button key={c}
+                              className={`btn btn-xs${active ? " btn-red" : ""}`}
+                              onClick={() => setGridColsOverride(isAuto ? null : c)}
+                            >
+                              {c}{isAuto ? " (авто)" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+
                       {/* Clickable grid overlay */}
                       {scenes.length > 0 ? (() => {
-                        const cols = gridCols(scenes.length);
+                        const cols = gridColsOverride ?? gridCols(scenes.length);
                         const rows = Math.ceil(scenes.length / cols);
                         return (
                           <div style={{ position: "relative", borderRadius: 12, overflow: "hidden" }}>
@@ -898,30 +954,31 @@ export default function StudioPage() {
                               {scenes.map((s, i) => (
                                 <div key={s.id}
                                   onClick={() => selectFrame(i)}
-                                  title={s.id}
+                                  title={`${s.id} — нажми для выбора`}
                                   style={{
                                     cursor: "pointer",
                                     border: frameIdx === i
                                       ? "2px solid var(--red)"
-                                      : "1px solid rgba(255,255,255,0.06)",
+                                      : "1px solid rgba(255,255,255,0.08)",
                                     background: frameIdx === i
-                                      ? "rgba(229,53,53,0.12)"
+                                      ? "rgba(229,53,53,0.15)"
                                       : "transparent",
                                     display: "flex",
                                     alignItems: "flex-start",
                                     justifyContent: "flex-start",
-                                    padding: 5,
-                                    transition: "all 0.12s"
+                                    padding: 4,
+                                    transition: "all 0.1s",
+                                    boxSizing: "border-box"
                                   }}
                                   onMouseEnter={e => { if (frameIdx !== i) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
                                   onMouseLeave={e => { if (frameIdx !== i) e.currentTarget.style.background = "transparent"; }}
                                 >
                                   <span style={{
                                     fontSize: 9, fontWeight: 900,
-                                    background: frameIdx === i ? "var(--red)" : "rgba(0,0,0,0.65)",
+                                    background: frameIdx === i ? "var(--red)" : "rgba(0,0,0,0.7)",
                                     color: "#fff", borderRadius: 4,
                                     padding: "2px 5px", lineHeight: 1.3,
-                                    pointerEvents: "none"
+                                    pointerEvents: "none", flexShrink: 0
                                   }}>
                                     {String(i + 1).padStart(2, "0")}
                                   </span>
@@ -934,7 +991,7 @@ export default function StudioPage() {
                         <div className="img-viewer"><img src={gridImg} alt="Storyboard grid" /></div>
                       )}
                       <button className="btn btn-sm" style={{ marginTop: 8 }}
-                        onClick={() => { setGridImg(null); setFrameIdx(null); }}>Заменить</button>
+                        onClick={() => { setGridImg(null); setFrameIdx(null); setGridColsOverride(null); }}>Заменить</button>
                     </>
                   ) : (
                     <UploadZone label="Загрузи storyboard сетку" hint="Сетка кадров всего сценария" onFile={setGridImg} />
@@ -1009,6 +1066,29 @@ export default function StudioPage() {
                   ) : (
                     <div style={{ color: "var(--muted)", fontSize: 13, padding: 16, textAlign: "center" }}>
                       Создай storyboard в шаге 02
+                    </div>
+                  )}
+
+                  {/* Cropped frame preview + download */}
+                  {croppedFrame && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 6 }}>
+                        Кадр {curFrame?.id} — кроп
+                      </div>
+                      <div className="img-viewer" style={{ marginBottom: 8 }}>
+                        <img src={croppedFrame} alt={`Cropped ${curFrame?.id}`} />
+                      </div>
+                      <button
+                        className="btn btn-sm btn-red btn-full"
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = croppedFrame;
+                          a.download = `${curFrame?.id || "frame"}_crop.jpg`;
+                          a.click();
+                        }}
+                      >
+                        ⬇ Скачать для апскейла
+                      </button>
                     </div>
                   )}
 
