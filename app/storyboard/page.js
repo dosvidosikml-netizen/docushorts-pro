@@ -223,6 +223,7 @@ export default function StudioPage() {
   const [autoPrevPartAnchor, setAutoPrevPartAnchor] = useState(null);
   const [autoPartPrompt, setAutoPartPrompt] = useState("");
   const [autoVideoPack, setAutoVideoPack] = useState("");
+  const [autoStat, setAutoStat] = useState("");
 
   const styleProfile = useMemo(() => getStyleProfile(projectType, stylePreset), [projectType, stylePreset]);
   const scenes       = storyboard?.scenes || [];
@@ -506,6 +507,31 @@ export default function StudioPage() {
     selectFrame(((frameIdx ?? -1) + 1) % scenes.length);
   }
 
+  function buildAutoAnchorNote() {
+    const lines = [];
+    if (autoPartIndex === 0) {
+      if (autoHeroAnchor && autoReferenceMode !== "previousPart") {
+        lines.push("📎 В Flow/VEO прикрепи Hero anchor / style reference — он задаёт героя и визуальную ДНК для PART 1.");
+      }
+      if (!autoHeroAnchor && autoReferenceMode !== "previousPart") {
+        lines.push("⚠ Hero anchor не загружен. PART 1 будет только текстовым prompt без визуального reference.");
+      }
+      lines.push("ℹ PART 1 не может иметь Previous PART — предыдущей сетки ещё нет.");
+    } else {
+      if (autoReferenceMode !== "previousPart") {
+        lines.push(autoHeroAnchor
+          ? "📎 В Flow/VEO прикрепи Hero anchor — он держит главного героя, когда герой есть в сценарии."
+          : "⚠ Hero anchor не загружен. Герой может плавать, если он повторяется в PART.");
+      }
+      if (autoReferenceMode !== "heroOnly") {
+        lines.push(autoPrevPartAnchor
+          ? "📎 В Flow/VEO прикрепи Previous PART — это последняя готовая сетка для continuity мира/стиля."
+          : "⚠ Previous PART не загружен. Для PART 2+ continuity будет слабее: сайт не может сам взять картинку из Flow, её нужно загрузить сюда вручную.");
+      }
+    }
+    return `\n\n━━━ FLOW/VEO REFERENCE SETUP ━━━\n${lines.join("\n")}\n\nВажно: NeuroCine сейчас создаёт точный PART PROMPT. Саму картинку-сетку генерирует Flow/VEO; загруженные здесь reference не передаются в Flow автоматически.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+  }
+
   function generateAutoChainPart() {
     if (!storyboard || !autoPartScenes.length) return;
     const prompt = buildAutoChainPartPrompt({
@@ -519,22 +545,29 @@ export default function StudioPage() {
       referenceMode: autoReferenceMode
     });
 
-    // Build anchor attachment instructions
-    const anchorLines = [];
-    if (autoHeroAnchor && autoReferenceMode !== "previousPart") {
-      anchorLines.push("📎 ПРИКРЕПИ К ЗАПРОСУ: Hero anchor (reference card героя) — загружен в поле выше");
-    }
-    if (autoPrevPartAnchor && autoReferenceMode !== "heroOnly") {
-      anchorLines.push("📎 ПРИКРЕПИ К ЗАПРОСУ: Previous PART (последняя сгенерированная сетка) — загружен в поле выше");
-    }
-
-    const anchorNote = anchorLines.length
-      ? `\n\n━━━ ИНСТРУКЦИЯ ПО ЗАГРУЗКЕ ЯКОРЕЙ ━━━\nДля этого PART нужно прикрепить изображения к запросу в генераторе:\n${anchorLines.join("\n")}\n\nСайт сформировал промт — якоря нужно загрузить в Flow/Midjourney/DALL-E вручную.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-      : "";
-
     const video = buildAutoVideoPack({ storyboard, styleProfile, partScenes: autoPartScenes, chainMode: autoChainMode });
-    setAutoPartPrompt(prompt + anchorNote);
+    setAutoPartPrompt(prompt + buildAutoAnchorNote());
     setAutoVideoPack(video);
+    setAutoStat(`✓ PART ${autoPartIndex + 1} prompt готов. Скопируй его в Flow/VEO и прикрепи нужные reference-картинки там вручную.`);
+    setTimeout(() => document.getElementById("auto-chain-output")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
+
+  function generateAllAutoChainParts() {
+    if (!storyboard || !autoParts.length) return;
+    const all = autoParts.map((partScenes, i) => buildAutoChainPartPrompt({
+      storyboard, styleProfile,
+      partScenes,
+      partIndex: i,
+      totalScenes: scenes.length,
+      partSize: autoPartSize,
+      chainMode: autoChainMode,
+      strictLevel: autoStrictLevel,
+      referenceMode: autoReferenceMode
+    })).map((prompt, i) => `===== AUTO-CHAIN PART ${i + 1} / ${autoParts.length} =====\n\n${prompt}`).join("\n\n");
+    setAutoPartPrompt(all + "\n\n━━━ FLOW/VEO WORKFLOW ━━━\n1) Сначала сгенерируй PART 1 по первому prompt.\n2) Скачай готовую сетку PART 1.\n3) Вернись сюда, загрузи её в Previous PART.\n4) Сгенерируй/скопируй prompt для PART 2 и прикрепи Previous PART в Flow/VEO.\n5) Повторяй цепочку.\n━━━━━━━━━━━━━━━━━━━━━━");
+    setAutoVideoPack(buildAutoVideoPack({ storyboard, styleProfile, partScenes: scenes, chainMode: autoChainMode }));
+    setAutoStat(`✓ Сформированы prompts для всех PART: ${autoParts.length}. Это не картинки, а готовые команды для Flow/VEO.`);
+    setTimeout(() => document.getElementById("auto-chain-output")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
 
   function nextAutoPart() {
@@ -708,7 +741,7 @@ export default function StudioPage() {
           <div className="step-header">
             <div className="step-num">02B</div>
             <div className="step-info">
-              <div className="step-title">Auto-Chain Strict Engine · Вариант 2.2</div>
+              <div className="step-title">Auto-Chain Strict Engine · Вариант 2.5</div>
               <div className="step-desc">Новый режим рядом со старым: берёт сценарий из 01/02, но держит старый live-action стиль и строит PART-промты строго по кадрам без выдумывания</div>
             </div>
             <span className="step-badge">V2 · {autoParts.length} PART</span>
@@ -783,7 +816,7 @@ export default function StudioPage() {
                     </div>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
-                    После генерации промта — прикрепи эти изображения в Flow / Midjourney вручную.
+                    Это входы для prompt-сборки. Картинки НЕ отправляются в Flow автоматически: после копирования PART prompt прикрепи те же reference в Flow/VEO вручную. Для PART 1 нужен Hero anchor; для PART 2+ нужен Previous PART.
                   </div>
                 </div>
               </div>
@@ -803,9 +836,11 @@ export default function StudioPage() {
                 </div>
 
                 <div className="brow" style={{ marginBottom: 10 }}>
-                  <button className="btn btn-red" onClick={generateAutoChainPart}>▶ СОЗДАТЬ PART PROMPT</button>
+                  <button className="btn btn-red" onClick={generateAutoChainPart}>▶ СОЗДАТЬ PROMPT ДЛЯ ВЫБРАННОГО PART</button>
+                  <button className="btn" onClick={generateAllAutoChainParts}>⚡ СОБРАТЬ PROMPTS ДЛЯ ВСЕГО СЦЕНАРИЯ</button>
                   <button className="btn" onClick={nextAutoPart} disabled={autoPartIndex >= autoParts.length - 1}>NEXT PART →</button>
                 </div>
+                {autoStat && <div className="status-line ok" style={{ marginBottom: 10 }}>{autoStat}</div>}
 
                 <div className="brow" style={{ marginBottom: 10 }}>
                   <button className="btn btn-sm" onClick={exportAutoChainTxt}>⬇ Все PART .txt</button>
@@ -824,6 +859,7 @@ export default function StudioPage() {
                   ))}
                 </div>
 
+                <div id="auto-chain-output" />
                 {autoPartPrompt ? (
                   <>
                     <OutBox label={`AUTO-CHAIN IMAGE PROMPT — PART ${autoPartIndex + 1}`} text={autoPartPrompt} />
@@ -831,7 +867,7 @@ export default function StudioPage() {
                   </>
                 ) : (
                   <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                    Выбери PART и нажми «Создать PART Prompt». Старый pipeline ниже остаётся без изменений.
+                    Выбери PART и нажми «Создать prompt». Это создаёт команду для Flow/VEO, а не генерирует картинку внутри сайта.
                   </div>
                 )}
               </div>
