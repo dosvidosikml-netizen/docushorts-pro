@@ -914,50 +914,6 @@ export default function StudioPage() {
             </div>
           </div>
 
-          {scenes.length > 0 && <>
-            <hr className="divider" />
-            <div className="out-box">
-              <div className="out-head">
-                <span className="out-label">Все кадры ({scenes.length}) — нажми для выбора</span>
-              </div>
-              <div className="out-body" style={{ padding: 0 }}>
-                <div className="sb-wrap">
-                  <table className="sb-t">
-                    <thead>
-                      <tr>{["Кадр", "Тайм", "Beat", "Energy", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {scenes.map((s, i) => {
-                        const energy = String(s.cut_energy || "").toLowerCase();
-                        const eColor = energy === "high" ? "#f87171" : energy === "low" ? "#60a5fa" : "#a78bfa";
-                        return (
-                          <tr key={s.id} onClick={() => selectFrame(i)}
-                            style={{ outline: frameIdx === i ? "2px solid rgba(229,53,53,0.5)" : "none" }}>
-                            <td style={{ color: "#fca5a5", fontWeight: 800 }}>{s.id}</td>
-                            <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
-                            <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
-                            <td>
-                              {energy && (
-                                <span style={{
-                                  fontSize: 9, fontWeight: 900, padding: "2px 6px",
-                                  borderRadius: 100, color: eColor,
-                                  border: `1px solid ${eColor}33`,
-                                  background: `${eColor}18`,
-                                  textTransform: "uppercase", letterSpacing: "0.08em"
-                                }}>{energy}</span>
-                              )}
-                            </td>
-                            <td style={{ maxWidth: 240 }}>{String(s.vo_ru || "").slice(0, 70)}</td>
-                            <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 45)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </>}
         </div>
       </section>
 
@@ -1095,6 +1051,56 @@ export default function StudioPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ══ FRAMES TABLE — между 02B и 03 ══ */}
+      {scenes.length > 0 && (
+        <section className="step-section">
+          <div className="step-header">
+            <div className="step-num" style={{ fontSize: 28 }}>📋</div>
+            <div className="step-info">
+              <div className="step-title">Все кадры</div>
+              <div className="step-desc">Нажми на кадр для выбора в пайплайне (шаг 03)</div>
+            </div>
+            <span className="step-badge">{scenes.length} кадров</span>
+          </div>
+          <div className="step-body" style={{ padding: 0 }}>
+            <div className="sb-wrap">
+              <table className="sb-t">
+                <thead>
+                  <tr>{["Кадр", "Тайм", "Beat", "Energy", "VO", "SFX"].map(h => <th key={h}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {scenes.map((s, i) => {
+                    const energy = String(s.cut_energy || "").toLowerCase();
+                    const eColor = energy === "high" ? "#f87171" : energy === "low" ? "#60a5fa" : "#a78bfa";
+                    return (
+                      <tr key={s.id} onClick={() => selectFrame(i)}
+                        style={{ outline: frameIdx === i ? "2px solid rgba(229,53,53,0.5)" : "none" }}>
+                        <td style={{ color: "#fca5a5", fontWeight: 800 }}>{s.id}</td>
+                        <td style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{s.start}–{s.end ?? "?"}s</td>
+                        <td style={{ color: "var(--muted)" }}>{s.beat_type}</td>
+                        <td>
+                          {energy && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 900, padding: "2px 6px",
+                              borderRadius: 100, color: eColor,
+                              border: `1px solid ${eColor}33`,
+                              background: `${eColor}18`,
+                              textTransform: "uppercase", letterSpacing: "0.08em"
+                            }}>{energy}</span>
+                          )}
+                        </td>
+                        <td style={{ maxWidth: 240 }}>{String(s.vo_ru || "").slice(0, 70)}</td>
+                        <td style={{ color: "var(--muted)" }}>{String(s.sfx || "").slice(0, 45)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
