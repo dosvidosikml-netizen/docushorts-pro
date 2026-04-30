@@ -182,7 +182,7 @@ export default function StudioPage() {
   const [showFrameRu, setShowFrameRu]   = useState(false);
 
   // Chunk / continuation state
-  const [chunkSize, setChunkSize]       = useState(5);
+  const [chunkSize, setChunkSize]       = useState(4);
   const [activeChunk, setActiveChunk]   = useState(0);
   const [contAnchorImgs, setContAnchor] = useState([]); // [{scene, croppedDataUrl}]
   const [contAnchorGrid, setContAnchorGrid] = useState(null); // uploaded prev grid img
@@ -697,16 +697,16 @@ export default function StudioPage() {
                       <div className="out-head">
                         <span className="out-label">Режим сетки</span>
                         <div className="brow">
+                          {[4, 5, 6].filter(s => s < scenes.length).map(s => (
+                            <button key={s}
+                              className={`btn btn-xs${chunkSize === s ? " btn-red" : ""}`}
+                              onClick={() => { setChunkSize(s); setActiveChunk(0); }}
+                            >по {s} (2×2{s === 6 ? "/3×2" : ""})</button>
+                          ))}
                           <button
                             className={`btn btn-xs${chunkSize >= scenes.length ? " btn-red" : ""}`}
                             onClick={() => { setChunkSize(scenes.length); setActiveChunk(0); }}
                           >Всё ({scenes.length})</button>
-                          {[5, 4, 6].filter(s => s < scenes.length).map(s => (
-                            <button key={s}
-                              className={`btn btn-xs${chunkSize === s && chunkSize < scenes.length ? " btn-red" : ""}`}
-                              onClick={() => { setChunkSize(s); setActiveChunk(0); }}
-                            >по {s}</button>
-                          ))}
                         </div>
                       </div>
                       {chunkSize < scenes.length && (
