@@ -22,8 +22,55 @@ function frameLabel(scene, index = 0) {
   return `F${String(frameNumber(scene, index)).padStart(2, "0")}`;
 }
 
-function sceneText(scene = {}) {
-  return stripPromptPrefix(scene.image_prompt_en || scene.description_en || scene.description_ru || scene.vo_ru || "");
+// ── Appearance stripping ─────────────────────────────────────────────────────
+// Action triggers — слова с которых начинается ДЕЙСТВИЕ персонажа
+// (всё до них = внешность, всё после = действие + локация)
+const ACTION_TRIGGERS = [
+  "lying ", "kneeling ", "standing ", "sitting ", "running ", "walking ",
+  "crouching ", "reaching ", "carrying ", "bent ", "dropping ", "seated ",
+  "enters ", "looks on", "turns ", "moves ", "grips ", "freezes ",
+  "recoils ", "hunched ", "staring ", "pushing ", "pulling ", "dragging ",
+  "watching ", "in final ", "stands ", "facing ", "crouched ", "collapses ",
+  "appear ", "appears ", "reaches "
+];
+
+function stripCharacterAppearance(text, characterLock = []) {
+  if (!characterLock.length || !text) return text;
+  let result = text;
+  for (const char of characterLock) {
+    const name = cleanText(char.name || "");
+    if (!name) continue;
+    const nameIdx = result.indexOf(name);
+    if (nameIdx === -1) continue;
+
+    const afterName = result.slice(nameIdx + name.length);
+    let actionStart = -1;
+    for (const trigger of ACTION_TRIGGERS) {
+      const idx = afterName.toLowerCase().indexOf(trigger);
+      if (idx !== -1 && (actionStart === -1 || idx < actionStart)) {
+        actionStart = idx;
+      }
+    }
+    // Только если нашли действие недалеко (не > 500 символов — защита от ложных срабатываний)
+    if (actionStart > 0 && actionStart < 500) {
+      result =
+        result.slice(0, nameIdx + name.length) +
+        " " +
+        afterName.slice(actionStart).trim();
+    }
+  }
+  return cleanText(result);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function sceneText(scene = {}, { characterLock = [], appearanceMode = "full" } = {}) {
+  const raw = stripPromptPrefix(
+    scene.image_prompt_en || scene.description_en || scene.description_ru || scene.vo_ru || ""
+  );
+  if (appearanceMode === "minimal" && characterLock.length) {
+    return stripCharacterAppearance(raw, characterLock);
+  }
+  return raw;
 }
 
 function sceneMotion(scene = {}) {
@@ -118,12 +165,18 @@ function frameRoleHint(localIdx = 0, chainMode = "worldHero") {
   return roles[localIdx % roles.length];
 }
 
-export function buildAutoChainPartPrompt({ storyboard, styleProfile, partScenes = [], partIndex = 0, totalScenes = 0, partSize = 4, chainMode = "worldHero", strictLevel = "hard", referenceMode = "previousPart" } = {}) {
+export function buildAutoChainPartPrompt({
+  storyboard, styleProfile, partScenes = [], partIndex = 0, totalScenes = 0,
+  partSize = 4, chainMode = "worldHero", strictLevel = "hard",
+  referenceMode = "previousPart", appearanceMode = "full"
+} = {}) {
   if (!partScenes.length) return "";
+  const characterLock = storyboard?.character_lock || [];
   const start = frameNumber(partScenes[0], partIndex * partSize);
-  const end = frameNumber(partScenes[partScenes.length - 1], partIndex * partSize + partScenes.length - 1);
-  const rows = Math.ceil(partScenes.length / 2);
+  const end   = frameNumber(partScenes[partScenes.length - 1], partIndex * partSize + partScenes.length - 1);
+  const rows  = Math.ceil(partScenes.length / 2);
   const isFirstPart = partIndex === 0;
+
   const refText = isFirstPart
     ? (referenceMode === "previousPart"
         ? "PART 1 has no previous PART. If a previous reference is uploaded, use it only as loose world/style DNA, not as story continuity."
@@ -134,13 +187,19 @@ export function buildAutoChainPartPrompt({ storyboard, styleProfile, partScenes 
         ? "Use the uploaded HERO ANCHOR image only for recurring hero identity and style DNA. Do not force the hero into frames where the scenario does not include him/her."
         : "Use the uploaded PREVIOUS PART image as visual reference for world/style continuity. Do not copy the same composition.";
 
+  // Подсказка для режима minimal
+  const appearanceNote = appearanceMode === "minimal"
+    ? "\nAPPEARANCE MODE — ANCHOR PRIORITY:\nCharacter physical appearance is intentionally omitted from frame descriptions. Use the uploaded HERO ANCHOR image as the sole source of truth for character faces, proportions and visual identity. Do NOT invent a new face based on text.\n"
+    : "";
+
   const frameBlocks = partScenes.map((s, localIdx) => {
     const globalIdx = partIndex * partSize + localIdx;
-    const label = frameLabel(s, globalIdx);
+    const label     = frameLabel(s, globalIdx);
+    const sceneTxt  = sceneText(s, { characterLock, appearanceMode });
     return `${label}:
 ${frameRoleHint(localIdx, chainMode)}
 MANDATORY VISUAL PREFIX: camera-photographed live-action image, NOT illustration, NOT 2D art, NOT painting, NOT concept art.
-SCENARIO INPUT (STRICT): ${sceneText(s)}
+SCENARIO INPUT (STRICT): ${sceneTxt}
 VO MEANING: ${cleanText(s.vo_ru || "")}
 SHOT TYPE: ${getShotType(s, localIdx)}
 COMPOSITION RULE: visualize only the described action/subject/environment; keep cinematic composition but do not add new story events.
@@ -153,7 +212,7 @@ FRAMES: F${String(start).padStart(2, "0")}–F${String(end).padStart(2, "0")} of
 REFERENCE INPUT:
 ${refText}
 This PART must continue the same project, but each frame must follow its own scenario input.
-
+${appearanceNote}
 FORMAT:
 2 columns × ${rows} rows — exactly ${partScenes.length} equal cells.
 Each cell format: 9:16 portrait.
@@ -191,20 +250,23 @@ Recurring hero identity remains consistent only where the scenario includes the 
 No parchment. No illustration. No concept art. No extra text except frame labels.`;
 }
 
-export function buildAutoChainAllParts({ storyboard, styleProfile, partSize = 4, chainMode = "worldHero", strictLevel = "hard", referenceMode = "previousPart" } = {}) {
+export function buildAutoChainAllParts({
+  storyboard, styleProfile, partSize = 4, chainMode = "worldHero",
+  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full"
+} = {}) {
   const scenes = storyboard?.scenes || [];
-  const parts = splitScenesIntoParts(scenes, partSize);
+  const parts  = splitScenesIntoParts(scenes, partSize);
   return parts.map((partScenes, i) => buildAutoChainPartPrompt({
     storyboard, styleProfile, partScenes, partIndex: i, totalScenes: scenes.length,
-    partSize, chainMode, strictLevel, referenceMode
+    partSize, chainMode, strictLevel, referenceMode, appearanceMode
   }));
 }
 
 export function buildAutoVideoPrompt(scene = {}, { storyboard, styleProfile, chainMode = "worldHero" } = {}) {
-  const label = frameLabel(scene, 0);
+  const label  = frameLabel(scene, 0);
   const visual = sceneText(scene);
   const motion = sceneMotion(scene);
-  const style = cleanText(styleProfile?.style_lock || storyboard?.global_style_lock || "cinematic realism, 35mm film grain, natural light");
+  const style  = cleanText(styleProfile?.style_lock || storyboard?.global_style_lock || "cinematic realism, 35mm film grain, natural light");
   return `ANIMATE CURRENT FRAME — ${label}
 
 SOURCE OF TRUTH:
@@ -234,12 +296,15 @@ No subtitles, no UI, no watermark, no modern objects unless explicitly present i
 }
 
 export function buildAutoVideoPack({ storyboard, styleProfile, partScenes = [], chainMode = "worldHero" } = {}) {
-  return partScenes.map((s, i) => buildAutoVideoPrompt(s, { storyboard, styleProfile, chainMode })).join("\n\n---\n\n");
+  return partScenes.map((s) => buildAutoVideoPrompt(s, { storyboard, styleProfile, chainMode })).join("\n\n---\n\n");
 }
 
-export function buildAutoChainJson({ storyboard, styleProfile, partSize = 4, chainMode = "worldHero", strictLevel = "hard", referenceMode = "previousPart" } = {}) {
+export function buildAutoChainJson({
+  storyboard, styleProfile, partSize = 4, chainMode = "worldHero",
+  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full"
+} = {}) {
   const scenes = storyboard?.scenes || [];
-  const parts = splitScenesIntoParts(scenes, partSize);
+  const parts  = splitScenesIntoParts(scenes, partSize);
   return {
     engine: "NeuroCine Auto-Chain Strict Engine",
     version: "2.6-order-fixed-strict-flow-prompt",
@@ -247,12 +312,16 @@ export function buildAutoChainJson({ storyboard, styleProfile, partSize = 4, cha
     mode: chainMode,
     strict_level: strictLevel,
     reference_mode: referenceMode,
+    appearance_mode: appearanceMode,
     part_size: partSize,
     total_frames: scenes.length,
     parts: parts.map((partScenes, i) => ({
       part: i + 1,
       frame_range: `${frameLabel(partScenes[0], i * partSize)}-${frameLabel(partScenes[partScenes.length - 1], i * partSize + partScenes.length - 1)}`,
-      image_prompt: buildAutoChainPartPrompt({ storyboard, styleProfile, partScenes, partIndex: i, totalScenes: scenes.length, partSize, chainMode, strictLevel, referenceMode }),
+      image_prompt: buildAutoChainPartPrompt({
+        storyboard, styleProfile, partScenes, partIndex: i, totalScenes: scenes.length,
+        partSize, chainMode, strictLevel, referenceMode, appearanceMode
+      }),
       video_pack: buildAutoVideoPack({ storyboard, styleProfile, partScenes, chainMode }),
       frames: partScenes.map((s, localIdx) => ({
         id: s.id || frameLabel(s, i * partSize + localIdx),
