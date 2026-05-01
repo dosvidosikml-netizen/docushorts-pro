@@ -25,13 +25,26 @@ function frameLabel(scene, index = 0) {
 // ── Appearance stripping ─────────────────────────────────────────────────────
 // Action triggers — слова с которых начинается ДЕЙСТВИЕ персонажа
 // (всё до них = внешность, всё после = действие + локация)
+// Триггеры — слова с которых начинается ДЕЙСТВИЕ персонажа (всё до них = внешность)
 const ACTION_TRIGGERS = [
+  // Present participles
   "lying ", "kneeling ", "standing ", "sitting ", "running ", "walking ",
-  "crouching ", "reaching ", "carrying ", "bent ", "dropping ", "seated ",
-  "enters ", "looks on", "turns ", "moves ", "grips ", "freezes ",
-  "recoils ", "hunched ", "staring ", "pushing ", "pulling ", "dragging ",
-  "watching ", "in final ", "stands ", "facing ", "crouched ", "collapses ",
-  "appear ", "appears ", "reaches "
+  "crouching ", "reaching ", "carrying ", "dropping ", "staring ",
+  "pushing ", "pulling ", "dragging ", "watching ", "facing ",
+  "frozen ", "freezing ", "hunched ", "hunching ", "collapses ", "collapsing ",
+  "leaning ", "gazing ", "holding ", "moving ", "crossing ", "entering ",
+  "following ", "pressing ", "gripping ", "recoiling ", "stumbling ",
+  "turning ", "looking ", "waiting ", "kneeling ", "bowing ", "rising ",
+  "stepping ", "walking ", "climbing ", "descending ", "working ", "carrying ",
+  "lifting ", "dragging ", "digging ", "hauling ", "straining ",
+  // Simple present / other forms
+  "stands ", "sits ", "lies ", "kneels ", "faces ",
+  "enters ", "turns ", "moves ", "grips ", "freezes ", "recoils ",
+  "appears ", "appear ", "reaches ", "looks on", "bends ",
+  // Descriptive action phrases
+  "bent ", "seated ", "crouched ", "hunched ", "in final ",
+  // Edge cases
+  "mid-step", "mid-stride", "mid-motion", "in position",
 ];
 
 function stripCharacterAppearance(text, characterLock = []) {
@@ -44,19 +57,35 @@ function stripCharacterAppearance(text, characterLock = []) {
     if (nameIdx === -1) continue;
 
     const afterName = result.slice(nameIdx + name.length);
+
+    // Если сразу после имени нет запятой — внешность уже убрана, пропускаем
+    const trimmedAfter = afterName.trimStart();
+    if (!trimmedAfter.startsWith(",")) continue;
+
     let actionStart = -1;
+    const afterLower = afterName.toLowerCase();
     for (const trigger of ACTION_TRIGGERS) {
-      const idx = afterName.toLowerCase().indexOf(trigger);
+      const idx = afterLower.indexOf(trigger);
       if (idx !== -1 && (actionStart === -1 || idx < actionStart)) {
         actionStart = idx;
       }
     }
-    // Только если нашли действие недалеко (не > 500 символов — защита от ложных срабатываний)
-    if (actionStart > 0 && actionStart < 500) {
+
+    if (actionStart > 0 && actionStart < 600) {
+      // Нашли триггер — отрезаем описание внешности
       result =
         result.slice(0, nameIdx + name.length) +
         " " +
         afterName.slice(actionStart).trim();
+    } else {
+      // Fallback: триггер не найден, но есть запятые — берём от первой точки
+      // (т.е. оставляем только предложение целиком без имени-описания)
+      const dotIdx = afterName.indexOf(". ");
+      if (dotIdx > 0 && dotIdx < 600) {
+        result =
+          result.slice(0, nameIdx + name.length) +
+          afterName.slice(dotIdx).trim();
+      }
     }
   }
   return cleanText(result);
