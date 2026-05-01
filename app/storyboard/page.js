@@ -219,6 +219,7 @@ export default function StudioPage() {
   const [autoChainMode, setAutoChainMode] = useState("worldHero");
   const [autoStrictLevel, setAutoStrictLevel] = useState("hard");
   const [autoReferenceMode, setAutoReferenceMode] = useState("heroAndPrevious");
+  const [autoAppearanceMode, setAutoAppearanceMode] = useState("full");
   const [autoHeroAnchor, setAutoHeroAnchor] = useState(null);
   const [autoPrevPartAnchor, setAutoPrevPartAnchor] = useState(null);
   const [autoPartPrompt, setAutoPartPrompt] = useState("");
@@ -243,7 +244,7 @@ export default function StudioPage() {
 
   const autoParts = useMemo(() => splitScenesIntoParts(scenes, autoPartSize), [scenes, autoPartSize]);
   const autoPartScenes = autoParts[autoPartIndex] || [];
-  const autoAllPrompts = useMemo(() => buildAutoChainAllParts({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode }), [storyboard, styleProfile, autoPartSize, autoChainMode, autoStrictLevel, autoReferenceMode]);
+  const autoAllPrompts = useMemo(() => buildAutoChainAllParts({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode }), [storyboard, styleProfile, autoPartSize, autoChainMode, autoStrictLevel, autoReferenceMode, autoAppearanceMode]);
 
   const chunkGridPrompt = useMemo(() => {
     if (!activeChunkScenes.length) return "";
@@ -375,9 +376,13 @@ export default function StudioPage() {
         body: JSON.stringify({ topic, tone, duration })
       });
       const d = await r.json();
-      setScript(d.text || d.error || "");
-      setSStat(d.text ? "ok" : "err");
-    } catch { setSStat("err"); }
+      if (d.apiError || (!d.text && d.error)) {
+        setSStat("err|" + (d.error || "Ошибка API"));
+      } else {
+        setScript(d.text || "");
+        setSStat(d.text ? "ok" : "err|Пустой ответ от модели");
+      }
+    } catch (e) { setSStat("err|" + (e.message || "Сетевая ошибка")); }
     finally { setSBusy(false); }
   }
 
@@ -544,7 +549,8 @@ export default function StudioPage() {
       partSize: autoPartSize,
       chainMode: autoChainMode,
       strictLevel: autoStrictLevel,
-      referenceMode: autoReferenceMode
+      referenceMode: autoReferenceMode,
+      appearanceMode: autoAppearanceMode
     });
 
     // Build anchor attachment instructions
@@ -570,7 +576,7 @@ export default function StudioPage() {
     const all = buildAutoChainAllParts({
       storyboard, styleProfile, partSize: autoPartSize,
       chainMode: autoChainMode, strictLevel: autoStrictLevel,
-      referenceMode: autoReferenceMode
+      referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode
     }).map((p, i) => `===== AUTO-CHAIN PART ${i + 1} =====\n\n${p}`).join("\n\n");
     setAutoAllPromptText(all);
     setAutoPartPrompt("");
@@ -586,7 +592,7 @@ export default function StudioPage() {
   }
 
   function exportAutoChainJson() {
-    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode });
+    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode });
     downloadTextFile(JSON.stringify(obj, null, 2), safeFileName(projectName) + "-auto-chain-v2.json", "application/json;charset=utf-8");
   }
 
@@ -712,11 +718,15 @@ export default function StudioPage() {
               <button className="btn btn-red btn-full" onClick={doScript} disabled={sBusy || !topic.trim()}>
                 {sBusy ? "⏳ Генерация..." : "▶ СОЗДАТЬ СЦЕНАРИЙ"}
               </button>
-              {sStat && (
-                <div className={`status-line${sStat === "ok" ? " ok" : sStat === "err" ? " err" : ""}`}>
-                  {sStat === "ok" ? "✓ Сценарий готов" : sStat === "err" ? "✗ Ошибка генерации" : "⏳ Генерация..."}
-                </div>
-              )}
+              {sStat && (() => {
+                const [sType, sMsg] = sStat.includes("|") ? sStat.split("|") : [sStat, ""];
+                const isErr = sType === "err";
+                return (
+                  <div className={`status-line${sStat === "ok" ? " ok" : isErr ? " err" : ""}`}>
+                    {sStat === "ok" ? "✓ Сценарий готов" : isErr ? `✗ ${sMsg || "Ошибка генерации"}` : "⏳ Генерация..."}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="col">
@@ -829,6 +839,29 @@ export default function StudioPage() {
                     </select>
                   </div>
                 </div>
+                <div className="field" style={{ marginTop: 10 }}>
+                  <label className="field-label">Внешность персонажей в промте</label>
+                  <div className="brow">
+                    <button
+                      className={"btn btn-sm" + (autoAppearanceMode === "full" ? " btn-red" : "")}
+                      onClick={() => { setAutoAppearanceMode("full"); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      🧬 Полная
+                    </button>
+                    <button
+                      className={"btn btn-sm" + (autoAppearanceMode === "minimal" ? " btn-red" : "")}
+                      onClick={() => { setAutoAppearanceMode("minimal"); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      🖼 Только действие
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                    {autoAppearanceMode === "minimal"
+                      ? "Лицо берётся из Hero Anchor — промт содержит только действие и локацию"
+                      : "AI описывает внешность в промте — подходит если якорь не загружен"}
+                  </div>
+                </div>
+              </div>
               </div>
 
               <div className="brow" style={{ marginTop: 10 }}>
