@@ -221,6 +221,7 @@ export default function StudioPage() {
   const [autoStrictLevel, setAutoStrictLevel] = useState("hard");
   const [autoReferenceMode, setAutoReferenceMode] = useState("heroAndPrevious");
   const [autoAppearanceMode, setAutoAppearanceMode] = useState("full");
+  const [autoIncludeVo, setAutoIncludeVo] = useState(true);
   const [autoHeroAnchor, setAutoHeroAnchor] = useState(null);
   const [autoPrevPartAnchor, setAutoPrevPartAnchor] = useState(null);
   const [autoPartPrompt, setAutoPartPrompt] = useState("");
@@ -593,7 +594,7 @@ export default function StudioPage() {
   }
 
   function exportAutoChainJson() {
-    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode });
+    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode, includeVo: autoIncludeVo });
     downloadTextFile(JSON.stringify(obj, null, 2), safeFileName(projectName) + "-auto-chain-v2.json", "application/json;charset=utf-8");
   }
 
@@ -860,6 +861,28 @@ export default function StudioPage() {
                     {autoAppearanceMode === "minimal"
                       ? "Лицо берётся из Hero Anchor — промт содержит только действие и локацию"
                       : "AI описывает внешность в промте — подходит если якорь не загружен"}
+                  </div>
+                </div>
+                <div className="field" style={{ marginTop: 10 }}>
+                  <label className="field-label">VO в видеопромте</label>
+                  <div className="brow">
+                    <button
+                      className={"btn btn-sm" + (autoIncludeVo ? " btn-red" : "")}
+                      onClick={() => { setAutoIncludeVo(true); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      ✓ Включить
+                    </button>
+                    <button
+                      className={"btn btn-sm" + (!autoIncludeVo ? " btn-red" : "")}
+                      onClick={() => { setAutoIncludeVo(false); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      ✕ Убрать
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                    {autoIncludeVo
+                      ? "VO MEANING LOCK присутствует — генератор держит эмоцию"
+                      : "VO убран — только визуал и движение"}
                   </div>
                 </div>
               </div>
