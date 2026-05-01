@@ -862,7 +862,6 @@ export default function StudioPage() {
                   </div>
                 </div>
               </div>
-              </div>
 
               <div className="brow" style={{ marginTop: 10 }}>
                 <button className="btn btn-red" onClick={doStoryboard} disabled={sbBusy || (!script.trim() && !jsonIn.trim())}>
