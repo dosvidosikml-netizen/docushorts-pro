@@ -3,7 +3,7 @@ import { STYLE_LOCKS, VIDEO_LOCK, NEGATIVE_LOCK } from "./sceneEngine";
 export const PROJECT_TYPES = {
   film: {
     label: "Фильм / реализм",
-    lock: "live-action cinematic realism, camera-photographed image, natural imperfections, documentary physical reality"
+    lock: "RAW photograph, NOT CGI, NOT rendered, NOT illustrated — real camera, real location, unposed documentary framing, natural light, physical imperfections, candid human presence"
   },
   animation: {
     label: "Мультфильм / animation",
@@ -151,7 +151,7 @@ export function buildStoryGridPrompt(storyboard = {}, styleProfile = {}) {
       .replace(/^SCENE PRIMARY FOCUS:\s*/i, "")
       .trim();
     // Inject anti-2D style into every frame description
-    const styleEnforce = "camera-photographed live-action image, NOT illustration, NOT 2D art, NOT cartoon, NOT anime, NOT painting —";
+    const styleEnforce = "RAW unretouched photograph, shot on Canon EOS R5 85mm f/1.4 ISO 1600, NOT CGI, NOT rendered, NOT illustrated, NOT cartoon, NOT anime, NOT painting — real camera, real location, real physics —";
     return `${i + 1}. [F${String(i + 1).padStart(2, "0")}] ${styleEnforce} ${en || s.vo_ru || ""}`;
   }).join("\n");
 

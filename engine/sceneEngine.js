@@ -1,22 +1,51 @@
 // NeuroCine Scene Engine
 // Local fallback + normalization for storyboard JSON.
 
+// ─── ULTRA REALISM CORE ──────────────────────────────────────────────────────
+// Единый набор инструкций для максимального фотореализма.
+// Внедрён во все стили. Запрещённые слова убраны из всех промтов.
+
+const ULTRA_REALISM =
+  "RAW unretouched photograph, NOT CGI, NOT rendering, NOT illustration — " +
+  "shot on Canon EOS R5 mirrorless, 85mm f/1.4 prime lens, 1/320s shutter, ISO 1600, natural available light only. " +
+  "Optical imperfections: chromatic aberration on high-contrast edges, slight barrel distortion, natural lens vignette, " +
+  "real bokeh from f/1.4 aperture — background physically blurred by optics not post-processing, " +
+  "foreground subject in sharp critical focus with micro-texture visible: skin pores, fabric weave, surface grain. " +
+  "Sensor characteristics: ISO 1600 luminance noise, color noise in shadows, micro-motion blur on fast edges. " +
+  "Lighting physics: single natural key light source with defined angle, soft fill from ground bounce, " +
+  "realistic shadow falloff with penumbra, subsurface scattering on skin and thin fabric. " +
+  "Subject physicality: realistic body weight distribution, clothes obeying gravity, fabric drape and tension, " +
+  "unposed candid posture, micro-expressions, hair responding to environment. " +
+  "Color science: Kodak Portra 400 color response — slightly warm highlights, desaturated shadows, " +
+  "lifted blacks, natural skin tone rendering, no crushed blacks, no HDR tonemapping. " +
+  "Forbidden rendering artifacts: NO plastic skin, NO specular blobs, NO perfect symmetry, " +
+  "NO clean edges, NO game engine materials, NO smooth gradients on organic surfaces.";
+
+const PHOTO_NEGATIVE =
+  "plastic skin, specular blob highlights, CGI render, 3D game engine look, Unreal Engine, " +
+  "oversmoothed skin, perfect symmetry, artificial bokeh blur, fake depth of field, " +
+  "HDR tonemapping, oversaturated colors, lens flare abuse, post-processed glow, " +
+  "illustration, painting, concept art, anime, cartoon, comic style, " +
+  "watermark, subtitle, UI overlay, text, modern objects out of context";
+
 export const STYLE_LOCKS = {
   cinematic:
-    "cinematic documentary realism, historical accuracy, 35mm anamorphic, handheld, natural overcast light, realistic textures, Kodak Vision3 500T grain, no subtitles, no UI, no watermark",
+    `${ULTRA_REALISM} Documentary physical reality, historical accuracy, handheld micro-drift, natural overcast light, Kodak Vision3 500T grain response, no subtitles, no UI, no watermark`,
   dark:
-    "dark historical documentary thriller, tense realism, gritty texture, smoke, mud, cold overcast light, 35mm film grain, no subtitles, no UI, no watermark",
+    `${ULTRA_REALISM} Dark historical documentary thriller — tense atmosphere, gritty surface texture, smoke and moisture in air, mud with cracked dried edges, damp stone with mineral deposits, cold overcast key light, deep shadows with visible detail, no subtitles, no UI, no watermark`,
   truecrime:
-    "premium true crime cinematic reconstruction, low-key lighting, controlled shadows, forensic atmosphere, realistic texture, no subtitles, no UI, no watermark",
+    `${ULTRA_REALISM} Premium true crime reconstruction — low-key natural lighting, forensic atmosphere, controlled shadow depth, realistic crime scene texture, unposed documentary framing, no subtitles, no UI, no watermark`,
   war:
-    "gritty war documentary realism, long lens compression, mud, smoke, cold natural light, handheld tension, Kodak Vision3 grain, no subtitles, no UI, no watermark"
+    `${ULTRA_REALISM} Gritty war documentary — long lens compression, 200mm f/2.8 telephoto, mud splatter with realistic drying patterns, smoke volumetric density, cold diffused natural light, handheld urgent tension, Kodak Vision3 grain, no subtitles, no UI, no watermark`
 };
 
 export const VIDEO_LOCK =
-  "grounded physical realism, no floaty motion, realistic inertia, organic camera operator behavior, documentary authenticity";
+  "grounded physical realism, real inertia and weight, cloth physics responding to movement, " +
+  "organic handheld camera operator behavior — micro-drift only, no stabilized floaty motion, " +
+  "documentary authenticity, no speed ramps, no artificial transitions, no VFX overlays";
 
 export const NEGATIVE_LOCK =
-  "no modern objects, no modern clothes, no text overlay, no subtitles, no watermark, no cartoon, no anime, no UI";
+  `${PHOTO_NEGATIVE}, no modern objects, no modern clothes, no text overlay, no subtitles, no watermark, no cartoon, no anime, no UI`;
 
 export function cleanText(value = "") {
   return String(value ?? "")
