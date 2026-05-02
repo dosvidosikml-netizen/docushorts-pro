@@ -57,7 +57,9 @@ RAW unretouched photograph — NOT CGI, NOT rendered, NOT illustrated.
 Shot on Canon EOS R5, 85mm f/1.4 prime, 1/320s, ISO 1600, natural available light only.
 Optical realism: chromatic aberration on high-contrast edges, natural lens vignette, real bokeh from f/1.4 — background blurred by optics not post-processing.
 Sensor noise: ISO 1600 luminance grain, color noise in shadows, micro-motion blur on fast edges.
-Surface detail: skin pores visible, fabric weave, mud cracking patterns, wet stone mineral deposits.
+Surface detail — SKIN: visible open pores on nose bridge and cheeks, individual pore shadows under raking light, dry cracked lip texture with vertical micro-fissures, visible capillaries in eye whites (sclera), natural tear film gloss on cornea, under-eye vascular darkness, cheekbone subsurface flush, individual stubble follicle dots, eyebrow individual hair shafts, eyelid skin crease texture. NO smooth airbrushed skin, NO plastic surface.
+Surface detail — FABRIC: individual thread weave visible in focus zone, tension wrinkles from stress points, worn fabric frayed edges, loose thread detail, fabric gravity drape, seam ridge micro-shadow, color variation from wear and soil.
+Surface detail — ENVIRONMENT: mud cracking patterns, wet stone mineral deposits, wood grain individual fibers, metal oxidation texture, moss and moisture detail.
 Lighting: single natural key light with defined angle, soft ground bounce fill, realistic shadow penumbra, subsurface scattering on skin.
 Subject physicality: unposed candid posture, clothes obeying gravity, fabric drape and tension, micro-expressions.
 Color science: Kodak Portra 400 response — warm highlights, desaturated shadows, lifted blacks, natural skin tones.
