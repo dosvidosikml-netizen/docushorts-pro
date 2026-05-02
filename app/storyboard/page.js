@@ -688,11 +688,7 @@ export default function StudioPage() {
                   </span>
                 </label>
                 <textarea className="inp" style={{ minHeight: 110 }} value={script} onChange={e => setScript(e.target.value)}
-                  placeholder={"Вставь готовый текст диктора здесь — AI разобьёт его на кадры без генерации сценария...
-
-Пример:
-Представь: ты проснулся в меловом периоде.
-Воздух другой. Жара давит, насекомые размером с ладонь..."} />
+                  placeholder="Вставь готовый текст диктора — AI разобьёт на кадры без генерации сценария..." />
                 {script.trim() && !topic.trim() && (
                   <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 6 }}>
                     ✓ Готовый сценарий — нажми «Создать сторибоард» напрямую
