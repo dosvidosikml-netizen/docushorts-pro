@@ -261,6 +261,14 @@ export function normalizeStoryboard(input = {}, fallback = {}) {
     return buildLocalStoryboard(fallback);
   }
 
+  const aspectRatio = source.aspect_ratio || fallback.aspectRatio || "9:16";
+  const arLabel = {
+    "9:16": "9:16 vertical portrait — tall framing, subject centered vertically",
+    "16:9": "16:9 wide horizontal — cinematic widescreen framing",
+    "1:1":  "1:1 square — centered balanced framing",
+    "4:5":  "4:5 portrait — near-portrait framing",
+  }[aspectRatio] || "9:16 vertical portrait";
+
   let cursor = 0;
   const scenes = source.scenes.map((s, i) => {
     const duration = Math.max(2, Math.min(10, Number(s.duration || 3)));
@@ -275,7 +283,10 @@ export function normalizeStoryboard(input = {}, fallback = {}) {
       beat_type: s.beat_type || beatType(i, source.scenes.length),
       emotion: s.emotion || emotionTag(vo, i),
       description_ru: s.description_ru || s.visual || "",
-      image_prompt_en: image.startsWith("SCENE PRIMARY FOCUS:") ? image : `SCENE PRIMARY FOCUS: ${image}`,
+      image_prompt_en: (() => {
+        const base = image.startsWith("SCENE PRIMARY FOCUS:") ? image : `SCENE PRIMARY FOCUS: ${image}`;
+        return base.includes("ASPECT RATIO:") ? base : `${base}. ASPECT RATIO: ${arLabel}`;
+      })(),
       video_prompt_en: (() => {
         const sfxLine = s.sfx ? `\n\nSFX: ${s.sfx}` : "";
         if (video.startsWith("ANIMATE CURRENT FRAME:")) {
