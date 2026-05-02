@@ -244,7 +244,17 @@ JSON STRUCTURE:
   "total_duration": 0,
   "global_style_lock": "",
   "global_video_lock": "",
-  "character_lock": [],
+  "character_lock": [
+    {
+      "name": "Character Name",
+      "age": 30,
+      "description": "full visual description — face features, hair, clothing, physical condition",
+      "face_features": "specific permanent facial features",
+      "hair": "hair description",
+      "clothing": "clothing description",
+      "physical_condition": "condition description"
+    }
+  ],
   "postprocess": { "upscale": "x2", "final_upscale": "x4", "model": "real-esrgan", "provider": "replicate" },
   "scenes": [
     {
