@@ -368,6 +368,8 @@ export default function StudioPage() {
   }
 
   async function doScript() {
+    // Готовый сценарий — пропускаем генерацию
+    if (script.trim() && !topic.trim()) { setSStat("ok"); return; }
     if (!topic.trim()) return;
     resetStoryboardOutputs({ keepAnchors: true });
     setJsonIn("");
@@ -673,8 +675,29 @@ export default function StudioPage() {
               </div>
               <div className="field">
                 <label className="field-label">Тема / задание</label>
-                <textarea className="inp tall" value={topic} onChange={e => handleTopicChange(e.target.value)}
+                <textarea className="inp" style={{ minHeight: 72 }} value={topic} onChange={e => handleTopicChange(e.target.value)}
                   placeholder="Например: Ты бы не выжил в Средневековье — вот почему" />
+              </div>
+
+              {/* Блок для готового сценария */}
+              <div className="field">
+                <label className="field-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>Готовый сценарий</span>
+                  <span style={{ fontSize: 10, fontWeight: 400, color: "var(--muted)", letterSpacing: "0.05em" }}>
+                    — уже есть текст? Вставь сюда → сразу получишь розкадровку
+                  </span>
+                </label>
+                <textarea className="inp" style={{ minHeight: 110 }} value={script} onChange={e => setScript(e.target.value)}
+                  placeholder={"Вставь готовый текст диктора здесь — AI разобьёт его на кадры без генерации сценария...
+
+Пример:
+Представь: ты проснулся в меловом периоде.
+Воздух другой. Жара давит, насекомые размером с ладонь..."} />
+                {script.trim() && !topic.trim() && (
+                  <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 6 }}>
+                    ✓ Готовый сценарий — нажми «Создать сторибоард» напрямую
+                  </div>
+                )}
               </div>
               <div className="frow frow2">
                 <div className="field">
@@ -717,8 +740,8 @@ export default function StudioPage() {
                   <input className="inp" value={tone} onChange={e => setTone(e.target.value)} placeholder="thriller, dark..." />
                 </div>
               </div>
-              <button className="btn btn-red btn-full" onClick={doScript} disabled={sBusy || !topic.trim()}>
-                {sBusy ? "⏳ Генерация..." : "▶ СОЗДАТЬ СЦЕНАРИЙ"}
+              <button className="btn btn-red btn-full" onClick={doScript} disabled={sBusy || (!topic.trim() && !script.trim())}>
+                {sBusy ? "⏳ Генерация..." : script.trim() && !topic.trim() ? "▶ СОЗДАТЬ СТОРИБОАРД" : "▶ СОЗДАТЬ СЦЕНАРИЙ"}
               </button>
               {sStat && (() => {
                 const [sType, sMsg] = sStat.includes("|") ? sStat.split("|") : [sStat, ""];
