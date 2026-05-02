@@ -179,8 +179,13 @@ function cleanImagePrompt(prompt = "") {
   return appendUniqueText(removePromptNoise(prompt), CLEAN_IMAGE_BOOST);
 }
 
-function enhanceVideoPrompt(prompt = "") {
-  return appendUniqueText(String(prompt || "").trim(), PHYSICAL_REALISM_BLOCK);
+function enhanceVideoPrompt(prompt = "", sfx = "") {
+  let base = String(prompt || "").trim();
+  // Inject SFX if missing
+  if (sfx && !base.includes("SFX:")) {
+    base = base + `\n\nSFX: ${sfx}`;
+  }
+  return appendUniqueText(base, PHYSICAL_REALISM_BLOCK);
 }
 
 function getCutEnergy(scene = {}, index = 0) {
@@ -195,7 +200,7 @@ function getCutEnergy(scene = {}, index = 0) {
 
 function buildGrokPromptFromSafe(scene = {}) {
   const image = cleanImagePrompt(scene.image_prompt_en || "");
-  const videoBase = enhanceVideoPrompt(scene.video_prompt_en || "");
+  const videoBase = enhanceVideoPrompt(scene.video_prompt_en || "", scene.sfx || "");
   const video = appendUniqueText(
     videoBase,
     `${GROK_RAW_BOOST}. Keep the same scene order, timing, VO, character identity, and continuity. Amplify camera motion, atmosphere, crowd pressure, fabric movement, breathing, weight, contact physics, environmental particles and reaction timing only. SFX: ${scene.sfx || "cinematic rumble, cloth movement, crowd pressure"}`
@@ -309,7 +314,7 @@ export function normalizeStoryboard(raw = {}, requestedDuration = 60, requestedM
       // applyObserverFraming = Level 1 (word substitution) + Level 2 (documentary framing header)
       // Applied to IMAGE prompts only — video prompts keep stronger wording for video models
       image_prompt_en: cleanImagePrompt(applyObserverFraming(normalized.image_prompt_en)),
-      video_prompt_en: enhanceVideoPrompt(normalized.video_prompt_en),
+      video_prompt_en: enhanceVideoPrompt(normalized.video_prompt_en, normalized.sfx),
     };
     const finalScene = mode === "safe" ? buildGrokPromptFromSafe(withV2) : withV2;
 
