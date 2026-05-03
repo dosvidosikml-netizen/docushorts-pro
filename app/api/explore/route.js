@@ -1,4 +1,5 @@
 import { buildExplorePrompt, getStyleProfile } from "../../../engine/directorEngine_v4";
+import { callOpenRouter, TASK_TYPES } from "../../../lib/modelRouter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,32 +17,23 @@ Rules:
 
 async function askOpenRouter({ frame, storyboard, styleProfile, variantCount }) {
   if (!process.env.OPENROUTER_API_KEY) return null;
-  const model = process.env.OPENROUTER_MODEL || "openai/gpt-5.4";
   const seedPrompt = buildExplorePrompt(frame, storyboard, styleProfile, variantCount);
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://neurocine.online",
-      "X-Title": "NeuroCine Director Studio",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `Improve this prompt without changing its rules. Return JSON only.\n\n${seedPrompt}` }
-      ],
-      temperature: 0.2,
-      max_tokens: 3000,
-      response_format: { type: "json_object" }
-    })
+
+  const result = await callOpenRouter({
+    taskType: TASK_TYPES.LIGHT_TASK,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage: `Improve this prompt without changing its rules. Return JSON only.
+
+${seedPrompt}`,
+    temperatureOverride: 0.2,
+    maxTokensOverride: 3000,
+    responseFormat: { type: "json_object" },
+    appTitle: "NeuroCine Director Studio",
   });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) return null;
-  return JSON.parse(content);
+
+  if (!result.ok || !result.content) return null;
+  const parsed = JSON.parse(result.content);
+  return { ...parsed, _model_used: result.model_used };
 }
 
 export async function POST(req) {
@@ -58,7 +50,7 @@ export async function POST(req) {
     } catch {}
 
     const prompt = api?.prompt || buildExplorePrompt(frame, storyboard, styleProfile, variantCount);
-    return Response.json({ prompt, notes_ru: api?.notes_ru || "Промт для 2x2 сетки создан строго по выбранному кадру." });
+    return Response.json({ prompt, notes_ru: api?.notes_ru || "Промт для 2x2 сетки создан строго по выбранному кадру.", model_used: api?._model_used || "local_only" });
   } catch (e) {
     return Response.json({ error: e.message || "Explore API error" }, { status: 500 });
   }
