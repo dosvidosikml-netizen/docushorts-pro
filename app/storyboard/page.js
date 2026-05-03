@@ -720,6 +720,42 @@ ${lines.join("\n")}` : "";
     const txt = buildFlowTxt(storyboard, styleProfile);
     downloadTextFile(txt, safeFileName(projectName) + "-flow-veo.txt");
   }
+  function importProjectJson(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const importedStoryboard = data.storyboard || (Array.isArray(data.scenes) ? {
+          project_name: data.name || data.project_name || "Imported Project",
+          aspect_ratio: data.aspect_ratio || data.aspectRatio || "9:16",
+          scenes: data.scenes,
+          character_lock: data.characters || [],
+        } : null);
+
+        setProjectName(data.name || data.project_name || importedStoryboard?.project_name || "Imported Project");
+        setTopic(data.topic || "");
+        setProjectType(data.project_type || data.projectType || "film");
+        setStylePreset(data.style || data.stylePreset || "cinematic");
+        setDuration(Number(data.duration || importedStoryboard?.total_duration || 60));
+        setAspect(data.aspect_ratio || data.aspectRatio || importedStoryboard?.aspect_ratio || "9:16");
+        setTone(data.tone || "cinematic documentary thriller");
+        setScript(data.script || "");
+        setSB(importedStoryboard);
+        setJsonIn(JSON.stringify(data, null, 2));
+        setValidation(null);
+        setSbStat(importedStoryboard ? `ok|Импортировано ${importedStoryboard.scenes?.length || 0} кадров` : "err|JSON импортирован, но storyboard/scenes не найдены");
+
+        setFrameIdx(null); setGridImg(null); setGridColsOverride(null); setGridManualFrames(null); setCroppedFrame(null);
+        setExploreP(""); setVariantImg(null); setSelVariant(null); setCropped(null); setP2k("");
+        setFinalImg(null); setVideoP(""); setAnalysis(null);
+        setActiveChunk(0); setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText("");
+      } catch (e) {
+        setSbStat("err|Ошибка импорта JSON: " + (e.message || "invalid json"));
+      }
+    };
+    reader.readAsText(file);
+  }
   function copyAllVo() {
     const all = scenes.map(s => `[${s.id}] ${s.vo_ru || ""}`).join("\n\n");
     navigator.clipboard.writeText(all);
@@ -746,6 +782,19 @@ ${lines.join("\n")}` : "";
           <Link href="/" className="nav-btn">Главная</Link>
           <Link href="/chat" className="nav-btn">Chat</Link>
           <Link href="/storyboard" className="nav-btn active">Studio</Link>
+          <label className="nav-btn" title="Импорт проекта NeuroCine JSON">
+            ⬆ Import JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importProjectJson(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
           {storyboard && <>
             <button className="nav-btn" onClick={exportJson}>⬇ JSON</button>
             <button className="nav-btn" onClick={exportTxt}>⬇ TXT</button>
