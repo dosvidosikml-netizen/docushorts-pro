@@ -438,13 +438,14 @@ ${lines.join("\n")}` : "";
 
   /* Re-crop if cols override changes while frame is selected */
   useEffect(() => {
-    if (gridImg && frameIdx !== null && scenes.length > 0) {
-      const cols = gridColsOverride ?? gridCols(scenes.length);
-      cropGridFrame(gridImg, frameIdx, scenes.length, cols)
+    if (gridImg && frameIdx !== null && gridSelectionFrameCount > 0) {
+      const localIdx = Math.max(0, Math.min(frameIdx - gridSelectionStartIndex, gridSelectionFrameCount - 1));
+      const cols = gridColsOverride ?? gridCols(gridSelectionFrameCount);
+      cropGridFrame(gridImg, localIdx, gridSelectionFrameCount, cols)
         .then(url => setCroppedFrame(url))
         .catch(() => {});
     }
-  }, [gridColsOverride]);
+  }, [gridColsOverride, gridImg, frameIdx, gridSelectionFrameCount, gridSelectionStartIndex]);
   function resetStoryboardOutputs({ keepAnchors = true } = {}) {
     setSB(null); setValidation(null); setSbStat(""); setFrameIdx(null);
     setGridImg(null); setGridColsOverride(null); setGridManualFrames(null); setCroppedFrame(null);
@@ -598,17 +599,20 @@ ${lines.join("\n")}` : "";
     setExploreP(""); setVariantImg(null); setSelVariant(null);
     setCropped(null); setP2k(""); setFinalImg(null); setVideoP(""); setAnalysis(null);
     // Auto-crop the selected frame from the grid image
-    if (gridImg && scenes.length > 0) {
-      const cols = gridColsOverride ?? gridCols(scenes.length);
-      cropGridFrame(gridImg, idx, scenes.length, cols)
+    if (gridImg && gridSelectionFrameCount > 0) {
+      const localIdx = Math.max(0, Math.min(idx - gridSelectionStartIndex, gridSelectionFrameCount - 1));
+      const cols = gridColsOverride ?? gridCols(gridSelectionFrameCount);
+      cropGridFrame(gridImg, localIdx, gridSelectionFrameCount, cols)
         .then(url => setCroppedFrame(url))
         .catch(() => {});
     }
   }
 
   function nextFrame() {
-    if (!scenes.length) return;
-    selectFrame(((frameIdx ?? -1) + 1) % scenes.length);
+    if (!gridSelectionScenes.length) return;
+    const currentLocal = frameIdx === null ? -1 : Math.max(0, frameIdx - gridSelectionStartIndex);
+    const nextLocal = (currentLocal + 1) % gridSelectionScenes.length;
+    selectFrame(gridSelectionStartIndex + nextLocal);
   }
 
   function generateAutoChainPart() {
@@ -1349,13 +1353,13 @@ ${lines.join("\n")}` : "";
                     </div>
                   )}
 
-                  {/* Grid prompt for active chunk or full */}
-                  <OutBox
-                    label={chunkSize < scenes.length
-                      ? `Story Grid Prompt — Лист ${activeChunk + 1}/${chunks.length} (EN)`
-                      : "Story Grid Prompt EN (Flux / Midjourney)"}
-                    text={chunkSize < scenes.length ? chunkGridPrompt : storyGridPrompt}
-                  />
+                  {/* Draft grid prompt removed: use the final Auto-Chain PART prompt button above */}
+                  <div className="out-box">
+                    <div className="out-head"><span className="out-label">Final PART prompt</span></div>
+                    <div className="out-body" style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
+                      Черновой Story Grid Prompt скрыт. Выбери PART выше и нажми «Создать prompt для выбранного PART» — ниже появится только финальный Auto-Chain prompt для Flow/VEO.
+                    </div>
+                  </div>
 
                   {/* CHAIN CONTINUATION block */}
                   {chunkSize < scenes.length && activeChunk > 0 && (
@@ -1483,7 +1487,7 @@ ${lines.join("\n")}` : "";
           <div className="step-num">03</div>
           <div className="step-info">
             <div className="step-title">Production Pipeline</div>
-            <div className="step-desc">Загрузи сетку → кадр → 4 варианта → 2K prompt → video prompt</div>
+            <div className="step-desc">Загрузи PART-сетку 2×2 → кадр → 4 варианта → 2K prompt → video prompt</div>
           </div>
           {curFrame && <span className="step-badge">{curFrame.id}</span>}
         </div>
@@ -1494,8 +1498,8 @@ ${lines.join("\n")}` : "";
             <div className="pipe-head">
               <div className={`pipe-dot${curFrame ? " done" : " act"}`}>A</div>
               <div>
-                <div className="pipe-title">Загрузи storyboard сетку · Выбери кадр</div>
-                <div className="pipe-sub">Нажми прямо на кадр в сетке или выбери кнопкой ниже</div>
+                <div className="pipe-title">Загрузи PART-сетку 2×2 · Выбери кадр</div>
+                <div className="pipe-sub">Загрузи только текущий PART (обычно 4 кадра), затем выбери кадр внутри PART</div>
               </div>
             </div>
             <div className="pipe-body">
@@ -1509,7 +1513,7 @@ ${lines.join("\n")}` : "";
                           Колонок:
                         </span>
                         {[2, 3, 4].map(c => {
-                          const active = (gridColsOverride ?? gridCols(scenes.length)) === c;
+                          const active = (gridColsOverride ?? gridCols(gridSelectionFrameCount || scenes.length)) === c;
                           const isAuto = gridColsOverride === null && gridCols(scenes.length) === c;
                           return (
                             <button key={c}
@@ -1521,21 +1525,21 @@ ${lines.join("\n")}` : "";
                           );
                         })}
                         <span style={{ fontSize: 10, fontWeight: 900, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.15em", marginLeft: 6 }}>
-                          Кадров:
+                          Кадров в PART:
                         </span>
-                        {[4, 6, 8, 12, 20].map(n => (
+                        {[4, 6, 8].map(n => (
                           <button key={n}
-                            className={`btn btn-xs${gridManualFrames === n ? " btn-red" : (gridManualFrames === null && scenes.length === n) ? " btn-red" : ""}`}
+                            className={`btn btn-xs${gridManualFrames === n ? " btn-red" : (gridManualFrames === null && gridSelectionFrameCount === n) ? " btn-red" : ""}`}
                             onClick={() => setGridManualFrames(gridManualFrames === n ? null : n)}
                           >
-                            {n}{gridManualFrames === null && scenes.length === n ? " (авто)" : ""}
+                            {n}{gridManualFrames === null && gridSelectionFrameCount === n ? " (авто)" : ""}
                           </button>
                         ))}
                       </div>
 
                       {/* Clickable grid overlay */}
                       {(() => {
-                        const totalFrames = gridManualFrames || (scenes.length > 0 ? scenes.length : 0);
+                        const totalFrames = gridManualFrames || (gridSelectionFrameCount > 0 ? gridSelectionFrameCount : 0);
                         const cols = gridColsOverride ?? (totalFrames > 0 ? gridCols(totalFrames) : 2);
                         const rows = totalFrames > 0 ? Math.ceil(totalFrames / cols) : 0;
 
@@ -1557,7 +1561,7 @@ ${lines.join("\n")}` : "";
                         // Кликабельный оверлей — работает и с storyboard и без
                         const cellCount = Array.from({ length: totalFrames }, (_, i) => i);
                         return (
-                          <div style={{ position: "relative", borderRadius: 12, overflow: "hidden" }}>
+                          <div className="grid-canvas-viewer">
                             <img src={gridImg} alt="Storyboard grid" style={{ width: "100%", display: "block" }} />
                             <div style={{
                               position: "absolute", inset: 0,
@@ -1566,12 +1570,13 @@ ${lines.join("\n")}` : "";
                               gridTemplateRows: `repeat(${rows}, 1fr)`
                             }}>
                               {cellCount.map(i => {
-                                const s = scenes[i];
+                                const s = gridSelectionScenes[i];
+                                const globalIdx = gridSelectionStartIndex + i;
                                 return (
                                   <div key={s?.id || i}
                                     onClick={() => {
                                       if (scenes.length > 0) {
-                                        selectFrame(i);
+                                        selectFrame(globalIdx);
                                       } else {
                                         // Режим без storyboard — только кроп
                                         setFrameIdx(i);
@@ -1585,10 +1590,10 @@ ${lines.join("\n")}` : "";
                                     title={s ? `${s.id} — нажми для выбора` : `Кадр ${i + 1}`}
                                     style={{
                                       cursor: "pointer",
-                                      border: frameIdx === i
+                                      border: frameIdx === globalIdx
                                         ? "2px solid var(--red)"
                                         : "1px solid rgba(255,255,255,0.08)",
-                                      background: frameIdx === i
+                                      background: frameIdx === globalIdx
                                         ? "rgba(229,53,53,0.15)"
                                         : "transparent",
                                       display: "flex",
@@ -1598,8 +1603,8 @@ ${lines.join("\n")}` : "";
                                       transition: "all 0.1s",
                                       boxSizing: "border-box"
                                     }}
-                                    onMouseEnter={e => { if (frameIdx !== i) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
-                                    onMouseLeave={e => { if (frameIdx !== i) e.currentTarget.style.background = "transparent"; }}
+                                    onMouseEnter={e => { if (frameIdx !== globalIdx) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+                                    onMouseLeave={e => { if (frameIdx !== globalIdx) e.currentTarget.style.background = "transparent"; }}
                                   >
                                     <span style={{
                                       fontSize: 9, fontWeight: 900,
@@ -1621,7 +1626,7 @@ ${lines.join("\n")}` : "";
                         onClick={() => { setGridImg(null); setFrameIdx(null); setGridColsOverride(null); setGridManualFrames(null); setCroppedFrame(null); }}>Заменить</button>
                     </>
                   ) : (
-                    <UploadZone label="Загрузи storyboard сетку" hint="Сетка кадров всего сценария" onFile={setGridImg} />
+                    <UploadZone label="Загрузи PART-сетку 2×2" hint={autoPartScenes.length ? `Текущий PART: ${autoPartScenes[0]?.id}–${autoPartScenes[autoPartScenes.length - 1]?.id}` : "Загрузи сетку только выбранного PART"} onFile={setGridImg} />
                   )}
                 </div>
                 <div className="col">
@@ -1630,10 +1635,13 @@ ${lines.join("\n")}` : "";
                       <div className="field">
                         <label className="field-label">Выбери кадр</label>
                         <div className="frame-btns">
-                          {scenes.map((s, i) => (
-                            <button key={s.id} className={`fb${frameIdx === i ? " active" : ""}`}
-                              onClick={() => selectFrame(i)}>{s.id}</button>
-                          ))}
+                          {gridSelectionScenes.map((s, i) => {
+                            const globalIdx = gridSelectionStartIndex + i;
+                            return (
+                              <button key={s.id} className={`fb${frameIdx === globalIdx ? " active" : ""}`}
+                                onClick={() => selectFrame(globalIdx)}>{s.id}</button>
+                            );
+                          })}
                         </div>
                       </div>
                       {curFrame && (
