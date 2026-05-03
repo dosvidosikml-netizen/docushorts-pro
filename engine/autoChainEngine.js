@@ -227,10 +227,47 @@ function frameRoleHint(localIdx = 0, chainMode = "worldHero") {
   return roles[localIdx % roles.length];
 }
 
+
+function buildContinuityModeBlock({ continuityMode = "smart", chainMode = "worldHero", partIndex = 0 } = {}) {
+  if (continuityMode === "standard") {
+    return `CONTINUITY MODE — STANDARD:
+Use the storyboard and style lock normally. Keep the project genre, era and tone consistent, but do not force exact visual continuity between unrelated frames.`;
+  }
+
+  if (continuityMode === "anchor") {
+    return `CONTINUITY MODE — ANCHOR:
+Use uploaded Hero Anchor and/or Previous PART as strong visual references.
+LOCK: recurring hero identity, wardrobe logic, world texture, lighting family and color grade when those elements are present in the scenario.
+IMPORTANT: do not force the hero into frames where the scenario does not include the hero.
+AVOID: copying the exact same composition from the reference image unless the scenario explicitly requires the same shot.`;
+  }
+
+  return `CONTINUITY MODE — SMART CONTINUITY / STYLE LOCKED, COMPOSITION FREE:
+Maintain the SAME cinematic style, lighting family, color grading, lens language, historical world texture and documentary realism across all frames.
+Do NOT clone the previous PART. Use Previous PART only as world/style DNA, not as a layout to copy.
+Each frame MUST be visually distinct:
+- different camera angle
+- different shot size
+- different subject placement
+- different focal point
+- different foreground / midground / background relationship
+SHOT PROGRESSION GUIDE for a 4-frame PART:
+F01: establishing or threat-detail hook
+F02: medium human / action frame
+F03: object/detail / evidence frame
+F04: emotional close-up or consequence frame
+FORBIDDEN:
+- repeating the same camera position
+- repeating the same composition layout
+- duplicating a previous frame with small variations
+- adding characters, animals, modern objects or events not present in the scenario
+This is a cinematic sequence progression, not variations of the same shot.`;
+}
+
 export function buildAutoChainPartPrompt({
   storyboard, styleProfile, partScenes = [], partIndex = 0, totalScenes = 0,
   partSize = 4, chainMode = "worldHero", strictLevel = "hard",
-  referenceMode = "previousPart", appearanceMode = "full"
+  referenceMode = "previousPart", appearanceMode = "full", continuityMode = "smart"
 } = {}) {
   if (!partScenes.length) return "";
   const characterLock = storyboard?.character_lock || [];
@@ -239,7 +276,7 @@ export function buildAutoChainPartPrompt({
   const rows  = Math.ceil(partScenes.length / 2);
   const isFirstPart = partIndex === 0;
 
-  const refText = isFirstPart
+  const baseRefText = isFirstPart
     ? (referenceMode === "previousPart"
         ? "PART 1 has no previous PART. If a previous reference is uploaded, use it only as loose world/style DNA, not as story continuity."
         : "PART 1: use the uploaded HERO ANCHOR image for recurring hero identity and visual DNA. There is no previous PART yet. Do not copy the anchor composition into every cell.")
@@ -248,6 +285,13 @@ export function buildAutoChainPartPrompt({
       : referenceMode === "heroOnly"
         ? "Use the uploaded HERO ANCHOR image only for recurring hero identity and style DNA. Do not force the hero into frames where the scenario does not include him/her."
         : "Use the uploaded PREVIOUS PART image as visual reference for world/style continuity. Do not copy the same composition.";
+
+  const refText = continuityMode === "smart"
+    ? `${baseRefText}
+SMART CONTINUITY OVERRIDE: uploaded references are style/world DNA only. Preserve atmosphere and production design, but every frame must be a new shot with a new composition.`
+    : continuityMode === "standard"
+      ? "Standard mode: references are optional and loose. Follow the storyboard scenario first."
+      : baseRefText;
 
   // Подсказка для режима minimal
   const appearanceNote = appearanceMode === "minimal"
@@ -287,6 +331,8 @@ No other text.
 
 ${buildWorldLock({ storyboard, styleProfile, chainMode, strictLevel })}
 
+${buildContinuityModeBlock({ continuityMode, chainMode, partIndex })}
+
 MOTION / EDITING CONTINUITY:
 The PART should feel like a sequence cut from the same film.
 Maintain timeline order left-to-right, top-to-bottom.
@@ -313,13 +359,13 @@ No parchment. No illustration. No concept art. No extra text except frame labels
 
 export function buildAutoChainAllParts({
   storyboard, styleProfile, partSize = 4, chainMode = "worldHero",
-  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full"
+  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full", continuityMode = "smart"
 } = {}) {
   const scenes = storyboard?.scenes || [];
   const parts  = splitScenesIntoParts(scenes, partSize);
   return parts.map((partScenes, i) => buildAutoChainPartPrompt({
     storyboard, styleProfile, partScenes, partIndex: i, totalScenes: scenes.length,
-    partSize, chainMode, strictLevel, referenceMode, appearanceMode
+    partSize, chainMode, strictLevel, referenceMode, appearanceMode, continuityMode
   }));
 }
 
@@ -364,7 +410,7 @@ export function buildAutoVideoPack({ storyboard, styleProfile, partScenes = [], 
 
 export function buildAutoChainJson({
   storyboard, styleProfile, partSize = 4, chainMode = "worldHero",
-  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full", includeVo = false
+  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full", continuityMode = "smart", includeVo = false
 } = {}) {
   const scenes = storyboard?.scenes || [];
   const parts  = splitScenesIntoParts(scenes, partSize);
@@ -376,6 +422,7 @@ export function buildAutoChainJson({
     strict_level: strictLevel,
     reference_mode: referenceMode,
     appearance_mode: appearanceMode,
+    continuity_mode: continuityMode,
     part_size: partSize,
     total_frames: scenes.length,
     parts: parts.map((partScenes, i) => ({
@@ -383,7 +430,7 @@ export function buildAutoChainJson({
       frame_range: `${frameLabel(partScenes[0], i * partSize)}-${frameLabel(partScenes[partScenes.length - 1], i * partSize + partScenes.length - 1)}`,
       image_prompt: buildAutoChainPartPrompt({
         storyboard, styleProfile, partScenes, partIndex: i, totalScenes: scenes.length,
-        partSize, chainMode, strictLevel, referenceMode, appearanceMode
+        partSize, chainMode, strictLevel, referenceMode, appearanceMode, continuityMode
       }),
       video_pack: buildAutoVideoPack({ storyboard, styleProfile, partScenes, chainMode, includeVo }),
       frames: partScenes.map((s, localIdx) => ({
