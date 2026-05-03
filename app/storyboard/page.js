@@ -1265,18 +1265,12 @@ ${lines.join("\n")}` : "";
                   onChange={e => handleManualJsonChange(e.target.value)}
                   placeholder='{"script": "..."} — или оставь пустым' />
               </div>
-              <button className="btn btn-red" onClick={doStoryboard}
-                disabled={sbBusy || (!script.trim() && !jsonIn.trim())}>
-                {sbBusy ? "⏳ Генерация..." : "▶ СГЕНЕРИРОВАТЬ STORYBOARD"}
-              </button>
-              {sbStat && (() => {
-                const [type, msg] = sbStat.includes("|") ? sbStat.split("|") : ["", sbStat];
-                return (
-                  <div className={`status-line${type === "ok" ? " ok" : type === "err" ? " err" : ""}`}>
-                    {type === "ok" ? `✓ Готово · ${msg}` : type === "err" ? `✗ ${msg}` : "⏳ Генерация..."}
-                  </div>
-                );
-              })()}
+              <div className="out-box" style={{ marginTop: 10 }}>
+                <div className="out-head"><span className="out-label">Manual control</span></div>
+                <div className="out-body" style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
+                  Генерация storyboard запускается только верхней кнопкой «Создать storyboard JSON для V2». Этот блок меняет режим Safe/Raw, целевую модель Veo/Grok и ручной JSON, но сам повторный запрос не запускает.
+                </div>
+              </div>
 
               {/* Validation badge */}
               {validation && (
