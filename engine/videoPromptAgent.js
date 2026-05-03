@@ -171,8 +171,8 @@ export function cleanVideoPromptText(text = "", { storyboard = {}, includeVo = f
 
 export function buildContinuityLine(frame = {}, consistency = "normal") {
   const base = isFirstStoryboardFrame(frame)
-    ? "Maintain exact character appearance, face, clothing, and condition from the uploaded final 2K frame."
-    : "Maintain exact same character appearance, face, clothing, and condition as previous frame.";
+    ? "Maintain EXACT character appearance, face, clothing, and condition from the uploaded final 2K frame."
+    : "Maintain EXACT same character appearance, face, clothing, and condition as previous frame.";
   if (consistency !== "ultra") return base;
   return `${base} Ultra consistency: do not change face structure, age, clothing, dirt level, injuries, lighting style, color grade, or historical period; do not clone the previous composition.`;
 }
@@ -287,22 +287,25 @@ export function buildVideoPromptFor({
 
   // ───── GROK Imagine ─────────────────────────────────────────────────────
   if (target === "grok") {
-    // Visual hook - первое полное предложение, не slice по символам
-    const sentences = action.split(/(?<=[.!?])\s+/);
-    const hook = sentences[0] || action.slice(0, 100).replace(/\s+\S*$/, "");
-    const rest = sentences.slice(1).join(" ");
-
-    return [
-      hook,
-      characterBlock ? `Subject: ${characterBlock}` : "",
-      rest,
-      `Camera: ${camera}, organic handheld micro-drift, natural focus breathing`,
-      "Lighting: natural available light, real bokeh from f/1.8, Kodak Portra 400 color response",
-      `Texture: ${anchors}`,
-      "Physics: realistic inertia, weight in body motion, fabric reacting to movement, environmental particles",
-      `Style: shot like a Roger Deakins documentary fragment. ${aspectRatio}, 24fps, ${duration}s`,
-      buildContinuityLine(frame, consistency),
+    const cleanAction = action
+      .replace(/Maintain EXACT[^.]*\./gi, "")
+      .replace(/Audio:[^.]*\./gi, "")
+      .replace(/SFX:[^.]*\./gi, "")
+      .trim();
+    const firstSentence = cleanAction.split(/(?<=[.!?])\s+/)[0] || cleanAction;
+    const visualHook = firstSentence.slice(0, 180).replace(/\s+\S*$/, "");
+    const continuity = buildContinuityLine(frame, consistency);
+    const role = characterBlock ? `Subject: ${characterBlock}.` : "";
+    const base = [
+      visualHook,
+      role,
+      `Camera: ${camera}`,
+      "Natural light, documentary realism, handheld motion",
+      `SFX: ${sfx}`,
+      "No dialogue, no voiceover",
+      continuity,
     ].filter(Boolean).join(". ").replace(/\.\.+/g, ".").replace(/\s+/g, " ").trim();
+    return base;
   }
 
   if (promptMode === "cheap") {
@@ -380,10 +383,23 @@ export function buildFramePromptsForTarget({ frame, storyboard, target = "veo3",
     stripBannedWords(buildImagePrompt({ frame, storyboard, target })),
     "SCENE PRIMARY FOCUS:"
   );
-  const videoPrompt = ensurePromptPrefix(
-    ensureSfxLine(stripBannedWords(buildVideoPromptFor({ frame, storyboard, target, includeVo, promptMode, consistency })), frame.sfx),
-    "ANIMATE CURRENT FRAME:"
-  );
+
+  let rawVideo = stripBannedWords(buildVideoPromptFor({ frame, storyboard, target, includeVo, promptMode, consistency }));
+  rawVideo = ensureSfxLine(rawVideo, frame.sfx);
+  rawVideo = cleanVideoPromptText(rawVideo, { storyboard, includeVo });
+
+  if (target === "grok") {
+    const continuity = buildContinuityLine(frame, consistency);
+    rawVideo = rawVideo
+      .replace(/Maintain EXACT character appearance, face, clothing, and condition from the uploaded final 2K frame\.?/gi, "")
+      .replace(/Maintain EXACT same character appearance, face, clothing, and condition as previous frame\.?/gi, "")
+      .replace(/Ultra consistency:[^.]*\./gi, "")
+      .trim();
+    rawVideo = compactVideoPrompt(rawVideo, { maxWords: 72 });
+    rawVideo = `${rawVideo} ${continuity}`.replace(/\s+/g, " ").trim();
+  }
+
+  const videoPrompt = ensurePromptPrefix(rawVideo, "ANIMATE CURRENT FRAME:");
 
   return {
     image_prompt_en: imagePrompt,
@@ -437,7 +453,7 @@ export function validateFramePrompts({ frame, storyboard, target = "veo3" }) {
 
   if (target === "grok") {
     const wordCount = (frame.video_prompt_en || "").split(/\s+/).length;
-    if (wordCount > 110) errors.push(`Grok video prompt too long: ${wordCount} words (max ~80-100)`);
+    if (wordCount > 120) errors.push(`Grok video prompt too long: ${wordCount} words (max ~120)`);
   }
 
   return { ok: errors.length === 0, errors };
