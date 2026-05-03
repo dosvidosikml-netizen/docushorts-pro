@@ -262,7 +262,6 @@ export function buildAutoChainPartPrompt({
 ${frameRoleHint(localIdx, chainMode)}
 MANDATORY VISUAL PREFIX: camera-photographed live-action image, NOT illustration, NOT 2D art, NOT painting, NOT concept art.
 SCENARIO INPUT (STRICT): ${sceneTxt}
-VO MEANING: ${cleanText(s.vo_ru || "")}
 SHOT TYPE: ${getShotType(s, localIdx)}
 COMPOSITION RULE: visualize only the described action/subject/environment; keep cinematic composition but do not add new story events.
 SFX NOTE: ${cleanText(s.sfx || "")}`;
@@ -324,7 +323,7 @@ export function buildAutoChainAllParts({
   }));
 }
 
-export function buildAutoVideoPrompt(scene = {}, { storyboard, styleProfile, chainMode = "worldHero", includeVo = true } = {}) {
+export function buildAutoVideoPrompt(scene = {}, { storyboard, styleProfile, chainMode = "worldHero", includeVo = false } = {}) {
   const label  = frameLabel(scene, 0);
   const visual = sceneText(scene);
   const motion = sceneMotion(scene);
@@ -359,13 +358,13 @@ RESTRICTIONS:
 No subtitles, no UI, no watermark, no modern objects unless explicitly present in the scenario. No illustration, no painting, no stylized look.`;
 }
 
-export function buildAutoVideoPack({ storyboard, styleProfile, partScenes = [], chainMode = "worldHero", includeVo = true } = {}) {
+export function buildAutoVideoPack({ storyboard, styleProfile, partScenes = [], chainMode = "worldHero", includeVo = false } = {}) {
   return partScenes.map((s) => buildAutoVideoPrompt(s, { storyboard, styleProfile, chainMode, includeVo })).join("\n\n---\n\n");
 }
 
 export function buildAutoChainJson({
   storyboard, styleProfile, partSize = 4, chainMode = "worldHero",
-  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full", includeVo = true
+  strictLevel = "hard", referenceMode = "previousPart", appearanceMode = "full", includeVo = false
 } = {}) {
   const scenes = storyboard?.scenes || [];
   const parts  = splitScenesIntoParts(scenes, partSize);
