@@ -253,6 +253,7 @@ export default function StudioPage() {
   const [autoChainMode, setAutoChainMode] = useState("worldHero");
   const [autoStrictLevel, setAutoStrictLevel] = useState("hard");
   const [autoReferenceMode, setAutoReferenceMode] = useState("heroAndPrevious");
+  const [autoContinuityMode, setAutoContinuityMode] = useState("smart");
   const [autoAppearanceMode, setAutoAppearanceMode] = useState("full");
   const [autoIncludeVo, setAutoIncludeVo] = useState(false);
   const [autoHeroAnchor, setAutoHeroAnchor] = useState(null);
@@ -343,7 +344,7 @@ export default function StudioPage() {
 ${lines.join("\n")}` : "";
   })() : "";
 
-  const autoAllPrompts = useMemo(() => buildAutoChainAllParts({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode }), [storyboard, styleProfile, autoPartSize, autoChainMode, autoStrictLevel, autoReferenceMode, autoAppearanceMode]);
+  const autoAllPrompts = useMemo(() => buildAutoChainAllParts({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode, continuityMode: autoContinuityMode }), [storyboard, styleProfile, autoPartSize, autoChainMode, autoStrictLevel, autoReferenceMode, autoAppearanceMode, autoContinuityMode]);
 
   const chunkGridPrompt = useMemo(() => {
     if (!activeChunkScenes.length) return "";
@@ -626,7 +627,8 @@ ${lines.join("\n")}` : "";
       chainMode: autoChainMode,
       strictLevel: autoStrictLevel,
       referenceMode: autoReferenceMode,
-      appearanceMode: autoAppearanceMode
+      appearanceMode: autoAppearanceMode,
+      continuityMode: autoContinuityMode
     });
 
     // Build anchor attachment instructions
@@ -652,7 +654,7 @@ ${lines.join("\n")}` : "";
     const all = buildAutoChainAllParts({
       storyboard, styleProfile, partSize: autoPartSize,
       chainMode: autoChainMode, strictLevel: autoStrictLevel,
-      referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode
+      referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode, continuityMode: autoContinuityMode
     }).map((p, i) => `===== AUTO-CHAIN PART ${i + 1} =====\n\n${p}${charOverrideBlock}`).join("\n\n");
     setAutoAllPromptText(all);
     setAutoPartPrompt("");
@@ -668,7 +670,7 @@ ${lines.join("\n")}` : "";
   }
 
   function exportAutoChainJson() {
-    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode, includeVo: autoIncludeVo });
+    const obj = buildAutoChainJson({ storyboard, styleProfile, partSize: autoPartSize, chainMode: autoChainMode, strictLevel: autoStrictLevel, referenceMode: autoReferenceMode, appearanceMode: autoAppearanceMode, continuityMode: autoContinuityMode, includeVo: autoIncludeVo });
     downloadTextFile(JSON.stringify(obj, null, 2), safeFileName(projectName) + "-auto-chain-v2.json", "application/json;charset=utf-8");
   }
 
@@ -1075,6 +1077,47 @@ ${lines.join("\n")}` : "";
                     </select>
                   </div>
                 </div>
+                <div className="field" style={{ marginTop: 10 }}>
+                  <label className="field-label">Continuity mode</label>
+                  <div className="brow" style={{ flexWrap: "wrap", gap: 8 }}>
+                    <button
+                      className={"btn btn-sm" + (autoContinuityMode === "standard" ? " btn-red" : "")}
+                      onClick={() => { setAutoContinuityMode("standard"); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      Standard
+                    </button>
+                    <button
+                      className={"btn btn-sm" + (autoContinuityMode === "anchor" ? " btn-red" : "")}
+                      onClick={() => { setAutoContinuityMode("anchor"); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      Anchor
+                    </button>
+                    <button
+                      className={"btn btn-sm" + (autoContinuityMode === "smart" ? " btn-red" : "")}
+                      onClick={() => { setAutoContinuityMode("smart"); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText(""); }}
+                    >
+                      🔥 Smart Continuity
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6, lineHeight: 1.55 }}>
+                    {autoContinuityMode === "standard" && (
+                      <>
+                        <b style={{ color: "var(--text)" }}>Standard</b> — обычная генерация без жёсткой связи между PART. Подходит для быстрых тестов и простых роликов. Стиль может немного плавать.
+                      </>
+                    )}
+                    {autoContinuityMode === "anchor" && (
+                      <>
+                        <b style={{ color: "var(--text)" }}>Anchor</b> — жёсткая связка через Hero Anchor или Previous PART. Подходит для одного героя и точного continuity, но может повторять композиции.
+                      </>
+                    )}
+                    {autoContinuityMode === "smart" && (
+                      <>
+                        <b style={{ color: "var(--text)" }}>Smart Continuity</b> — рекомендуемый режим: сохраняет стиль, свет и атмосферу, но запрещает залипание кадров и повтор композиции.
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <div className="field" style={{ marginTop: 10 }}>
                   <label className="field-label">Внешность персонажей в промте</label>
                   <div className="brow">
