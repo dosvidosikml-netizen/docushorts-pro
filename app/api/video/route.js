@@ -152,8 +152,23 @@ function finalizeVideoContract({ frame, storyboard, target, videoPrompt, imagePr
   finalVideo = ensureSfxInsideVideoPrompt(finalVideo, finalSfx);
   finalVideo = removeVoDialogueWhenDisabled(finalVideo, includeVo);
   finalVideo = cleanVideoPromptText(finalVideo, { storyboard, includeVo });
-  finalVideo = ensureContinuityLine(finalVideo, frame, consistency);
-  if (promptMode === "cheap") finalVideo = compactVideoPrompt(finalVideo, { maxWords: target === "grok" ? 80 : 95 });
+
+  const continuityLine = buildContinuityLine(frame, consistency);
+  finalVideo = finalVideo
+    .replace(/Maintain EXACT character appearance, face, clothing, and condition from the uploaded final 2K frame\.?/gi, "")
+    .replace(/Maintain EXACT same character appearance, face, clothing, and condition as previous frame\.?/gi, "")
+    .replace(/Maintain exact character appearance, face, clothing, and condition from the uploaded final 2K frame\.?/gi, "")
+    .replace(/Maintain exact same character appearance, face, clothing, and condition as previous frame\.?/gi, "")
+    .replace(/Ultra consistency:[^.]*\./gi, "")
+    .trim();
+
+  if (target === "grok") {
+    finalVideo = compactVideoPrompt(finalVideo, { maxWords: 72 });
+    finalVideo = `${finalVideo} ${continuityLine}`.replace(/\s+/g, " ").trim();
+  } else {
+    finalVideo = `${finalVideo} ${continuityLine}`.replace(/\s+/g, " ").trim();
+    if (promptMode === "cheap") finalVideo = compactVideoPrompt(finalVideo, { maxWords: 95 });
+  }
 
   const finalNegative = [negativePrompt || NEGATIVE_PROMPT_BASE, "subtitles, captions, on-screen text, UI overlay, watermark, logo, deformed face, identity drift, clothing drift"]
     .filter(Boolean)
