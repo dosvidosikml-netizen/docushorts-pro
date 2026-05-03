@@ -256,6 +256,8 @@ export default function StudioPage() {
   const [autoContinuityMode, setAutoContinuityMode] = useState("smart");
   const [autoAppearanceMode, setAutoAppearanceMode] = useState("full");
   const [autoIncludeVo, setAutoIncludeVo] = useState(false);
+  const [videoPromptMode, setVideoPromptMode] = useState("pro");
+  const [videoConsistency, setVideoConsistency] = useState("ultra");
   const [autoHeroAnchor, setAutoHeroAnchor] = useState(null);
 
   /* CHARACTER OVERRIDE — лицо из anchor + костюм/модификаторы из роли */
@@ -408,6 +410,8 @@ ${lines.join("\n")}` : "";
       if (text.p2k)         setP2k(text.p2k);
       if (text.videoP)      setVideoP(text.videoP);
       if (text.analysis)    setAnalysis(text.analysis);
+      if (text.videoPromptMode) setVideoPromptMode(text.videoPromptMode);
+      if (text.videoConsistency) setVideoConsistency(text.videoConsistency);
     }
 
     if (imgs) {
@@ -426,10 +430,10 @@ ${lines.join("\n")}` : "";
     tryLsSave(KEY_TEXT, {
       projectName, topic, projectType, stylePreset, duration,
       aspectRatio, tone, script, storyboard, jsonIn, sbMode, target, validation,
-      frameIdx, exploreP, selVariant, p2k, videoP, analysis
+      frameIdx, exploreP, selVariant, p2k, videoP, analysis, videoPromptMode, videoConsistency
     });
   }, [hydrated, projectName, topic, projectType, stylePreset, duration, aspectRatio,
-      tone, script, storyboard, jsonIn, sbMode, target, validation, frameIdx, exploreP, selVariant, p2k, videoP, analysis]);
+      tone, script, storyboard, jsonIn, sbMode, target, validation, frameIdx, exploreP, selVariant, p2k, videoP, analysis, videoPromptMode, videoConsistency]);
 
   /* ── AUTOSAVE WRITE (images — separate key, с защитой от quota) ── */
   useEffect(() => {
@@ -591,7 +595,9 @@ ${lines.join("\n")}` : "";
           projectType,
           stylePreset,
           target,
-          includeVo: autoIncludeVo
+          includeVo: autoIncludeVo,
+          promptMode: videoPromptMode,
+          consistency: videoConsistency
         })
       });
       const d2 = await r2.json();
@@ -1940,10 +1946,57 @@ SFX: ${curFrame.sfx}` : ""
                     {finalImg ? (
                       <>
                         <div className="img-viewer"><img src={finalImg} alt="Final 2K frame" /></div>
+                        <div className="frame-card" style={{ marginTop: 10 }}>
+                          <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🎬 Video Prompt Engine V2.7</div>
+                          <div className="field" style={{ marginBottom: 8 }}>
+                            <label className="field-label">Prompt mode</label>
+                            <div className="brow">
+                              <button
+                                className={"btn btn-sm" + (videoPromptMode === "cheap" ? " btn-red" : "")}
+                                onClick={() => { setVideoPromptMode("cheap"); setVideoP(""); }}
+                              >
+                                Cheap
+                              </button>
+                              <button
+                                className={"btn btn-sm" + (videoPromptMode === "pro" ? " btn-red" : "")}
+                                onClick={() => { setVideoPromptMode("pro"); setVideoP(""); }}
+                              >
+                                Pro
+                              </button>
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                              {videoPromptMode === "cheap"
+                                ? "Cheap — короткий prompt для тестов, меньше токенов и быстрее."
+                                : "Pro — полный кинематографичный prompt для финального кадра."}
+                            </div>
+                          </div>
+                          <div className="field">
+                            <label className="field-label">Consistency</label>
+                            <div className="brow">
+                              <button
+                                className={"btn btn-sm" + (videoConsistency === "normal" ? " btn-red" : "")}
+                                onClick={() => { setVideoConsistency("normal"); setVideoP(""); }}
+                              >
+                                Normal
+                              </button>
+                              <button
+                                className={"btn btn-sm" + (videoConsistency === "ultra" ? " btn-red" : "")}
+                                onClick={() => { setVideoConsistency("ultra"); setVideoP(""); }}
+                              >
+                                Ultra
+                              </button>
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                              {videoConsistency === "ultra"
+                                ? "Ultra — фикс лица, одежды, состояния, света и эпохи без копирования композиции."
+                                : "Normal — обычная связка кадра без сверхжёсткого identity lock."}
+                            </div>
+                          </div>
+                        </div>
                         <div className="brow" style={{ marginTop: 10 }}>
                           <button className="btn btn-sm" onClick={() => { setFinalImg(null); setVideoP(""); setAnalysis(null); }}>Заменить</button>
                           <button className="btn btn-red" onClick={doVideoPrompt} disabled={vidBusy}>
-                            {vidBusy ? "⏳ Анализ..." : "▶ VIDEO PROMPT"}
+                            {vidBusy ? "⏳ Генерация..." : "▶ VIDEO PROMPT"}
                           </button>
                         </div>
                         {analysis && (
