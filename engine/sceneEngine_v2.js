@@ -179,7 +179,7 @@ TARGET MODEL CHARACTERISTICS: ${targetConfig.description}
 
 Target duration: ${d} seconds.
 Target scenes: ${preset.targetScenes} (MANDATORY — generate EXACTLY this many scenes).
-Target VO length: ${preset.wordsMin}-${preset.wordsMax} Russian words.
+Target VO length: ${preset.wordsMin}-${preset.wordsMax} Russian words. Keep vo_ru as external TTS text only; do NOT inject VO/dialogue into image_prompt_en or video_prompt_en.
 Average shot duration: 3 seconds.
 total_duration MUST equal ${d}.
 
@@ -201,12 +201,12 @@ VIDEO PROMPT RULES (video_prompt_en):
 ${normalizedTarget === "veo3"
   ? `- VEO 3 format: flowing paragraph 60-120 words
 - Include explicit timing on camera movement ("slow 2-second push-in", "static 3-second hold")
-- MUST include Audio block: "Audio: [ambience]. [SFX]. [voiceover or 'no dialogue']"
+- MUST include Audio block: "Audio: [ambience]. SFX: [details]. No dialogue, no voiceover."
 - Use specific physical realism language: inertia, weight, contact, fabric reaction
 - End with: "Maintain EXACT same character appearance, face, clothing, and condition as previous frame."`
   : `- GROK format: compact 40-80 words, visual hook first
 - Use stylistic references instead of timing ("shot like a Roger Deakins documentary fragment")
-- Video-only — audio is layered separately, no Audio block needed inside prompt
+- Video-only — audio is layered separately, no VO/dialogue inside prompt
 - Single action only, simpler structure
 - End with: "Maintain EXACT same character appearance, face, clothing, and condition as previous frame."`
 }
