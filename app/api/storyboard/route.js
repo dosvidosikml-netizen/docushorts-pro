@@ -364,8 +364,9 @@ function extractJson(text = "") {
 // POST handler
 // ────────────────────────────────────────────────────────────────────────────
 export async function POST(req) {
+  let body = {};
   try {
-    const body = await req.json();
+    body = await req.json();
     const script = String(body.script || "").trim();
     const duration = Number(body.duration || 60);
     const aspectRatio = body.aspect_ratio || "9:16";
@@ -444,7 +445,6 @@ export async function POST(req) {
     });
   } catch (error) {
     try {
-      const body = await req.json().catch(() => ({}));
       const { buildLocalStoryboard } = await import("../../../engine/sceneEngine");
       const storyboard = buildLocalStoryboard({
         script: body.script || "",
