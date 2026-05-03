@@ -91,12 +91,25 @@ export const NEGATIVE_PROMPT_BASE =
 // CHARACTER LOCK — строит verbatim-блок персонажа из character_lock.
 // Это критично для face consistency между кадрами.
 // ────────────────────────────────────────────────────────────────────────────
-export function buildCharacterBlock(characterLock = []) {
+export function roleDescriptorFromCharacter(c = {}) {
+  const rawName = String(c.name || "").toLowerCase();
+  const age = Number(c.age || 0);
+  if (/judge|судья/.test(rawName)) return "the judge";
+  if (/father|priest|свящ|monk|abbot/.test(rawName)) return "the priest";
+  if (/mother|мать/.test(rawName)) return "the mother";
+  if (/executioner|палач/.test(rawName)) return "the executioner";
+  if (age && age < 14) return "the child";
+  if (age && age < 18) return "the teenager";
+  return "the person";
+}
+
+export function buildCharacterBlock(characterLock = [], { includeNames = false } = {}) {
   if (!Array.isArray(characterLock) || characterLock.length === 0) return "";
   return characterLock
     .map((c) => {
+      const role = includeNames && c.name ? c.name : roleDescriptorFromCharacter(c);
       const parts = [
-        c.name,
+        role,
         c.age ? `${c.age}y old` : null,
         c.face_features || c.description,
         c.hair,
@@ -106,6 +119,69 @@ export function buildCharacterBlock(characterLock = []) {
       return parts.join(", ");
     })
     .join(" | ");
+}
+
+export function isFirstStoryboardFrame(frame = {}) {
+  const id = String(frame.id || "").toLowerCase();
+  if (/frame[_-]?0?1$/.test(id) || /^f0?1$/.test(id)) return true;
+  const start = Number(frame.start);
+  return Number.isFinite(start) && start <= 0;
+}
+
+export function removeCharacterNames(text = "", storyboard = {}) {
+  let out = String(text || "");
+  const locks = Array.isArray(storyboard?.character_lock) ? storyboard.character_lock : [];
+  for (const c of locks) {
+    const name = String(c?.name || "").trim();
+    if (!name) continue;
+    const replacement = roleDescriptorFromCharacter(c);
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`\\b${escaped}\\b`, "gi"), replacement);
+  }
+  return out;
+}
+
+export function cleanVideoPromptText(text = "", { storyboard = {}, includeVo = false } = {}) {
+  let out = String(text || "");
+  out = removeCharacterNames(out, storyboard);
+  out = out
+    .replace(/No\s+No\s+dialogue/gi, "No dialogue")
+    .replace(/no\s+No\s+dialogue/gi, "no dialogue")
+    .replace(/No dialogue,\s*no\s+No dialogue,\s*no voiceover/gi, "No dialogue, no voiceover")
+    .replace(/No dialogue,\s*no dialogue,\s*no voiceover/gi, "No dialogue, no voiceover")
+    .replace(/No voiceover,\s*no voiceover/gi, "No voiceover")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!includeVo) {
+    out = out
+      .replace(/Voiceover[^.]*\./gi, "")
+      .replace(/VO meaning[^.]*\./gi, "")
+      .replace(/narrator[^.]*\./gi, "")
+      .replace(/spoken line[^.]*\./gi, "")
+      .replace(/character speech[^.]*\./gi, "")
+      .replace(/dialogue allowed[^.]*\./gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    out = out.replace(/(?:No dialogue,\s*no voiceover;?\s*ambient sound and SFX only\.?\s*)+/gi, "").trim();
+    out = `${out} No dialogue, no voiceover; ambient sound and SFX only.`;
+  }
+  return out.replace(/\s+/g, " ").trim();
+}
+
+export function buildContinuityLine(frame = {}, consistency = "normal") {
+  const base = isFirstStoryboardFrame(frame)
+    ? "Maintain exact character appearance, face, clothing, and condition from the uploaded final 2K frame."
+    : "Maintain exact same character appearance, face, clothing, and condition as previous frame.";
+  if (consistency !== "ultra") return base;
+  return `${base} Ultra consistency: do not change face structure, age, clothing, dirt level, injuries, lighting style, color grade, or historical period; do not clone the previous composition.`;
+}
+
+export function compactVideoPrompt(text = "", { maxWords = 95 } = {}) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return String(text || "").trim();
+  const keep = words.slice(0, maxWords).join(" ");
+  return keep.replace(/[,;:]?\s*$/, ".");
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -179,8 +255,10 @@ export function buildVideoPromptFor({
   storyboard = {},
   target = "veo3",  // "veo3" | "grok"
   includeVo = false,
+  promptMode = "pro", // "cheap" | "pro"
+  consistency = "normal", // "normal" | "ultra"
 } = {}) {
-  const characterBlock = buildCharacterBlock(storyboard.character_lock);
+  const characterBlock = buildCharacterBlock(storyboard.character_lock, { includeNames: false });
   const aspectRatio = storyboard.aspect_ratio || "9:16";
   const duration = Number(frame.duration || 3);
 
@@ -223,8 +301,20 @@ export function buildVideoPromptFor({
       `Texture: ${anchors}`,
       "Physics: realistic inertia, weight in body motion, fabric reacting to movement, environmental particles",
       `Style: shot like a Roger Deakins documentary fragment. ${aspectRatio}, 24fps, ${duration}s`,
-      "Maintain EXACT same character appearance, face, clothing, and condition as previous frame",
+      buildContinuityLine(frame, consistency),
     ].filter(Boolean).join(". ").replace(/\.\.+/g, ".").replace(/\s+/g, " ").trim();
+  }
+
+  if (promptMode === "cheap") {
+    return cleanVideoPromptText([
+      `${camera}, ${duration}-second shot`,
+      characterBlock ? `Subject: ${characterBlock}` : "",
+      `Action: ${action}`,
+      "Natural available light, documentary realism, subtle 35mm grain, grounded physical motion",
+      `Audio: ${sfx}`,
+      `SFX: ${sfx}`,
+      buildContinuityLine(frame, consistency),
+    ].filter(Boolean).join(". "), { storyboard, includeVo });
   }
 
   // ───── VEO 3 ────────────────────────────────────────────────────────────
@@ -232,7 +322,7 @@ export function buildVideoPromptFor({
     ? `Audio: ${sfx}. Voiceover/dialogue allowed by user: "${voRu}"`
     : `Audio: ${sfx}. No dialogue, no voiceover, ambient only`;
 
-  return [
+  return cleanVideoPromptText([
     `${camera}, ${duration}-second shot.`,
     characterBlock ? `Subject: ${characterBlock}.` : "",
     `Action: ${action}.`,
@@ -243,8 +333,8 @@ export function buildVideoPromptFor({
     "Physics: realistic inertia, weight and resistance in body motion, grounded contact with surfaces, micro-delays in reactions, fabric reacting to movement, environmental particles moving with motion.",
     audioBlock + ".",
     `Format: ${aspectRatio}, 24fps, shot on ARRI Alexa 35 with Zeiss Master Prime anamorphic.`,
-    "Maintain EXACT same character appearance, face, clothing, and condition as previous frame.",
-  ].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+    buildContinuityLine(frame, consistency),
+  ].filter(Boolean).join(" "), { storyboard, includeVo });
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -285,13 +375,13 @@ export function stripBannedWords(text = "") {
 // Финальная сборка для одного кадра — image + video + negative.
 // Используется в normalizeStoryboard.
 // ────────────────────────────────────────────────────────────────────────────
-export function buildFramePromptsForTarget({ frame, storyboard, target = "veo3", includeVo = false }) {
+export function buildFramePromptsForTarget({ frame, storyboard, target = "veo3", includeVo = false, promptMode = "pro", consistency = "normal" }) {
   const imagePrompt = ensurePromptPrefix(
     stripBannedWords(buildImagePrompt({ frame, storyboard, target })),
     "SCENE PRIMARY FOCUS:"
   );
   const videoPrompt = ensurePromptPrefix(
-    ensureSfxLine(stripBannedWords(buildVideoPromptFor({ frame, storyboard, target, includeVo })), frame.sfx),
+    ensureSfxLine(stripBannedWords(buildVideoPromptFor({ frame, storyboard, target, includeVo, promptMode, consistency })), frame.sfx),
     "ANIMATE CURRENT FRAME:"
   );
 
@@ -317,12 +407,12 @@ export function validateFramePrompts({ frame, storyboard, target = "veo3" }) {
     if (re.test(text)) errors.push(`banned word: "${word}"`);
   }
 
-  // Character lock инжекция
-  const charBlock = buildCharacterBlock(storyboard.character_lock);
+  // Character lock injection is descriptive in V2.7: names are intentionally removed from video prompts.
+  const charBlock = buildCharacterBlock(storyboard.character_lock, { includeNames: false });
   if (charBlock && storyboard.character_lock?.length > 0) {
-    const firstName = storyboard.character_lock[0]?.name;
-    if (firstName && !text.toLowerCase().includes(firstName.toLowerCase())) {
-      errors.push(`character lock missing: "${firstName}" not found in prompts`);
+    const firstDescriptor = charBlock.split(",")[0]?.toLowerCase();
+    if (firstDescriptor && !text.toLowerCase().includes(firstDescriptor)) {
+      errors.push(`character lock descriptor missing: "${firstDescriptor}" not found in prompts`);
     }
   }
 
@@ -334,7 +424,7 @@ export function validateFramePrompts({ frame, storyboard, target = "veo3" }) {
     errors.push("video prompt missing ANIMATE CURRENT FRAME prefix");
   }
 
-  if (frame.video_prompt_en && !/SFX\s*:/i.test(frame.video_prompt_en)) {
+  if (frame.video_prompt_en && !/\bSFX\s*:/i.test(frame.video_prompt_en)) {
     errors.push("video prompt missing embedded SFX block");
   }
 
