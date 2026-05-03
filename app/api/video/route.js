@@ -51,6 +51,103 @@ TARGET MODEL: Grok Imagine (xAI)
 - Single action only
 `;
 
+
+function safeParseJsonObject(raw = "") {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  const unfenced = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    return JSON.parse(unfenced);
+  } catch {}
+
+  const start = unfenced.indexOf("{");
+  const end = unfenced.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(unfenced.slice(start, end + 1));
+    } catch {}
+  }
+  return null;
+}
+
+function normalizePromptPrefix(text = "", prefix) {
+  let out = String(text || "").trim();
+  if (!out) return prefix;
+
+  if (prefix === "SCENE PRIMARY FOCUS:") {
+    out = out.replace(/^SCENE PRIMARY FOCUS[:\s-]*/i, "").trim();
+  }
+  if (prefix === "ANIMATE CURRENT FRAME:") {
+    out = out.replace(/^ANIMATE CURRENT FRAME[:\s—-]*/i, "").trim();
+  }
+  return `${prefix} ${out}`.replace(/\s+/g, " ").trim();
+}
+
+function ensureSfxInsideVideoPrompt(videoPrompt = "", sfx = "") {
+  const cleanSfx = String(sfx || "subtle realistic ambience").trim();
+  let out = String(videoPrompt || "").trim();
+  if (!/\bSFX\s*:/i.test(out)) {
+    out = `${out} SFX: ${cleanSfx}.`;
+  }
+  return out.replace(/\s+/g, " ").trim();
+}
+
+function ensureContinuityLine(videoPrompt = "") {
+  const line = "Maintain EXACT same character appearance, face, clothing, and condition as previous frame.";
+  let out = String(videoPrompt || "").trim();
+  out = out.replace(/Maintain EXACT same character appearance, face, clothing, and condition as previous frame\.?/gi, "").trim();
+  return `${out} ${line}`.replace(/\s+/g, " ").trim();
+}
+
+function buildSegmentPlan(frame = {}) {
+  const duration = Number(frame.duration || 3);
+  if (!Number.isFinite(duration) || duration <= 8) return null;
+  const parts = Math.ceil(duration / 8);
+  const segmentLength = Math.ceil(duration / parts);
+  return {
+    required: true,
+    reason_ru: "Длительность кадра больше 8 секунд, для Veo лучше резать на несколько image-to-video клипов.",
+    total_duration: duration,
+    parts,
+    segment_length_seconds: Math.min(8, segmentLength),
+  };
+}
+
+function finalizeVideoContract({ frame, storyboard, target, videoPrompt, imagePrompt, sfx, negativePrompt }) {
+  const finalSfx = String(sfx || frame.sfx || "subtle realistic ambience").trim();
+  let finalVideo = stripBannedWords(videoPrompt || "");
+  let finalImage = stripBannedWords(imagePrompt || "");
+
+  finalVideo = normalizePromptPrefix(finalVideo, "ANIMATE CURRENT FRAME:");
+  finalImage = normalizePromptPrefix(finalImage, "SCENE PRIMARY FOCUS:");
+  finalVideo = ensureSfxInsideVideoPrompt(finalVideo, finalSfx);
+  finalVideo = ensureContinuityLine(finalVideo);
+
+  const finalNegative = [negativePrompt || NEGATIVE_PROMPT_BASE, "subtitles, captions, on-screen text, UI overlay, watermark, logo, deformed face, identity drift, clothing drift"]
+    .filter(Boolean)
+    .join(", ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const validation = validateFramePrompts({
+    frame: { ...frame, video_prompt_en: finalVideo, image_prompt_en: finalImage },
+    storyboard,
+    target,
+  });
+
+  return {
+    video_prompt_en: finalVideo,
+    image_prompt_en: finalImage,
+    sfx: finalSfx,
+    negative_prompt: finalNegative,
+    validation,
+    segment_plan: buildSegmentPlan(frame),
+  };
+}
+
 async function refineWithRouter({ frame, analysis, storyboard, target, seedPrompt, seedImage }) {
   if (!process.env.OPENROUTER_API_KEY) return null;
 
@@ -116,12 +213,9 @@ Generate the FINAL ${target.toUpperCase()} prompt following all rules above. Out
 
   if (!result.ok || !result.content) return null;
 
-  try {
-    const parsed = JSON.parse(result.content);
-    return { ...parsed, _model_used: result.model_used };
-  } catch {
-    return null;
-  }
+  const parsed = safeParseJsonObject(result.content);
+  if (!parsed) return null;
+  return { ...parsed, _model_used: result.model_used };
 }
 
 export async function POST(req) {
@@ -150,28 +244,30 @@ export async function POST(req) {
       });
     } catch {}
 
-    const video_prompt_en = stripBannedWords(api?.video_prompt_en || seedVideo);
-    const image_prompt_en = stripBannedWords(api?.image_prompt_en || seedImage);
-    const sfx = api?.sfx || analysis.sfx || frame.sfx || "subtle realistic ambience";
-    const negative_prompt = api?.negative_prompt || NEGATIVE_PROMPT_BASE;
-
-    const validation = validateFramePrompts({
-      frame: { ...frame, video_prompt_en, image_prompt_en },
+    const finalized = finalizeVideoContract({
+      frame,
       storyboard,
       target,
+      videoPrompt: api?.video_prompt_en || seedVideo,
+      imagePrompt: api?.image_prompt_en || seedImage,
+      sfx: api?.sfx || analysis.sfx || frame.sfx || "subtle realistic ambience",
+      negativePrompt: api?.negative_prompt || NEGATIVE_PROMPT_BASE,
     });
 
     return Response.json({
-      video_prompt_en,
-      image_prompt_en,
-      sfx,
-      negative_prompt,
+      ...finalized,
       target,
-      validation,
       model_used: api?._model_used || "local_only",
+      pipeline_contract: {
+        image_prefix: "SCENE PRIMARY FOCUS:",
+        video_prefix: "ANIMATE CURRENT FRAME:",
+        sfx_embedded_in_video_prompt: true,
+        continuity_lock: true,
+        no_subtitles_ui_watermark: true,
+      },
       notes_ru:
         api?.notes_ru ||
-        `Промт построен под ${target === "veo3" ? "Veo 3" : "Grok Imagine"} с инжекцией character lock и realism anchors. Banned-токены вычищены.`,
+        `Промт построен под ${target === "veo3" ? "Veo 3" : "Grok Imagine"} с инжекцией character lock, SFX внутри video prompt, continuity lock и realism anchors. Banned-токены вычищены.`,
     });
   } catch (e) {
     return Response.json({ error: e.message || "Video API error" }, { status: 500 });
