@@ -254,7 +254,7 @@ export default function StudioPage() {
   const [autoStrictLevel, setAutoStrictLevel] = useState("hard");
   const [autoReferenceMode, setAutoReferenceMode] = useState("heroAndPrevious");
   const [autoAppearanceMode, setAutoAppearanceMode] = useState("full");
-  const [autoIncludeVo, setAutoIncludeVo] = useState(true);
+  const [autoIncludeVo, setAutoIncludeVo] = useState(false);
   const [autoHeroAnchor, setAutoHeroAnchor] = useState(null);
 
   /* CHARACTER OVERRIDE — лицо из anchor + костюм/модификаторы из роли */
@@ -548,7 +548,7 @@ ${lines.join("\n")}` : "";
     } finally { setExpBusy(false); }
   }
 
-  /* ── SELECT VARIANT: crop → analyze → build accurate 2K prompt ── */
+  /* ── SELECT VARIANT: crop → build accurate 2K prompt (image analysis disabled) ── */
   const handleSelectVariant = useCallback(async (variant) => {
     if (!variantImg || !curFrame) return;
     setSelVariant(variant);
@@ -557,63 +557,32 @@ ${lines.join("\n")}` : "";
     setP2kBusy(true);
 
     try {
-      // 1. Crop the selected quadrant from the 2×2 grid
       const cropped = await cropQuadrant(variantImg, variant);
       setCropped(cropped);
-
-      // 2. Analyze the cropped image to get real visual description
-      const rA = await fetch("/api/analyze", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          frame: curFrame, variant,
-          imageDataUrl: cropped,
-          styleProfile, projectType, stylePreset
-        })
-      });
-      const dA = await rA.json();
-      const vis = dA.analysis || {};
-
-      // 3. Build 2K prompt that DESCRIBES the visual (no vague "use uploaded" instructions)
-      const base = build2KPrompt(curFrame, variant, storyboard, styleProfile);
-
-      // Inject real visual data into the prompt
-      const visual_insert = [
-        vis.camera    ? `CAMERA & COMPOSITION: ${vis.camera}` : "",
-        vis.lighting  ? `LIGHTING: ${vis.lighting}` : "",
-        vis.emotion   ? `EMOTION: ${vis.emotion}` : "",
-        vis.environment_motion ? `ENVIRONMENT: ${vis.environment_motion}` : "",
-      ].filter(Boolean).join("\n");
-
-      // Replace the generic reference line with the actual visual description
-      const enhanced = base
-        .replace(
-          "USE THE UPLOADED SELECTED VARIANT AS THE VISUAL REFERENCE. Preserve its camera angle, composition, lens feeling, lighting direction, atmosphere, character pose and emotional tone.",
-          `VISUAL REFERENCE FROM SELECTED VARIANT ${variant}:\n${visual_insert || "Preserve the composition, lighting, and atmosphere of the selected variant."}`
-        );
-
-      setP2k(enhanced);
+      setP2k(build2KPrompt(curFrame, variant, storyboard, styleProfile));
     } catch {
-      // fallback: use base prompt without enhancement
       setP2k(build2KPrompt(curFrame, variant, storyboard, styleProfile));
     } finally {
       setP2kBusy(false);
     }
-  }, [variantImg, curFrame, storyboard, styleProfile, projectType, stylePreset]);
+  }, [variantImg, curFrame, storyboard, styleProfile]);
 
   async function doVideoPrompt() {
     if (!curFrame || !finalImg) return;
     setVidBusy(true); setVideoP(""); setAnalysis(null);
     try {
-      const r1 = await fetch("/api/analyze", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ frame: curFrame, variant: selVariant || "A", imageDataUrl: finalImg, styleProfile, projectType, stylePreset })
-      });
-      const d1 = await r1.json();
-      setAnalysis(d1.analysis);
-
       const r2 = await fetch("/api/video", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ frame: curFrame, analysis: d1.analysis, storyboard, styleProfile, projectType, stylePreset, target })
+        body: JSON.stringify({
+          frame: curFrame,
+          analysis: null,
+          storyboard,
+          styleProfile,
+          projectType,
+          stylePreset,
+          target,
+          includeVo: autoIncludeVo
+        })
       });
       const d2 = await r2.json();
       setVideoP(d2.video_prompt_en || "");
@@ -1125,7 +1094,7 @@ ${lines.join("\n")}` : "";
                   </div>
                 </div>
                 <div className="field" style={{ marginTop: 10 }}>
-                  <label className="field-label">VO в видеопромте</label>
+                  <label className="field-label">VO / диалоги в видеопромте</label>
                   <div className="brow">
                     <button
                       className={"btn btn-sm" + (autoIncludeVo ? " btn-red" : "")}
@@ -1142,8 +1111,8 @@ ${lines.join("\n")}` : "";
                   </div>
                   <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
                     {autoIncludeVo
-                      ? "VO MEANING LOCK присутствует — генератор держит эмоцию"
-                      : "VO убран — только визуал и движение"}
+                      ? "VO/диалоги разрешены — включай только когда нужен голос внутри промта"
+                      : "По умолчанию VO/диалогов нет — только визуал, движение и SFX"}
                   </div>
                 </div>
               </div>
