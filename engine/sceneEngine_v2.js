@@ -462,7 +462,7 @@ export function validateStoryboard(data = {}, requestedMode = "safe", requestedT
 
       // Video prompt checks
       const vid = String(s.video_prompt_en || "");
-      if (!vid.includes("Maintain EXACT same character appearance"))
+      if (!vid.includes("Maintain EXACT character appearance") && !vid.includes("Maintain EXACT same character appearance"))
         errors.push(`${expectedId}: video prompt missing character continuity line`);
 
       // Target-specific
@@ -472,7 +472,7 @@ export function validateStoryboard(data = {}, requestedMode = "safe", requestedT
       }
       if (target === "grok") {
         const wc = vid.split(/\s+/).length;
-        if (wc > 130) errors.push(`${expectedId}: Grok video prompt too long (${wc} words, max ~100)`);
+        if (wc > 130) errors.push(`${expectedId}: Grok video prompt too long (${wc} words, max ~120)`);
       }
 
       // cut_energy
