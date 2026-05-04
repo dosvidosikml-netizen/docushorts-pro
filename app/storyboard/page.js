@@ -1209,7 +1209,6 @@ ${lines.join("\n")}` : "";
                 </div>
               </div>
             </div>
-            </div>
           </div>
         </div>
       </section>
