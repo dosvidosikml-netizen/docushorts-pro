@@ -15,12 +15,45 @@ import {
 } from "./videoPromptAgent";
 
 export const DURATION_PRESETS = {
-  30: { targetScenes: 10, wordsMin: 65, wordsMax: 85 },
-  60: { targetScenes: 20, wordsMin: 130, wordsMax: 160 },
-  90: { targetScenes: 30, wordsMin: 200, wordsMax: 240 },
-  120: { targetScenes: 40, wordsMin: 270, wordsMax: 320 },
-  180: { targetScenes: 60, wordsMin: 420, wordsMax: 480 },
+  30:  { targetScenes: 10,  wordsMin: 65,   wordsMax: 85,   longForm: false },
+  60:  { targetScenes: 20,  wordsMin: 130,  wordsMax: 160,  longForm: false },
+  90:  { targetScenes: 30,  wordsMin: 200,  wordsMax: 240,  longForm: false },
+  120: { targetScenes: 40,  wordsMin: 270,  wordsMax: 320,  longForm: false },
+  180: { targetScenes: 60,  wordsMin: 420,  wordsMax: 480,  longForm: false },
+  // Long-form ролики (>3 мин) — генерятся по chunks для обхода лимитов output tokens.
+  // Каждый chunk = 90 сек = 30 кадров (~12k output tokens на chunk).
+  240: { targetScenes: 80,  wordsMin: 540,  wordsMax: 640,  longForm: true,  chunkSize: 90 },
+  300: { targetScenes: 100, wordsMin: 660,  wordsMax: 800,  longForm: true,  chunkSize: 90 },
+  360: { targetScenes: 120, wordsMin: 800,  wordsMax: 960,  longForm: true,  chunkSize: 90 },
+  420: { targetScenes: 140, wordsMin: 920,  wordsMax: 1120, longForm: true,  chunkSize: 90 },
+  480: { targetScenes: 160, wordsMin: 1060, wordsMax: 1280, longForm: true,  chunkSize: 90 },
+  540: { targetScenes: 180, wordsMin: 1180, wordsMax: 1440, longForm: true,  chunkSize: 90 },
+  600: { targetScenes: 200, wordsMin: 1320, wordsMax: 1600, longForm: true,  chunkSize: 90 },
 };
+
+// Helper для не-табличных значений
+export function isLongForm(duration) {
+  return Number(duration) > 180;
+}
+
+// Возвращает план разбивки на chunks для long-form режима
+export function getChunkPlan(duration) {
+  const d = Number(duration) || 60;
+  const preset = DURATION_PRESETS[d] || DURATION_PRESETS[60];
+  if (!preset.longForm) return [{ start: 0, duration: d, isChunk: false }];
+
+  const chunkSize = preset.chunkSize || 90;
+  const chunks = [];
+  let remaining = d;
+  let start = 0;
+  while (remaining > 0) {
+    const thisChunk = Math.min(chunkSize, remaining);
+    chunks.push({ start, duration: thisChunk, isChunk: true });
+    start += thisChunk;
+    remaining -= thisChunk;
+  }
+  return chunks;
+}
 
 // MODE — контроль контента (sanitize). НЕ путать с TARGET (veo3 / grok).
 export const STORYBOARD_MODES = {
