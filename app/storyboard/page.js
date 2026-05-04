@@ -212,6 +212,7 @@ export default function StudioPage() {
   const [sbMode, setSbMode]   = useState("safe");
   const [target, setTarget]   = useState("veo3"); // "veo3" | "grok" — целевая видео-модель
   const [validation, setValidation] = useState(null);
+  const [longFormProgress, setLongFormProgress] = useState(null);
 
   /* STEP 3 — Pipeline */
   const [gridImg, setGridImg]           = useState(null);
@@ -512,7 +513,132 @@ ${lines.join("\n")}` : "";
     setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText("");
     setGridImg(null); setFrameIdx(null); setCroppedFrame(null);
     setSbBusy(true); setSbStat("gen"); setValidation(null);
+    setLongFormProgress(null);
+
+    const isLongForm = duration > 180;
+
     try {
+      // ───── LONG-FORM: SSE streaming с прогрессом ─────
+      if (isLongForm) {
+        const r = await fetch("/api/storyboard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+          body: JSON.stringify({
+            script: src, duration,
+            aspect_ratio: aspectRatio,
+            style: stylePreset,
+            project_name: projectName,
+            mode: sbMode,
+            target,
+            stream: true
+          })
+        });
+
+        if (!r.ok || !r.body) {
+          throw new Error(`HTTP ${r.status} — нет SSE stream`);
+        }
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let finalPayload = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // Парсим SSE события: блоки разделены \n\n
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || ""; // последний может быть неполным
+
+          for (const block of events) {
+            if (!block.trim() || block.startsWith(":")) continue; // heartbeat или пусто
+
+            const lines = block.split("\n");
+            let eventType = "message";
+            let dataStr = "";
+            for (const line of lines) {
+              if (line.startsWith("event:")) eventType = line.slice(6).trim();
+              else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+            }
+
+            if (!dataStr) continue;
+            let data;
+            try { data = JSON.parse(dataStr); } catch { continue; }
+
+            switch (eventType) {
+              case "started":
+                setLongFormProgress({
+                  phase: "started",
+                  totalChunks: data.total_chunks,
+                  currentChunk: 0,
+                  message: data.message,
+                });
+                setSbStat(`gen|${data.message}`);
+                break;
+              case "chunk_started":
+                setLongFormProgress(p => ({
+                  ...(p || {}),
+                  phase: "chunk_started",
+                  currentChunk: data.chunk_number,
+                  totalChunks: data.total_chunks,
+                  message: `Генерирую chunk ${data.chunk_number}/${data.total_chunks} (${data.chunk_duration}с)`,
+                }));
+                setSbStat(`gen|Chunk ${data.chunk_number}/${data.total_chunks}`);
+                break;
+              case "chunk_completed":
+                setLongFormProgress(p => ({
+                  ...(p || {}),
+                  phase: "chunk_completed",
+                  currentChunk: data.chunk_number,
+                  totalChunks: data.total_chunks,
+                  message: `✓ Chunk ${data.chunk_number}/${data.total_chunks} готов (${data.scenes_in_chunk} сцен)`,
+                  modelUsed: data.model_used,
+                }));
+                break;
+              case "chunk_failed":
+                setLongFormProgress(p => ({
+                  ...(p || {}),
+                  phase: "chunk_failed",
+                  message: `⚠ Chunk упал: ${data.error}`,
+                }));
+                break;
+              case "merging":
+                setLongFormProgress(p => ({
+                  ...(p || {}),
+                  phase: "merging",
+                  message: data.message,
+                }));
+                setSbStat("gen|Склеиваю chunks...");
+                break;
+              case "done":
+                finalPayload = data;
+                break;
+              case "error":
+                throw new Error(data.message || "SSE error");
+            }
+          }
+        }
+
+        if (!finalPayload?.storyboard) {
+          throw new Error("Stream завершён без storyboard");
+        }
+
+        const sb = { ...finalPayload.storyboard, aspect_ratio: aspectRatio };
+        setSB(sb);
+        setValidation(finalPayload.validation || null);
+        const valInfo = finalPayload.validation
+          ? (finalPayload.validation.ok ? " · ✓ valid" : ` · ⚠ ${finalPayload.validation.errors?.length} issues`)
+          : "";
+        const lf = finalPayload.long_form;
+        const lfInfo = lf ? ` · ${lf.chunks_succeeded}/${lf.chunks_total} chunks` : "";
+        setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${finalPayload.mode}${lfInfo}${valInfo}`);
+        setLongFormProgress({ phase: "done", message: "Готово" });
+        return;
+      }
+
+      // ───── SHORT-FORM: классический one-shot запрос ─────
       const r = await fetch("/api/storyboard", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -526,7 +652,6 @@ ${lines.join("\n")}` : "";
       });
       const d = await r.json();
       if (d.storyboard) {
-        // inject aspect_ratio from request into storyboard
         const sb = { ...d.storyboard, aspect_ratio: aspectRatio };
         setSB(sb);
         setValidation(d.validation || null);
@@ -857,7 +982,21 @@ ${lines.join("\n")}` : "";
                     <option value={90}>90 сек</option>
                     <option value={120}>2 мин</option>
                     <option value={180}>3 мин</option>
+                    <option value={240}>4 мин · long-form</option>
+                    <option value={300}>5 мин · long-form</option>
+                    <option value={360}>6 мин · long-form</option>
+                    <option value={420}>7 мин · long-form</option>
+                    <option value={480}>8 мин · long-form</option>
+                    <option value={540}>9 мин · long-form</option>
+                    <option value={600}>10 мин · long-form</option>
                   </select>
+                  {duration > 180 && (
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3, lineHeight: 1.4 }}>
+                      ⚠ Long-form: storyboard будет сгенерирован по chunks ~90с.
+                      Это займёт {Math.ceil(duration / 90)} запросов к LLM (~{Math.ceil(duration / 90) * 45}с wall time).
+                      Стоимость ~${((Math.ceil(duration / 90) * 0.18)).toFixed(2)} (GPT-5.4).
+                    </div>
+                  )}
                 </div>
                 <div className="field">
                   <label className="field-label">Формат</label>
@@ -1183,6 +1322,41 @@ ${lines.join("\n")}` : "";
                   {sbBusy ? "⏳ Генерация..." : storyboard ? "↻ Обновить storyboard JSON" : "▶ Создать storyboard JSON для V2"}
                 </button>
               </div>
+              {longFormProgress && longFormProgress.totalChunks > 0 && (
+                <div style={{
+                  marginTop: 12,
+                  padding: "10px 12px",
+                  background: "rgba(239, 68, 68, 0.08)",
+                  border: "1px solid rgba(239, 68, 68, 0.25)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, color: "#fca5a5" }}>
+                      Long-form chunked generation
+                    </span>
+                    <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                      {longFormProgress.currentChunk || 0} / {longFormProgress.totalChunks}
+                    </span>
+                  </div>
+                  <div style={{
+                    height: 6,
+                    background: "rgba(255,255,255,0.08)",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                    marginBottom: 8,
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${Math.min(100, ((longFormProgress.currentChunk || 0) / longFormProgress.totalChunks) * 100)}%`,
+                      background: "linear-gradient(90deg, #ef4444, #f97316)",
+                      transition: "width 0.4s ease",
+                    }} />
+                  </div>
+                  <div style={{ color: "var(--muted)" }}>{longFormProgress.message}</div>
+                </div>
+              )}
               {sbStat && (() => {
                 const [type, msg] = sbStat.includes("|") ? sbStat.split("|") : ["", sbStat];
                 const isFallback = String(msg || "").includes("fallback") || String(msg || "").includes("FALLBACK");
