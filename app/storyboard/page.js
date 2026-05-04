@@ -1293,7 +1293,7 @@ ${lines.join("\n")}` : "";
       </section>
 
 
-      {/* ══ STEP 03 — PRODUCTION PIPELINE · PART GRID ONLY ══ */}
+      {/* ══ STEP 03 — PRODUCTION PIPELINE · FINAL CLEAN PART GRID ══ */}
       <section className="step-section">
         <div className="step-header">
           <div className="step-num">03</div>
@@ -1307,7 +1307,7 @@ ${lines.join("\n")}` : "";
         <div className="step-body">
           {!scenes.length ? (
             <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--muted)", fontSize: 14 }}>
-              Создай storyboard JSON в шаге 02 — здесь появится FRAME GRID PROMPT и загрузка PART-сетки.
+              Сначала создай storyboard JSON в шаге 02 — здесь появится FRAME GRID PROMPT и загрузка PART-сетки 2×2.
             </div>
           ) : (
             <>
@@ -1316,22 +1316,22 @@ ${lines.join("\n")}` : "";
                 <div className="pipe-head">
                   <div className="pipe-dot act">A</div>
                   <div>
-                    <div className="pipe-title">Выбери PART · скопируй FRAME GRID PROMPT</div>
-                    <div className="pipe-sub">Этот prompt вставляй в Flow / Nano Banana / VEO для генерации PART-сетки 2×2.</div>
+                    <div className="pipe-title">FRAME GRID PROMPT · выбери PART</div>
+                    <div className="pipe-sub">Скопируй этот prompt в Flow / Nano Banana / VEO, получи PART-сетку 2×2 и загрузи её ниже.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
                   <div className="frame-card" style={{ marginBottom: 14 }}>
                     <div className="frame-card-lbl" style={{ marginBottom: 10 }}>Текущий PART</div>
-                    <div className="part-tabs">
+                    <div style={{ display: "grid", gap: 8 }}>
                       {autoParts.map((part, i) => {
                         const first = part[0]?.id || `frame_${String(i * autoPartSize + 1).padStart(2, "0")}`;
                         const last = part[part.length - 1]?.id || first;
+                        const active = autoPartIndex === i;
                         return (
                           <button
                             type="button"
                             key={i}
-                            className={`part-tab${autoPartIndex === i ? " active" : ""}`}
                             onClick={() => {
                               setAutoPartIndex(i);
                               setFrameIdx(null);
@@ -1342,14 +1342,27 @@ ${lines.join("\n")}` : "";
                               setAnalysis(null);
                               setShowFrameRu(false);
                             }}
+                            style={{
+                              width: "100%",
+                              border: active ? "1px solid var(--red)" : "1px solid var(--border)",
+                              background: active ? "var(--redglow)" : "rgba(0,0,0,0.28)",
+                              color: active ? "#fff" : "var(--muted)",
+                              borderRadius: 14,
+                              padding: "11px 12px",
+                              fontSize: 13,
+                              fontWeight: 900,
+                              textAlign: "left",
+                              cursor: "pointer",
+                              boxShadow: active ? "inset 0 0 0 1px rgba(229,53,53,0.25)" : "none"
+                            }}
                           >
                             PART {i + 1} · {first}–{last}
                           </button>
                         );
                       })}
                     </div>
-                    <div style={{ marginTop: 10, color: "var(--muted)", fontSize: 13 }}>
-                      Загружай ниже сетку именно для выбранного PART. A/B/C/D будут соответствовать кадрам: {autoPartScenes.map(s => s.id).join(" / ") || "—"}.
+                    <div style={{ marginTop: 10, color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
+                      Сейчас выбран PART {autoPartIndex + 1}. A/B/C/D будут соответствовать кадрам: <b>{autoPartScenes.map(s => s.id).join(" / ") || "—"}</b>.
                     </div>
                   </div>
 
@@ -1361,21 +1374,30 @@ ${lines.join("\n")}` : "";
                 </div>
               </div>
 
-              {/* B — UPLOAD AND SELECT CELL */}
+              {/* B — UPLOAD PART GRID AND SELECT CELL */}
               <div className="pipe-step on">
                 <div className="pipe-head">
                   <div className={`pipe-dot${gridImg ? " done" : " act"}`}>B</div>
                   <div>
-                    <div className="pipe-title">Загрузи PART-сетку 2×2 · выбери кадр прямо на сетке</div>
-                    <div className="pipe-sub">Красная рамка показывает выбранную ячейку. Здесь нет storyboard-сетки на 20 кадров и нет старых вариантов ракурсов.</div>
+                    <div className="pipe-title">Загрузи PART-сетку 2×2 · выбери A/B/C/D</div>
+                    <div className="pipe-sub">Нажми прямо на кадр в сетке. Красная рамка покажет выбранную ячейку.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
                   {gridImg ? (
                     <>
-                      <div className="variant-wrap part-grid-select" style={{ marginBottom: 12 }}>
-                        <img src={gridImg} alt="PART grid 2x2" />
-                        <div className="variant-overlay">
+                      <div
+                        style={{
+                          position: "relative",
+                          borderRadius: 16,
+                          overflow: "hidden",
+                          border: "1px solid rgba(255,255,255,0.10)",
+                          background: "rgba(0,0,0,0.35)",
+                          marginBottom: 12
+                        }}
+                      >
+                        <img src={gridImg} alt="PART grid 2x2" style={{ width: "100%", display: "block", pointerEvents: "none" }} />
+                        <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr" }}>
                           {autoPartScenes.map((s, localIdx) => {
                             const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
                             const globalIdx = autoPartIndex * autoPartSize + localIdx;
@@ -1384,7 +1406,6 @@ ${lines.join("\n")}` : "";
                               <button
                                 type="button"
                                 key={s.id || localIdx}
-                                className={`variant-cell${selected ? " sel" : ""}`}
                                 onClick={() => {
                                   setFrameIdx(globalIdx);
                                   setShowFrameRu(false);
@@ -1395,14 +1416,47 @@ ${lines.join("\n")}` : "";
                                     .then(url => setCroppedFrame(url))
                                     .catch(() => setCroppedFrame(null));
                                 }}
+                                style={{
+                                  position: "relative",
+                                  cursor: "pointer",
+                                  border: selected ? "3px solid var(--red)" : "1px solid rgba(255,255,255,0.10)",
+                                  background: selected ? "rgba(229,53,53,0.12)" : "rgba(0,0,0,0.01)",
+                                  padding: 8,
+                                  outline: "none"
+                                }}
                               >
-                                <span className="variant-badge">{label}</span>
-                                <span className="variant-frame-id">{s.id}</span>
+                                <span style={{
+                                  position: "absolute",
+                                  left: 8,
+                                  top: 8,
+                                  minWidth: 28,
+                                  height: 28,
+                                  borderRadius: 999,
+                                  background: selected ? "var(--red)" : "rgba(0,0,0,0.78)",
+                                  color: "#fff",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: 12,
+                                  fontWeight: 950
+                                }}>{label}</span>
+                                <span style={{
+                                  position: "absolute",
+                                  left: 42,
+                                  top: 9,
+                                  padding: "5px 8px",
+                                  borderRadius: 999,
+                                  background: "rgba(0,0,0,0.72)",
+                                  color: "#fff",
+                                  fontSize: 11,
+                                  fontWeight: 950
+                                }}>{s.id}</span>
                               </button>
                             );
                           })}
                         </div>
                       </div>
+
                       <div className="brow" style={{ marginBottom: 12 }}>
                         {autoPartScenes.map((s, localIdx) => {
                           const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
@@ -1429,6 +1483,7 @@ ${lines.join("\n")}` : "";
                           );
                         })}
                       </div>
+
                       <button
                         type="button"
                         className="btn btn-sm"
@@ -1463,30 +1518,32 @@ ${lines.join("\n")}` : "";
                 </div>
               </div>
 
-              {/* C — CROP */}
+              {/* C — FRAME IMAGE PROMPT + CROP */}
               <div className={`pipe-step${curFrame ? " on" : ""}`}>
                 <div className="pipe-head">
                   <div className={`pipe-dot${croppedFrame ? " done" : curFrame ? " act" : ""}`}>C</div>
                   <div>
-                    <div className="pipe-title">Кроп выбранного кадра</div>
-                    <div className="pipe-sub">Скачай выбранный кадр для апскейла или используй кроп как тестовый final image.</div>
+                    <div className="pipe-title">FRAME · IMAGE PROMPT + кроп</div>
+                    <div className="pipe-sub">Здесь берёшь image prompt выбранного кадра и скачиваешь кроп для апскейла.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
                   {!curFrame ? (
                     <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                      Выбери A/B/C/D на PART-сетке выше.
+                      Выбери A/B/C/D на PART-сетке выше — здесь появится окно FRAME с image prompt.
                     </div>
                   ) : (
                     <div className="two-col">
                       <div className="col">
-                        <div className="frame-card" style={{ marginBottom: 12 }}>
+                        <OutBox
+                          label={`FRAME IMAGE PROMPT — ${curFrame.id}`}
+                          text={curFrame.image_prompt_en || curFrame.description_en || ""}
+                          empty="У выбранного кадра нет image_prompt_en"
+                          compact
+                        />
+                        <div className="frame-card" style={{ marginTop: 12 }}>
                           <div className="frame-card-title">{curFrame.id}</div>
                           <div className="frame-card-meta">PART {autoPartIndex + 1} · {curFrame.start ?? "?"}–{curFrame.end ?? "?"}s · {curFrame.beat_type || "frame"}</div>
-                          <div className="frame-card-row">
-                            <div className="frame-card-lbl">VISUAL (EN)</div>
-                            <div className="frame-card-val">{String(curFrame.image_prompt_en || "").replace(/^SCENE PRIMARY FOCUS:\s*/i, "").slice(0, 360)}</div>
-                          </div>
                           <button className="mini-toggle" onClick={() => setShowFrameRu(v => !v)}>
                             Описание RU {showFrameRu ? "▲" : "▼"}
                           </button>
@@ -1523,7 +1580,7 @@ ${lines.join("\n")}` : "";
                                 ⬇ Скачать кадр
                               </button>
                               <button type="button" className="btn btn-sm" onClick={() => { setFinalImg(croppedFrame); setVideoP(""); setAnalysis(null); }}>
-                                Использовать кроп как final
+                                Использовать кроп как 2K/final
                               </button>
                             </div>
                           </>
