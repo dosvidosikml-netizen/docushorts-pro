@@ -1281,7 +1281,7 @@ ${lines.join("\n")}` : "";
       </section>
 
 
-      {/* ══ STEP 03 — PRODUCTION PIPELINE · CLEAN PART FLOW ══ */}
+      {/* ══ STEP 03 — PRODUCTION PIPELINE · FINAL CLEAN PART GRID FLOW ══ */}
       <section className="step-section">
         <div className="step-header">
           <div className="step-num">03</div>
@@ -1295,17 +1295,17 @@ ${lines.join("\n")}` : "";
         <div className="step-body">
           {!scenes.length ? (
             <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--muted)", fontSize: 14 }}>
-              Создай storyboard JSON в шаге 02 — пайплайн откроется здесь.
+              Создай storyboard JSON в шаге 02 — здесь появится FRAME GRID PROMPT и загрузка PART-сетки.
             </div>
           ) : (
             <>
-              {/* PART SELECT + FRAME GRID PROMPT */}
+              {/* A — PART + FRAME GRID PROMPT */}
               <div className="pipe-step on">
                 <div className="pipe-head">
                   <div className="pipe-dot act">A</div>
                   <div>
                     <div className="pipe-title">Выбери PART · скопируй FRAME GRID PROMPT</div>
-                    <div className="pipe-sub">Этот prompt вставляй в Flow / Nano Banana / VEO для генерации PART-сетки 2×2.</div>
+                    <div className="pipe-sub">Этот prompt вставляй в Flow / Nano Banana / VEO для генерации одной PART-сетки 2×2.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
@@ -1336,7 +1336,7 @@ ${lines.join("\n")}` : "";
                       })}
                     </div>
                     <div style={{ marginTop: 10, color: "var(--muted)", fontSize: 13 }}>
-                      Загружай ниже сетку именно для выбранного PART. Кадры A/B/C/D будут соответствовать кадрам этого PART.
+                      Выбранный PART сейчас: {autoPartScenes[0]?.id || "—"}–{autoPartScenes[autoPartScenes.length - 1]?.id || "—"}. Загружай ниже только эту сетку.
                     </div>
                   </div>
 
@@ -1348,131 +1348,114 @@ ${lines.join("\n")}` : "";
                 </div>
               </div>
 
-              {/* UPLOAD PART GRID + SELECT CELL */}
-              <div className={`pipe-step${gridImg ? "" : " on"}`}>
+              {/* B — UPLOAD 2x2 PART GRID */}
+              <div className="pipe-step on">
                 <div className="pipe-head">
                   <div className={`pipe-dot${gridImg ? " done" : " act"}`}>B</div>
                   <div>
-                    <div className="pipe-title">Загрузи PART-сетку 2×2 · выбери кадр</div>
-                    <div className="pipe-sub">Нажми A/B/C/D — система выкадрирует выбранный кадр и покажет video prompt из storyboard JSON.</div>
+                    <div className="pipe-title">Загрузи PART-сетку 2×2</div>
+                    <div className="pipe-sub">Это финальная сетка из Flow/VEO для выбранного PART. Никакой storyboard-сетки на 20 кадров здесь больше нет.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
-                  <div className="two-col">
-                    <div className="col">
-                      {gridImg ? (
-                        <>
-                          <div className="grid-wrap">
-                            <img src={gridImg} alt="PART grid 2x2" />
-                            <div className="grid-overlay" style={{ gridTemplateColumns: "repeat(2,1fr)" }}>
-                              {autoPartScenes.map((s, localIdx) => {
-                                const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
-                                const globalIdx = autoPartIndex * autoPartSize + localIdx;
-                                const selected = frameIdx === globalIdx;
-                                return (
-                                  <div
-                                    key={s.id || localIdx}
-                                    onClick={() => {
-                                      setFrameIdx(globalIdx);
-                                      setShowFrameRu(false);
-                                      setVideoP("");
-                                      setAnalysis(null);
-                                      setFinalImg(null);
-                                      cropGridFrame(gridImg, localIdx, autoPartScenes.length, 2)
-                                        .then(url => setCroppedFrame(url))
-                                        .catch(() => setCroppedFrame(null));
-                                    }}
-                                    style={{
-                                      outline: selected ? "3px solid rgba(229,53,53,0.95)" : "1px solid rgba(255,255,255,0.08)",
-                                      cursor: "pointer",
-                                      position: "relative",
-                                      minHeight: 80,
-                                    }}
-                                  >
-                                    <span style={{
-                                      position: "absolute",
-                                      left: 8,
-                                      top: 8,
-                                      background: selected ? "var(--red)" : "rgba(0,0,0,0.72)",
-                                      color: "#fff",
-                                      borderRadius: 10,
-                                      padding: "4px 8px",
-                                      fontSize: 12,
-                                      fontWeight: 900,
-                                    }}>{label} · {s.id}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="brow" style={{ marginTop: 10 }}>
-                            <button
-                              className="btn btn-sm"
-                              onClick={() => {
-                                setGridImg(null);
-                                setFrameIdx(null);
-                                setCroppedFrame(null);
-                                setFinalImg(null);
-                                setVideoP("");
-                                setAnalysis(null);
-                              }}
-                            >
-                              Заменить сетку
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <UploadZone
-                          label="Загрузи PART-сетку 2×2"
-                          hint={`Текущий PART: ${autoPartScenes[0]?.id || "frame_01"}–${autoPartScenes[autoPartScenes.length - 1]?.id || "frame_04"}`}
-                          onFile={(url) => {
-                            setGridImg(url);
-                            setFrameIdx(null);
-                            setCroppedFrame(null);
-                            setFinalImg(null);
+                  {gridImg ? (
+                    <>
+                      <div className="img-viewer" style={{ marginBottom: 12 }}>
+                        <img src={gridImg} alt="PART grid 2x2" />
+                      </div>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => {
+                          setGridImg(null);
+                          setFrameIdx(null);
+                          setCroppedFrame(null);
+                          setFinalImg(null);
+                          setVideoP("");
+                          setAnalysis(null);
+                          setShowFrameRu(false);
+                        }}
+                      >
+                        Заменить PART-сетку
+                      </button>
+                    </>
+                  ) : (
+                    <UploadZone
+                      label="Загрузи PART-сетку 2×2"
+                      hint={`Текущий PART: ${autoPartScenes[0]?.id || "frame_01"}–${autoPartScenes[autoPartScenes.length - 1]?.id || "frame_04"}`}
+                      onFile={(url) => {
+                        setGridImg(url);
+                        setFrameIdx(null);
+                        setCroppedFrame(null);
+                        setFinalImg(null);
+                        setVideoP("");
+                        setAnalysis(null);
+                        setShowFrameRu(false);
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* C — SELECT A/B/C/D + CROP + VIDEO PROMPT */}
+              <div className="pipe-step on">
+                <div className="pipe-head">
+                  <div className={`pipe-dot${curFrame ? " done" : " act"}`}>C</div>
+                  <div>
+                    <div className="pipe-title">Выбери A / B / C / D · получи кроп и VIDEO PROMPT</div>
+                    <div className="pipe-sub">A/B/C/D всегда соответствуют кадрам выбранного PART, а video prompt берётся из storyboard JSON.</div>
+                  </div>
+                </div>
+                <div className="pipe-body">
+                  <div className="frame-buttons" style={{ marginBottom: 14 }}>
+                    {autoPartScenes.map((s, localIdx) => {
+                      const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
+                      const globalIdx = autoPartIndex * autoPartSize + localIdx;
+                      const selected = frameIdx === globalIdx;
+                      return (
+                        <button
+                          key={s.id || localIdx}
+                          className={`fb${selected ? " active" : ""}`}
+                          disabled={!gridImg}
+                          onClick={() => {
+                            setFrameIdx(globalIdx);
+                            setShowFrameRu(false);
                             setVideoP("");
                             setAnalysis(null);
+                            setFinalImg(null);
+                            cropGridFrame(gridImg, localIdx, autoPartScenes.length, 2)
+                              .then(url => setCroppedFrame(url))
+                              .catch(() => setCroppedFrame(null));
                           }}
-                        />
-                      )}
+                        >
+                          {label} · {s.id}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {!gridImg && (
+                    <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                      Сначала загрузи PART-сетку 2×2 выше.
                     </div>
+                  )}
 
-                    <div className="col">
-                      <div className="field-label" style={{ marginBottom: 8 }}>Выбери кадр текущего PART</div>
-                      <div className="frame-buttons" style={{ marginBottom: 12 }}>
-                        {autoPartScenes.map((s, localIdx) => {
-                          const globalIdx = autoPartIndex * autoPartSize + localIdx;
-                          const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
-                          return (
-                            <button
-                              key={s.id || localIdx}
-                              className={`fb${frameIdx === globalIdx ? " active" : ""}`}
-                              onClick={() => {
-                                setFrameIdx(globalIdx);
-                                setShowFrameRu(false);
-                                setVideoP("");
-                                setAnalysis(null);
-                                setFinalImg(null);
-                                if (gridImg) {
-                                  cropGridFrame(gridImg, localIdx, autoPartScenes.length, 2)
-                                    .then(url => setCroppedFrame(url))
-                                    .catch(() => setCroppedFrame(null));
-                                }
-                              }}
-                            >
-                              {label} · {s.id}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  {gridImg && !curFrame && (
+                    <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                      Выбери A/B/C/D — ниже появится выкадрированный кадр и VIDEO PROMPT.
+                    </div>
+                  )}
 
-                      {curFrame ? (
-                        <div className="frame-card">
+                  {curFrame && (
+                    <div className="two-col">
+                      <div className="col">
+                        <div className="frame-card" style={{ marginBottom: 12 }}>
                           <div className="frame-card-title">{curFrame.id}</div>
-                          <div className="frame-card-meta">{curFrame.start ?? "?"}–{curFrame.end ?? "?"}s · {curFrame.beat_type || "frame"}</div>
+                          <div className="frame-card-meta">
+                            PART {autoPartIndex + 1} · {curFrame.start ?? "?"}–{curFrame.end ?? "?"}s · {curFrame.beat_type || "frame"}
+                          </div>
                           <div className="frame-card-row">
                             <div className="frame-card-lbl">VISUAL (EN)</div>
-                            <div className="frame-card-val">{String(curFrame.image_prompt_en || "").replace(/^SCENE PRIMARY FOCUS:\s*/i, "").slice(0, 420)}</div>
+                            <div className="frame-card-val">{String(curFrame.image_prompt_en || "").replace(/^SCENE PRIMARY FOCUS:\s*/i, "").slice(0, 360)}</div>
                           </div>
                           <button className="mini-toggle" onClick={() => setShowFrameRu(v => !v)}>
                             Описание RU {showFrameRu ? "▲" : "▼"}
@@ -1490,32 +1473,10 @@ ${lines.join("\n")}` : "";
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                          Выбери A/B/C/D после загрузки PART-сетки.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* CROP + VIDEO PROMPT FROM JSON */}
-              {curFrame && (
-                <div className="pipe-step on">
-                  <div className="pipe-head">
-                    <div className={`pipe-dot${croppedFrame ? " done" : " act"}`}>C</div>
-                    <div>
-                      <div className="pipe-title">Кроп кадра · скачать или сразу взять VIDEO PROMPT</div>
-                      <div className="pipe-sub">Картинка нужна для апскейла/видео. Video prompt берётся из JSON выбранного frame.</div>
-                    </div>
-                  </div>
-                  <div className="pipe-body">
-                    <div className="two-col">
-                      <div className="col">
                         {croppedFrame ? (
                           <>
-                            <div className="field-label" style={{ marginBottom: 6 }}>Кадр {curFrame.id} — кроп из PART-сетки</div>
+                            <div className="field-label" style={{ marginBottom: 6 }}>Кроп из PART-сетки — {curFrame.id}</div>
                             <div className="img-viewer" style={{ marginBottom: 8 }}><img src={croppedFrame} alt={curFrame.id} /></div>
                             <button
                               className="btn btn-red btn-full"
@@ -1526,12 +1487,12 @@ ${lines.join("\n")}` : "";
                                 a.click();
                               }}
                             >
-                              ⬇ Скачать для апскейла
+                              ⬇ Скачать кадр
                             </button>
                           </>
                         ) : (
                           <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                            Загрузите PART-сетку 2×2 и выберите A/B/C/D — здесь появится кроп.
+                            Кроп появится после выбора A/B/C/D.
                           </div>
                         )}
                       </div>
@@ -1539,15 +1500,14 @@ ${lines.join("\n")}` : "";
                       <div className="col">
                         <OutBox
                           label={`VIDEO PROMPT — ${curFrame.id}`}
-                          text={[curFrame.video_prompt_en, curFrame.sfx ? `
-SFX: ${curFrame.sfx}` : ""].join("")}
+                          text={[curFrame.video_prompt_en, curFrame.sfx ? `\nSFX: ${curFrame.sfx}` : ""].join("")}
                           empty="В storyboard JSON нет video_prompt_en для этого кадра"
                         />
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
             </>
           )}
         </div>
