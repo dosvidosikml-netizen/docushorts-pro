@@ -311,7 +311,6 @@ export default function StudioPage() {
 
   const styleProfile = useMemo(() => getStyleProfile(projectType, stylePreset), [projectType, stylePreset]);
   const scenes       = storyboard?.scenes || [];
-  const curFrame     = frameIdx !== null ? scenes[frameIdx] : null;
 
   // Chunk logic — split scenes into pages
   const chunks = useMemo(() => {
@@ -334,6 +333,10 @@ export default function StudioPage() {
   const gridSelectionScenes = autoPartScenes.length ? autoPartScenes : scenes;
   const gridSelectionStartIndex = autoPartScenes.length ? autoPartBaseIndex : 0;
   const gridSelectionFrameCount = gridSelectionScenes.length;
+  const selectedFrameBelongsToPart = frameIdx !== null
+    && frameIdx >= gridSelectionStartIndex
+    && frameIdx < gridSelectionStartIndex + gridSelectionFrameCount;
+  const curFrame = selectedFrameBelongsToPart ? scenes[frameIdx] : null;
 
   // Собираем CHARACTER OVERRIDE блок для движка
   const charOverrideBlock = charOverrideEnabled ? (() => {
@@ -460,6 +463,20 @@ ${lines.join("\n")}` : "";
         .catch(() => {});
     }
   }, [gridColsOverride, gridImg, frameIdx, gridSelectionFrameCount, gridSelectionStartIndex]);
+
+  useEffect(() => {
+    if (!scenes.length || !gridSelectionFrameCount) return;
+    const inSelectedPart = frameIdx !== null
+      && frameIdx >= gridSelectionStartIndex
+      && frameIdx < gridSelectionStartIndex + gridSelectionFrameCount;
+    if (!inSelectedPart) {
+      setFrameIdx(gridSelectionStartIndex);
+      setCroppedFrame(null);
+      setFinalImg(null);
+      setVideoP("");
+      setAnalysis(null);
+    }
+  }, [scenes.length, gridSelectionStartIndex, gridSelectionFrameCount, frameIdx]);
   function resetStoryboardOutputs({ keepAnchors = true } = {}) {
     setSB(null); setValidation(null); setSbStat(""); setFrameIdx(null);
     setGridImg(null); setGridColsOverride(null); setGridManualFrames(null); setCroppedFrame(null);
@@ -707,7 +724,10 @@ ${lines.join("\n")}` : "";
   }, [variantImg, curFrame, storyboard, styleProfile]);
 
   async function doVideoPrompt() {
-    if (!curFrame || !finalImg) return;
+    if (!curFrame || !finalImg || !selectedFrameBelongsToPart) {
+      setVideoP("Ошибка: выбери кадр текущего PART перед генерацией video prompt");
+      return;
+    }
     setVidBusy(true); setVideoP(""); setAnalysis(null);
     try {
       const r2 = await fetch("/api/video", {
@@ -733,6 +753,7 @@ ${lines.join("\n")}` : "";
 
   /* ── FRAME SELECT + CLEAR DOWNSTREAM ── */
   function selectFrame(idx) {
+    if (scenes.length && (idx < gridSelectionStartIndex || idx >= gridSelectionStartIndex + gridSelectionFrameCount)) return;
     setFrameIdx(idx);
     setShowFrameRu(false);
     setCroppedFrame(null);
@@ -1694,7 +1715,7 @@ ${lines.join("\n")}` : "";
                         onClick={() => { setGridImg(null); setFrameIdx(null); setGridColsOverride(null); setGridManualFrames(null); setCroppedFrame(null); }}>Заменить</button>
                     </>
                   ) : (
-                    <UploadZone label="Загрузи PART-сетку 2×2" hint={autoPartScenes.length ? `Текущий PART: ${autoPartScenes[0]?.id}–${autoPartScenes[autoPartScenes.length - 1]?.id}` : "Загрузи сетку только выбранного PART"} onFile={setGridImg} />
+                    <UploadZone label="Загрузи PART-сетку 2×2" hint={autoPartScenes.length ? `Текущий PART: ${autoPartScenes[0]?.id}–${autoPartScenes[autoPartScenes.length - 1]?.id}` : "Загрузи сетку только выбранного PART"} onFile={(url) => { setGridImg(url); if (gridSelectionFrameCount > 0) setFrameIdx(gridSelectionStartIndex); setCroppedFrame(null); setFinalImg(null); setVideoP(""); setAnalysis(null); }} />
                   )}
                 </div>
                 <div className="col">
@@ -1928,7 +1949,7 @@ SFX: ${curFrame.sfx}` : ""
                         )}
                       </>
                     ) : (
-                      <UploadZone label="Загрузи финальный 2K кадр" hint="Итоговое изображение для анимации" onFile={setFinalImg} />
+                      <UploadZone label={`Загрузи финальный 2K кадр для ${curFrame?.id || "кадра"}`} hint={`Video prompt будет построен строго для ${curFrame?.id || "выбранного кадра"}`} onFile={(url) => { setFinalImg(url); setVideoP(""); setAnalysis(null); }} />
                     )}
                   </div>
                   <div className="col">
