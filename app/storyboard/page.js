@@ -234,6 +234,8 @@ export default function StudioPage() {
   const [analysis, setAnalysis]         = useState(null);
   const [videoP, setVideoP]             = useState("");
   const [vidBusy, setVidBusy]           = useState(false);
+  const [videoPromptMode, setVideoPromptMode] = useState("cheap");
+  const [videoConsistency, setVideoConsistency] = useState("ultra");
 
   const [hydrated, setHydrated]         = useState(false);
   const [showRu, setShowRu]             = useState(false);
@@ -322,7 +324,7 @@ export default function StudioPage() {
   const activeChunkScenes = chunks[activeChunk] || [];
 
   const autoParts = useMemo(() => splitScenesIntoParts(scenes, autoPartSize), [scenes, autoPartSize]);
-  const autoPartScenes = autoParts[autoPartIndex] || [];
+  const autoPartScenes = useMemo(() => scenes.slice(autoPartIndex * autoPartSize, autoPartIndex * autoPartSize + autoPartSize), [scenes, autoPartIndex, autoPartSize]);
   // Собираем CHARACTER OVERRIDE блок для движка
   const charOverrideBlock = charOverrideEnabled ? (() => {
     const mods = Object.entries(charModifiers).filter(([,v])=>v).map(([k]) => {
@@ -414,6 +416,8 @@ ${lines.join("\n")}` : "";
       if (text.selVariant)  setSelVariant(text.selVariant);
       if (text.p2k)         setP2k(text.p2k);
       if (text.videoP)      setVideoP(text.videoP);
+      if (text.videoPromptMode) setVideoPromptMode(text.videoPromptMode);
+      if (text.videoConsistency) setVideoConsistency(text.videoConsistency);
       if (text.analysis)    setAnalysis(text.analysis);
     }
 
@@ -433,10 +437,10 @@ ${lines.join("\n")}` : "";
     tryLsSave(KEY_TEXT, {
       projectName, topic, projectType, stylePreset, duration,
       aspectRatio, tone, script, storyboard, jsonIn, sbMode, target, validation,
-      frameIdx, exploreP, selVariant, p2k, videoP, analysis
+      frameIdx, exploreP, selVariant, p2k, videoP, videoPromptMode, videoConsistency, analysis
     });
   }, [hydrated, projectName, topic, projectType, stylePreset, duration, aspectRatio,
-      tone, script, storyboard, jsonIn, sbMode, target, validation, frameIdx, exploreP, selVariant, p2k, videoP, analysis]);
+      tone, script, storyboard, jsonIn, sbMode, target, validation, frameIdx, exploreP, selVariant, p2k, videoP, videoPromptMode, videoConsistency, analysis]);
 
   /* ── AUTOSAVE WRITE (images — separate key, с защитой от quota) ── */
   useEffect(() => {
@@ -620,21 +624,29 @@ ${lines.join("\n")}` : "";
     if (!curFrame || !finalImg) return;
     setVidBusy(true); setVideoP(""); setAnalysis(null);
     try {
-      const r1 = await fetch("/api/analyze", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ frame: curFrame, variant: selVariant || "A", imageDataUrl: finalImg, styleProfile, projectType, stylePreset })
-      });
-      const d1 = await r1.json();
-      setAnalysis(d1.analysis);
-
       const r2 = await fetch("/api/video", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ frame: curFrame, analysis: d1.analysis, storyboard, styleProfile, projectType, stylePreset, target })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frame: curFrame,
+          analysis: null,
+          storyboard,
+          styleProfile,
+          projectType,
+          stylePreset,
+          target,
+          promptMode: videoPromptMode,
+          consistency: videoConsistency,
+          includeVo: autoIncludeVo
+        })
       });
       const d2 = await r2.json();
+      if (!r2.ok || d2.error) throw new Error(d2.error || "Video API error");
       setVideoP(d2.video_prompt_en || "");
-    } catch (e) { setVideoP("Ошибка: " + e.message); }
-    finally { setVidBusy(false); }
+      if (d2.sfx) setAnalysis({ sfx: d2.sfx });
+    } catch (e) {
+      setVideoP("Ошибка: " + (e.message || "Video prompt error"));
+    } finally { setVidBusy(false); }
   }
 
   /* ── FRAME SELECT + CLEAR DOWNSTREAM ── */
@@ -1281,13 +1293,13 @@ ${lines.join("\n")}` : "";
       </section>
 
 
-      {/* ══ STEP 03 — PRODUCTION PIPELINE · FINAL CLEAN PART GRID FLOW ══ */}
+      {/* ══ STEP 03 — PRODUCTION PIPELINE · PART GRID ONLY ══ */}
       <section className="step-section">
         <div className="step-header">
           <div className="step-num">03</div>
           <div className="step-info">
             <div className="step-title">Production Pipeline</div>
-            <div className="step-desc">FRAME GRID PROMPT → PART-сетка 2×2 → A/B/C/D → кроп → video prompt из JSON</div>
+            <div className="step-desc">FRAME GRID PROMPT → PART-сетка 2×2 → A/B/C/D → кроп → 2K → VIDEO PROMPT</div>
           </div>
           {curFrame && <span className="step-badge">{curFrame.id}</span>}
         </div>
@@ -1305,7 +1317,7 @@ ${lines.join("\n")}` : "";
                   <div className="pipe-dot act">A</div>
                   <div>
                     <div className="pipe-title">Выбери PART · скопируй FRAME GRID PROMPT</div>
-                    <div className="pipe-sub">Этот prompt вставляй в Flow / Nano Banana / VEO для генерации одной PART-сетки 2×2.</div>
+                    <div className="pipe-sub">Этот prompt вставляй в Flow / Nano Banana / VEO для генерации PART-сетки 2×2.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
@@ -1317,6 +1329,7 @@ ${lines.join("\n")}` : "";
                         const last = part[part.length - 1]?.id || first;
                         return (
                           <button
+                            type="button"
                             key={i}
                             className={`part-tab${autoPartIndex === i ? " active" : ""}`}
                             onClick={() => {
@@ -1336,7 +1349,7 @@ ${lines.join("\n")}` : "";
                       })}
                     </div>
                     <div style={{ marginTop: 10, color: "var(--muted)", fontSize: 13 }}>
-                      Выбранный PART сейчас: {autoPartScenes[0]?.id || "—"}–{autoPartScenes[autoPartScenes.length - 1]?.id || "—"}. Загружай ниже только эту сетку.
+                      Загружай ниже сетку именно для выбранного PART. A/B/C/D будут соответствовать кадрам: {autoPartScenes.map(s => s.id).join(" / ") || "—"}.
                     </div>
                   </div>
 
@@ -1348,22 +1361,76 @@ ${lines.join("\n")}` : "";
                 </div>
               </div>
 
-              {/* B — UPLOAD 2x2 PART GRID */}
+              {/* B — UPLOAD AND SELECT CELL */}
               <div className="pipe-step on">
                 <div className="pipe-head">
                   <div className={`pipe-dot${gridImg ? " done" : " act"}`}>B</div>
                   <div>
-                    <div className="pipe-title">Загрузи PART-сетку 2×2</div>
-                    <div className="pipe-sub">Это финальная сетка из Flow/VEO для выбранного PART. Никакой storyboard-сетки на 20 кадров здесь больше нет.</div>
+                    <div className="pipe-title">Загрузи PART-сетку 2×2 · выбери кадр прямо на сетке</div>
+                    <div className="pipe-sub">Красная рамка показывает выбранную ячейку. Здесь нет storyboard-сетки на 20 кадров и нет старых вариантов ракурсов.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
                   {gridImg ? (
                     <>
-                      <div className="img-viewer" style={{ marginBottom: 12 }}>
+                      <div className="variant-wrap part-grid-select" style={{ marginBottom: 12 }}>
                         <img src={gridImg} alt="PART grid 2x2" />
+                        <div className="variant-overlay">
+                          {autoPartScenes.map((s, localIdx) => {
+                            const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
+                            const globalIdx = autoPartIndex * autoPartSize + localIdx;
+                            const selected = frameIdx === globalIdx;
+                            return (
+                              <button
+                                type="button"
+                                key={s.id || localIdx}
+                                className={`variant-cell${selected ? " sel" : ""}`}
+                                onClick={() => {
+                                  setFrameIdx(globalIdx);
+                                  setShowFrameRu(false);
+                                  setVideoP("");
+                                  setAnalysis(null);
+                                  setFinalImg(null);
+                                  cropGridFrame(gridImg, localIdx, autoPartScenes.length, 2)
+                                    .then(url => setCroppedFrame(url))
+                                    .catch(() => setCroppedFrame(null));
+                                }}
+                              >
+                                <span className="variant-badge">{label}</span>
+                                <span className="variant-frame-id">{s.id}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="brow" style={{ marginBottom: 12 }}>
+                        {autoPartScenes.map((s, localIdx) => {
+                          const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
+                          const globalIdx = autoPartIndex * autoPartSize + localIdx;
+                          const selected = frameIdx === globalIdx;
+                          return (
+                            <button
+                              type="button"
+                              key={s.id || localIdx}
+                              className={`btn btn-sm${selected ? " btn-red" : ""}`}
+                              onClick={() => {
+                                setFrameIdx(globalIdx);
+                                setShowFrameRu(false);
+                                setVideoP("");
+                                setAnalysis(null);
+                                setFinalImg(null);
+                                cropGridFrame(gridImg, localIdx, autoPartScenes.length, 2)
+                                  .then(url => setCroppedFrame(url))
+                                  .catch(() => setCroppedFrame(null));
+                              }}
+                            >
+                              {label} · {s.id}
+                            </button>
+                          );
+                        })}
                       </div>
                       <button
+                        type="button"
                         className="btn btn-sm"
                         onClick={() => {
                           setGridImg(null);
@@ -1396,63 +1463,26 @@ ${lines.join("\n")}` : "";
                 </div>
               </div>
 
-              {/* C — SELECT A/B/C/D + CROP + VIDEO PROMPT */}
-              <div className="pipe-step on">
+              {/* C — CROP */}
+              <div className={`pipe-step${curFrame ? " on" : ""}`}>
                 <div className="pipe-head">
-                  <div className={`pipe-dot${curFrame ? " done" : " act"}`}>C</div>
+                  <div className={`pipe-dot${croppedFrame ? " done" : curFrame ? " act" : ""}`}>C</div>
                   <div>
-                    <div className="pipe-title">Выбери A / B / C / D · получи кроп и VIDEO PROMPT</div>
-                    <div className="pipe-sub">A/B/C/D всегда соответствуют кадрам выбранного PART, а video prompt берётся из storyboard JSON.</div>
+                    <div className="pipe-title">Кроп выбранного кадра</div>
+                    <div className="pipe-sub">Скачай выбранный кадр для апскейла или используй кроп как тестовый final image.</div>
                   </div>
                 </div>
                 <div className="pipe-body">
-                  <div className="frame-buttons" style={{ marginBottom: 14 }}>
-                    {autoPartScenes.map((s, localIdx) => {
-                      const label = ["A", "B", "C", "D"][localIdx] || String(localIdx + 1);
-                      const globalIdx = autoPartIndex * autoPartSize + localIdx;
-                      const selected = frameIdx === globalIdx;
-                      return (
-                        <button
-                          key={s.id || localIdx}
-                          className={`fb${selected ? " active" : ""}`}
-                          disabled={!gridImg}
-                          onClick={() => {
-                            setFrameIdx(globalIdx);
-                            setShowFrameRu(false);
-                            setVideoP("");
-                            setAnalysis(null);
-                            setFinalImg(null);
-                            cropGridFrame(gridImg, localIdx, autoPartScenes.length, 2)
-                              .then(url => setCroppedFrame(url))
-                              .catch(() => setCroppedFrame(null));
-                          }}
-                        >
-                          {label} · {s.id}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {!gridImg && (
+                  {!curFrame ? (
                     <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                      Сначала загрузи PART-сетку 2×2 выше.
+                      Выбери A/B/C/D на PART-сетке выше.
                     </div>
-                  )}
-
-                  {gridImg && !curFrame && (
-                    <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
-                      Выбери A/B/C/D — ниже появится выкадрированный кадр и VIDEO PROMPT.
-                    </div>
-                  )}
-
-                  {curFrame && (
+                  ) : (
                     <div className="two-col">
                       <div className="col">
                         <div className="frame-card" style={{ marginBottom: 12 }}>
                           <div className="frame-card-title">{curFrame.id}</div>
-                          <div className="frame-card-meta">
-                            PART {autoPartIndex + 1} · {curFrame.start ?? "?"}–{curFrame.end ?? "?"}s · {curFrame.beat_type || "frame"}
-                          </div>
+                          <div className="frame-card-meta">PART {autoPartIndex + 1} · {curFrame.start ?? "?"}–{curFrame.end ?? "?"}s · {curFrame.beat_type || "frame"}</div>
                           <div className="frame-card-row">
                             <div className="frame-card-lbl">VISUAL (EN)</div>
                             <div className="frame-card-val">{String(curFrame.image_prompt_en || "").replace(/^SCENE PRIMARY FOCUS:\s*/i, "").slice(0, 360)}</div>
@@ -1473,22 +1503,29 @@ ${lines.join("\n")}` : "";
                             </div>
                           )}
                         </div>
-
+                      </div>
+                      <div className="col">
                         {croppedFrame ? (
                           <>
                             <div className="field-label" style={{ marginBottom: 6 }}>Кроп из PART-сетки — {curFrame.id}</div>
                             <div className="img-viewer" style={{ marginBottom: 8 }}><img src={croppedFrame} alt={curFrame.id} /></div>
-                            <button
-                              className="btn btn-red btn-full"
-                              onClick={() => {
-                                const a = document.createElement("a");
-                                a.href = croppedFrame;
-                                a.download = `${curFrame.id}_crop.jpg`;
-                                a.click();
-                              }}
-                            >
-                              ⬇ Скачать кадр
-                            </button>
+                            <div className="brow">
+                              <button
+                                type="button"
+                                className="btn btn-red btn-full"
+                                onClick={() => {
+                                  const a = document.createElement("a");
+                                  a.href = croppedFrame;
+                                  a.download = `${curFrame.id}_crop.jpg`;
+                                  a.click();
+                                }}
+                              >
+                                ⬇ Скачать кадр
+                              </button>
+                              <button type="button" className="btn btn-sm" onClick={() => { setFinalImg(croppedFrame); setVideoP(""); setAnalysis(null); }}>
+                                Использовать кроп как final
+                              </button>
+                            </div>
                           </>
                         ) : (
                           <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
@@ -1496,13 +1533,66 @@ ${lines.join("\n")}` : "";
                           </div>
                         )}
                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
+              {/* D — FINAL 2K + VIDEO PROMPT */}
+              <div className={`pipe-step${curFrame ? " on" : ""}`}>
+                <div className="pipe-head">
+                  <div className={`pipe-dot${videoP ? " done" : finalImg ? " act" : ""}`}>D</div>
+                  <div>
+                    <div className="pipe-title">Загрузи финальный 2K кадр → VIDEO PROMPT</div>
+                    <div className="pipe-sub">Video prompt появляется только после нажатия кнопки VIDEO PROMPT.</div>
+                  </div>
+                </div>
+                <div className="pipe-body">
+                  {!curFrame ? (
+                    <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                      Сначала выбери кадр A/B/C/D.
+                    </div>
+                  ) : (
+                    <div className="two-col">
                       <div className="col">
-                        <OutBox
-                          label={`VIDEO PROMPT — ${curFrame.id}`}
-                          text={[curFrame.video_prompt_en, curFrame.sfx ? `\nSFX: ${curFrame.sfx}` : ""].join("")}
-                          empty="В storyboard JSON нет video_prompt_en для этого кадра"
-                        />
+                        {finalImg ? (
+                          <>
+                            <div className="img-viewer"><img src={finalImg} alt="Final 2K frame" /></div>
+                            <div className="frame-card" style={{ marginTop: 10, marginBottom: 10 }}>
+                              <div className="frame-card-lbl" style={{ marginBottom: 8 }}>🎬 VIDEO PROMPT ENGINE V2.8</div>
+                              <div className="field-label">PROMPT MODE</div>
+                              <div className="brow" style={{ marginTop: 6, marginBottom: 10 }}>
+                                <button className={`btn btn-sm ${videoPromptMode === "cheap" ? "btn-red" : ""}`} onClick={() => { setVideoPromptMode("cheap"); setVideoP(""); }}>Cheap</button>
+                                <button className={`btn btn-sm ${videoPromptMode === "pro" ? "btn-red" : ""}`} onClick={() => { setVideoPromptMode("pro"); setVideoP(""); }}>Pro</button>
+                              </div>
+                              <div className="field-label">CONSISTENCY</div>
+                              <div className="brow" style={{ marginTop: 6 }}>
+                                <button className={`btn btn-sm ${videoConsistency === "normal" ? "btn-red" : ""}`} onClick={() => { setVideoConsistency("normal"); setVideoP(""); }}>Normal</button>
+                                <button className={`btn btn-sm ${videoConsistency === "ultra" ? "btn-red" : ""}`} onClick={() => { setVideoConsistency("ultra"); setVideoP(""); }}>Ultra</button>
+                              </div>
+                              <div style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6, marginTop: 10 }}>
+                                Cheap — короткий I2V-lock для Grok/Flow. Pro — подробный кинематографичный prompt. Ultra фиксирует лицо/одежду/свет без копирования композиции.
+                              </div>
+                            </div>
+                            <div className="brow" style={{ marginTop: 10 }}>
+                              <button className="btn btn-sm" onClick={() => { setFinalImg(null); setVideoP(""); setAnalysis(null); }}>Заменить final</button>
+                              <button className="btn btn-red" onClick={doVideoPrompt} disabled={vidBusy}>
+                                {vidBusy ? "⏳ Генерация..." : "▶ VIDEO PROMPT"}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <UploadZone label="Загрузи финальный 2K кадр" hint="Итоговое изображение для анимации. Можно сначала скачать кроп и апскейлить." onFile={(url) => { setFinalImg(url); setVideoP(""); setAnalysis(null); }} />
+                        )}
+                      </div>
+                      <div className="col">
+                        {videoP ? (
+                          <OutBox label={`VIDEO PROMPT — ${curFrame.id}`} text={videoP} />
+                        ) : (
+                          <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 24 }}>
+                            {finalImg ? "Нажми «VIDEO PROMPT» — промт появится здесь." : "Загрузи финальный 2K кадр, затем нажми VIDEO PROMPT."}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
