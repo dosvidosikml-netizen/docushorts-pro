@@ -1,7 +1,6 @@
 // app/api/chat/route.js
-// NeuroCine Script Writer v2.2
-// Использует centralized modelRouter — автоматически выбирает оптимальную
-// модель для написания сценария (по умолчанию GPT-5.4 → fallback Sonnet 4.6).
+// NeuroCine Script Writer v2.3
+// Использует centralized modelRouter с динамическим max_tokens для длинных сценариев.
 
 import { callOpenRouter, TASK_TYPES } from "../../../lib/modelRouter";
 
@@ -100,19 +99,24 @@ export async function POST(req) {
 
     const wordsTarget = Math.round(duration * 2.2);
 
+    // Динамический max_tokens: для длинных сценариев нужно больше output.
+    // Русское слово ≈ 2.5 токена, +20% запас на разметку.
+    const maxTokensForScript = Math.max(2000, Math.ceil(wordsTarget * 2.5 * 1.2));
+
     if (!process.env.OPENROUTER_API_KEY) {
       return Response.json({ text: fallbackScript({ topic, duration }) });
     }
 
     const userPrompt = `
-Напиши вирусный сценарий на русском для Shorts/Reels/TikTok.
+Напиши вирусный сценарий на русском для Shorts/Reels/TikTok${duration > 180 ? " (long-form формат)" : ""}.
 
 Тема: ${topic}
 Тон: ${tone}
-Длительность: ${duration} секунд
+Длительность: ${duration} секунд${duration > 180 ? ` (${Math.round(duration / 60)} минут — long-form)` : ""}
 Целевой объём: ~${wordsTarget} слов
 
 Соблюдай 4-актную структуру: Hook → Build → Climax → Outro+Вопрос.
+${duration > 180 ? `Для long-form ролика растяни Build на несколько мини-актов: каждые 60-90 секунд — новый поворот / новый факт / новый угол. Не дай зрителю заскучать.` : ""}
 Применяй show-don't-tell: абстракции переводи в конкретные физические образы.
 Чередуй длину предложений для пульса.
 Только текст диктора. Никаких заголовков актов в тексте.
@@ -122,7 +126,8 @@ export async function POST(req) {
       taskType: TASK_TYPES.SCRIPT_WRITING,
       systemPrompt: SYSTEM_PROMPT,
       userMessage: userPrompt,
-      appTitle: "NeuroCine Script Writer v2.2",
+      maxTokensOverride: maxTokensForScript,
+      appTitle: "NeuroCine Script Writer v2.3",
     });
 
     if (!result.ok) {
