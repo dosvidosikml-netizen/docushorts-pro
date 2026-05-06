@@ -560,7 +560,9 @@ ${lines.join("\n")}` : "";
           ? (d.validation.ok ? " · ✓ valid" : ` · ⚠ ${d.validation.errors?.length} issues`)
           : "";
         const modeLabel = String(d.mode || "");
-        const fallbackWarn = modeLabel.includes("fallback") ? " · ⚠ FALLBACK: API не списал баланс" : "";
+        const isFallback = modeLabel.includes("fallback");
+        const fallbackReason = d.error ? ` — ${d.error}` : " — API не ответил или вернул невалидный JSON";
+        const fallbackWarn = isFallback ? ` · ⚠ FALLBACK${fallbackReason}` : "";
         setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${modeLabel}${fallbackWarn}${valInfo}`);
       } else {
         setSbStat("err|" + (d.error || "unknown"));
