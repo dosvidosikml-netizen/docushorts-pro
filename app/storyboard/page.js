@@ -15,6 +15,7 @@ import {
   buildAutoVideoPack, buildAutoChainJson, buildFlowCompactPartPrompt
 } from "../../engine/autoChainEngine";
 import { downloadTextFile, safeFileName } from "../../lib/download";
+import { validateScript } from "../../lib/scriptValidator";
 
 /* ─── autosave keys ─── */
 const KEY_TEXT  = "nc_text_v3";
@@ -203,6 +204,7 @@ export default function StudioPage() {
   const [script, setScript]           = useState("");
   const [sBusy, setSBusy]             = useState(false);
   const [sStat, setSStat]             = useState("");
+  const [scriptValidation, setScriptValidation] = useState(null);
 
   /* STEP 2 — Storyboard */
   const [storyboard, setSB]   = useState(null);
@@ -486,12 +488,16 @@ ${lines.join("\n")}` : "";
   }
 
   async function doScript() {
-    // Готовый сценарий — пропускаем генерацию
-    if (script.trim() && !topic.trim()) { setSStat("ok"); return; }
+    // Готовый сценарий — пропускаем генерацию (но валидируем!)
+    if (script.trim() && !topic.trim()) {
+      setScriptValidation(validateScript(script));
+      setSStat("ok");
+      return;
+    }
     if (!topic.trim()) return;
     resetStoryboardOutputs({ keepAnchors: true });
     setJsonIn("");
-    setSBusy(true); setSStat("gen");
+    setSBusy(true); setSStat("gen"); setScriptValidation(null);
     try {
       const r = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -502,11 +508,25 @@ ${lines.join("\n")}` : "";
         setSStat("err|" + (d.error || "Ошибка API"));
       } else {
         setScript(d.text || "");
+        // Используем validation от сервера (после ретраев) или локально валидируем
+        setScriptValidation(d.validation || (d.text ? validateScript(d.text) : null));
         setSStat(d.text ? "ok" : "err|Пустой ответ от модели");
       }
     } catch (e) { setSStat("err|" + (e.message || "Сетевая ошибка")); }
     finally { setSBusy(false); }
   }
+
+  // Авто-валидация если пользователь сам редактирует/вставляет сценарий вручную
+  useEffect(() => {
+    if (!hydrated) return;
+    if (script.trim() && script.trim().length >= 30) {
+      // Дебаунсим валидацию чтобы не дёргать на каждый символ
+      const t = setTimeout(() => setScriptValidation(validateScript(script)), 400);
+      return () => clearTimeout(t);
+    } else {
+      setScriptValidation(null);
+    }
+  }, [hydrated, script]);
 
   async function doStoryboard() {
     let src = script.trim();
@@ -756,7 +776,7 @@ ${lines.join("\n")}` : "";
   function clearAll() {
     localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
     setScript(""); setTopic(""); setProjectName("NeuroCine Project"); setJsonIn("");
-    setSStat(""); setSbMode("safe");
+    setSStat(""); setSbMode("safe"); setScriptValidation(null);
     resetStoryboardOutputs({ keepAnchors: false });
   }
 
@@ -879,6 +899,108 @@ ${lines.join("\n")}` : "";
 
             <div className="col">
               <OutBox label="Текст диктора (VO)" text={script} empty="Сценарий появится здесь" />
+
+              {/* SCRIPT QUALITY INDICATOR */}
+              {script && scriptValidation && (
+                <div className="out-box">
+                  <div className="out-head">
+                    <span className="out-label">Качество сценария</span>
+                    <span style={{
+                      fontSize: 12, fontWeight: 900, padding: "3px 12px", borderRadius: 100,
+                      background: scriptValidation.score >= 90
+                        ? "rgba(34,197,94,0.18)"
+                        : scriptValidation.score >= 70
+                          ? "rgba(245,158,11,0.18)"
+                          : "rgba(229,53,53,0.18)",
+                      color: scriptValidation.score >= 90
+                        ? "#22c55e"
+                        : scriptValidation.score >= 70
+                          ? "#f59e0b"
+                          : "#fca5a5",
+                      border: `1px solid ${scriptValidation.score >= 90
+                        ? "rgba(34,197,94,0.35)"
+                        : scriptValidation.score >= 70
+                          ? "rgba(245,158,11,0.35)"
+                          : "rgba(229,53,53,0.35)"}`
+                    }}>
+                      {scriptValidation.score}/100
+                    </span>
+                  </div>
+                  <div className="out-body" style={{ paddingTop: 10 }}>
+                    {/* Чек-лист */}
+                    <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+                      {[
+                        { key: "hook_strong", okText: "Хук сильный", failText: "Хук слабый — год/дата/«это история»" },
+                        { key: "has_you_address", okText: "Обращение к зрителю «ты» есть", failText: "Нет «ты» — зритель не вовлечён" },
+                        { key: "rhythm_varied", okText: "Ритм пульсирует", failText: "Монотонный ритм — нет коротких ударных фраз" },
+                        { key: "climax_isolated", okText: "Climax изолирован", failText: "Climax растворён в абзаце" },
+                        { key: "outro_strong", okText: "Концовка сильная", failText: "Банальная концовка" },
+                        { key: "no_filler_words", okText: "Нет слов-паразитов", failText: "Есть слова-паразиты (вообще/типа/как бы)" },
+                      ].map(({ key, okText, failText }) => {
+                        const ok = scriptValidation.checks?.[key];
+                        return (
+                          <div key={key} style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            color: ok ? "#22c55e" : "#fca5a5",
+                            opacity: ok ? 0.9 : 1,
+                            fontWeight: ok ? 500 : 700,
+                          }}>
+                            <span style={{
+                              width: 16, textAlign: "center",
+                              fontSize: 12, fontWeight: 900,
+                            }}>{ok ? "✓" : "✗"}</span>
+                            <span>{ok ? okText : failText}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Issues + статистика */}
+                    {scriptValidation.issues?.length > 0 && (
+                      <div style={{
+                        marginTop: 12, paddingTop: 10,
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                        fontSize: 11, color: "var(--muted)", lineHeight: 1.55,
+                      }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: "#fca5a5" }}>
+                          Подробности:
+                        </div>
+                        {scriptValidation.issues.slice(0, 3).map((iss, i) => (
+                          <div key={i} style={{ marginBottom: 2 }}>· {iss}</div>
+                        ))}
+                      </div>
+                    )}
+
+                    {scriptValidation.stats && (
+                      <div style={{
+                        marginTop: 10, paddingTop: 8,
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                        fontSize: 10, color: "var(--muted2)",
+                        display: "flex", gap: 12, flexWrap: "wrap",
+                      }}>
+                        <span>Предложений: {scriptValidation.stats.sentences}</span>
+                        <span>Ср. слов: {scriptValidation.stats.avg_words_per_sentence}</span>
+                        <span>Коротких фраз: {scriptValidation.stats.short_sentences}</span>
+                        <span>«ты»-обращений: {scriptValidation.stats.you_address_count}</span>
+                      </div>
+                    )}
+
+                    {/* Подсказка регенерировать если плохо */}
+                    {scriptValidation.score < 70 && topic.trim() && (
+                      <div style={{
+                        marginTop: 12, padding: "10px 12px",
+                        background: "rgba(229,53,53,0.08)",
+                        border: "1px solid rgba(229,53,53,0.25)",
+                        borderRadius: 10,
+                        fontSize: 11, color: "#fca5a5",
+                      }}>
+                        💡 Низкий score — нажми «Создать сценарий» ещё раз: AI попробует переписать с учётом проблем.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {script && (
                 <div className="out-box">
                   <div className="out-head">
@@ -1132,6 +1254,21 @@ ${lines.join("\n")}` : "";
                   {sbBusy ? "⏳ Генерация..." : storyboard ? "↻ Обновить storyboard JSON" : "▶ Создать storyboard JSON для V2"}
                 </button>
               </div>
+
+              {/* Warning если scriptValidation плохой */}
+              {scriptValidation && scriptValidation.score < 70 && script.trim() && !sbBusy && (
+                <div style={{
+                  marginTop: 10, padding: "10px 12px",
+                  background: "rgba(245,158,11,0.10)",
+                  border: "1px solid rgba(245,158,11,0.30)",
+                  borderRadius: 10,
+                  fontSize: 11, color: "#f59e0b", lineHeight: 1.5,
+                }}>
+                  ⚠ Качество сценария низкое ({scriptValidation.score}/100). Storyboard унаследует слабые места.
+                  Рекомендуем сначала улучшить сценарий: вернись к шагу 01 и нажми «СОЗДАТЬ СЦЕНАРИЙ» снова.
+                </div>
+              )}
+
               {sbStat && (() => {
                 const [type, msg] = sbStat.includes("|") ? sbStat.split("|") : ["", sbStat];
                 const isFallback = String(msg || "").includes("fallback") || String(msg || "").includes("FALLBACK");
