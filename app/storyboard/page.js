@@ -936,6 +936,7 @@ ${lines.join("\n")}` : "";
                         { key: "climax_isolated", okText: "Climax изолирован", failText: "Climax растворён в абзаце" },
                         { key: "outro_strong", okText: "Концовка сильная", failText: "Банальная концовка" },
                         { key: "no_filler_words", okText: "Нет слов-паразитов", failText: "Есть слова-паразиты (вообще/типа/как бы)" },
+                        { key: "no_long_lists", okText: "Нет сухих перечислений", failText: "Сухой список через запятую — заменить на 1 яркий образ" },
                       ].map(({ key, okText, failText }) => {
                         const ok = scriptValidation.checks?.[key];
                         return (
