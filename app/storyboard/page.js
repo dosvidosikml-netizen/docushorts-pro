@@ -16,6 +16,7 @@ import {
 } from "../../engine/autoChainEngine";
 import { downloadTextFile, safeFileName } from "../../lib/download";
 import { validateScript } from "../../lib/scriptValidator";
+import ProductionPack from "../../components/ProductionPack";
 
 /* ─── autosave keys ─── */
 const KEY_TEXT  = "nc_text_v3";
@@ -1840,6 +1841,16 @@ ${lines.join("\n")}` : "";
           )}
         </div>
       </section>
+
+      {/* ─── 05 PRODUCTION PACK v2.4 ──────────────────────── */}
+      {(script.trim() || storyboard) && (
+        <ProductionPack
+          topic={topic}
+          script={script}
+          genre={projectType}
+          storyboard={storyboard}
+        />
+      )}
     </div>
   );
 }
