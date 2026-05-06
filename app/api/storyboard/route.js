@@ -23,6 +23,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// maxDuration — Vercel-only, на Render не нужен
 
 // ────────────────────────────────────────────────────────────────────────────
 // NEUROCINE CORE THINKING DOCTRINE — встроена в системный промт
@@ -386,7 +387,10 @@ export async function POST(req) {
       return NextResponse.json({ error: "Сценарий слишком короткий." }, { status: 400 });
     }
 
-    if (body.stream === true && duration > 180) {
+    // ── SSE STREAMING — всегда включён при stream: true ──────────────────────
+    // Render рвёт соединение через ~100с если сервер молчит.
+    // SSE отправляет заголовки мгновенно → Render ждёт сколько нужно.
+    if (body.stream === true) {
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
@@ -395,107 +399,125 @@ export async function POST(req) {
           };
 
           try {
-            const chunks = getChunkPlan(duration);
-            const scriptChunks = splitScriptForChunks(script, chunks);
-            send("started", {
-              total_chunks: chunks.length,
-              message: `Long-form режим: ${chunks.length} chunk(s) по ~90 секунд`,
-            });
+            const isLongForm = duration > 180;
 
-            if (!process.env.OPENROUTER_API_KEY) {
-              const { buildLocalStoryboard } = await import("../../../engine/sceneEngine");
-              const local = buildLocalStoryboard({ script, duration, aspectRatio, style, projectName });
-              send("done", {
-                storyboard: local,
-                mode: "local_fallback_longform",
-                target,
-                validation: { ok: true, errors: [] },
-                long_form: { chunks_total: chunks.length, chunks_succeeded: chunks.length },
-              });
-              controller.close();
-              return;
-            }
-
-            const chunkResults = [];
-            let characterLockFromPrev = null;
-            let lastSceneFromPrev = null;
-            let globalStyleLock = null;
-            let lastModelUsed = null;
-
-            for (let i = 0; i < chunks.length; i++) {
-              const ch = chunks[i];
-              send("chunk_started", {
-                chunk_number: i + 1,
+            if (isLongForm) {
+              // ── Long-form: чанки по 90с ────────────────────────────────
+              const chunks = getChunkPlan(duration);
+              const scriptChunks = splitScriptForChunks(script, chunks);
+              send("started", {
                 total_chunks: chunks.length,
-                chunk_duration: ch.duration,
+                message: `Long-form режим: ${chunks.length} chunk(s) по ~90 секунд`,
               });
 
-              const chunkUserMessage = buildChunkUserPrompt({
-                chunkIndex: i,
-                totalChunks: chunks.length,
-                chunkDuration: ch.duration,
-                chunkStart: ch.start,
-                totalDuration: duration,
-                scriptForChunk: scriptChunks[i] || "",
-                globalScript: script,
-                mode,
-                target,
-                aspectRatio,
-                characterLockFromPrev,
-                lastSceneFromPrev,
-                globalStyleLock,
-              });
+              if (!process.env.OPENROUTER_API_KEY) {
+                const { buildLocalStoryboard } = await import("../../../engine/sceneEngine");
+                const local = buildLocalStoryboard({ script, duration, aspectRatio, style, projectName });
+                send("done", { storyboard: local, mode: "local_fallback_longform", target, validation: { ok: true, errors: [] } });
+                controller.close();
+                return;
+              }
 
+              const chunkResults = [];
+              let characterLockFromPrev = null;
+              let lastSceneFromPrev = null;
+              let globalStyleLock = null;
+              let lastModelUsed = null;
+
+              for (let i = 0; i < chunks.length; i++) {
+                const ch = chunks[i];
+                send("chunk_started", { chunk_number: i + 1, total_chunks: chunks.length, chunk_duration: ch.duration });
+
+                const chunkUserMessage = buildChunkUserPrompt({
+                  chunkIndex: i, totalChunks: chunks.length,
+                  chunkDuration: ch.duration, chunkStart: ch.start,
+                  totalDuration: duration, scriptForChunk: scriptChunks[i] || "",
+                  globalScript: script, mode, target, aspectRatio,
+                  characterLockFromPrev, lastSceneFromPrev, globalStyleLock,
+                });
+
+                const result = await callOpenRouter({
+                  taskType: TASK_TYPES.STORYBOARD_GENERATION,
+                  systemPrompt: SYSTEM_PROMPT, userMessage: chunkUserMessage,
+                  temperatureOverride: mode === "raw" ? 0.55 : 0.3,
+                  responseFormat: { type: "json_object" },
+                  appTitle: `NeuroCine Long-Form Chunk ${i + 1}/${chunks.length}`,
+                });
+
+                if (!result.ok) {
+                  send("chunk_failed", { chunk_number: i + 1, error: result.error || "OpenRouter chunk failed" });
+                  throw new Error(result.error || `Chunk ${i + 1} failed`);
+                }
+
+                const parsedChunk = extractJson(result.content);
+                const normalizedChunk = normalizeStoryboard(parsedChunk, ch.duration, mode, result.model_used, target);
+                if (i > 0 && characterLockFromPrev) normalizedChunk.character_lock = characterLockFromPrev;
+                if (globalStyleLock) normalizedChunk.global_style_lock = globalStyleLock;
+
+                chunkResults.push(normalizedChunk);
+                characterLockFromPrev = normalizedChunk.character_lock || characterLockFromPrev;
+                globalStyleLock = normalizedChunk.global_style_lock || globalStyleLock;
+                lastSceneFromPrev = extractLastSceneContext(normalizedChunk);
+                lastModelUsed = result.model_used;
+
+                send("chunk_completed", { chunk_number: i + 1, total_chunks: chunks.length, scenes_in_chunk: normalizedChunk.scenes?.length || 0, model_used: result.model_used });
+              }
+
+              send("merging", { message: "Склеиваю chunks в единый storyboard JSON" });
+              const mergedRaw = mergeChunks(chunkResults, duration);
+              const sbMerged = normalizeStoryboard(mergedRaw, duration, mode, lastModelUsed || "long_form_merge", target);
+              sbMerged.project_name = projectName;
+              sbMerged.aspect_ratio = aspectRatio || sbMerged.aspect_ratio;
+              const valMerged = validateStoryboard(sbMerged, mode, target);
+              send("done", { storyboard: sbMerged, mode: "api_longform", target, validation: valMerged, model_used: lastModelUsed });
+
+            } else {
+              // ── Обычный запрос (≤180с): один вызов API ────────────────
+              // "started" отправляется сразу — Render видит заголовки и не рвёт соединение
+              send("started", { message: "Генерация storyboard..." });
+
+              if (!process.env.OPENROUTER_API_KEY) {
+                const { buildLocalStoryboard } = await import("../../../engine/sceneEngine");
+                const local = buildLocalStoryboard({ script, duration, aspectRatio, style, projectName });
+                send("done", { storyboard: local, mode: "local_fallback", target, validation: { ok: true, errors: [] } });
+                controller.close();
+                return;
+              }
+
+              const userInput = buildStoryboardUserPrompt({ script, duration, mode, target, aspectRatio });
               const result = await callOpenRouter({
                 taskType: TASK_TYPES.STORYBOARD_GENERATION,
-                systemPrompt: SYSTEM_PROMPT,
-                userMessage: chunkUserMessage,
+                systemPrompt: SYSTEM_PROMPT, userMessage: userInput,
                 temperatureOverride: mode === "raw" ? 0.55 : 0.3,
                 responseFormat: { type: "json_object" },
-                appTitle: `NeuroCine Long-Form Chunk ${i + 1}/${chunks.length}`,
+                appTitle: "NeuroCine Storyboard Engine v2.2",
               });
 
               if (!result.ok) {
-                send("chunk_failed", { chunk_number: i + 1, error: result.error || "OpenRouter chunk failed" });
-                throw new Error(result.error || `Chunk ${i + 1} failed`);
+                const { buildLocalStoryboard } = await import("../../../engine/sceneEngine");
+                const sbFallback = buildLocalStoryboard({ script, duration, aspectRatio, style, projectName });
+                send("done", { storyboard: sbFallback, mode: `api_error_fallback: ${result.error}`, target });
+                controller.close();
+                return;
               }
 
-              const parsedChunk = extractJson(result.content);
-              const normalizedChunk = normalizeStoryboard(parsedChunk, ch.duration, mode, result.model_used, target);
-              if (i > 0 && characterLockFromPrev) normalizedChunk.character_lock = characterLockFromPrev;
-              if (globalStyleLock) normalizedChunk.global_style_lock = globalStyleLock;
-
-              chunkResults.push(normalizedChunk);
-              characterLockFromPrev = normalizedChunk.character_lock || characterLockFromPrev;
-              globalStyleLock = normalizedChunk.global_style_lock || globalStyleLock;
-              lastSceneFromPrev = extractLastSceneContext(normalizedChunk);
-              lastModelUsed = result.model_used;
-
-              send("chunk_completed", {
-                chunk_number: i + 1,
-                total_chunks: chunks.length,
-                scenes_in_chunk: normalizedChunk.scenes?.length || 0,
-                model_used: result.model_used,
-              });
+              const parsed = extractJson(result.content);
+              const storyboard = normalizeStoryboard(parsed, duration, mode, result.model_used, target);
+              storyboard.project_name = projectName;
+              storyboard.aspect_ratio = aspectRatio || storyboard.aspect_ratio;
+              const validation = validateStoryboard(storyboard, mode, target);
+              send("done", { storyboard, mode: "api", target, validation, model_used: result.model_used });
             }
 
-            send("merging", { message: "Склеиваю chunks в единый storyboard JSON" });
-            const mergedRaw = mergeChunks(chunkResults, duration);
-            const storyboard = normalizeStoryboard(mergedRaw, duration, mode, lastModelUsed || "long_form_merge", target);
-            storyboard.project_name = projectName;
-            storyboard.aspect_ratio = aspectRatio || storyboard.aspect_ratio;
-            const validation = validateStoryboard(storyboard, mode, target);
-
-            send("done", {
-              storyboard,
-              mode: "api_longform",
-              target,
-              validation,
-              model_used: lastModelUsed,
-              long_form: { chunks_total: chunks.length, chunks_succeeded: chunkResults.length },
-            });
           } catch (e) {
-            send("error", { message: e.message || "Long-form storyboard error" });
+            // Последний шанс: local fallback через SSE
+            try {
+              const { buildLocalStoryboard } = await import("../../../engine/sceneEngine");
+              const sbCatch = buildLocalStoryboard({ script, duration, aspectRatio, style, projectName });
+              send("done", { storyboard: sbCatch, mode: "catch_fallback", error: e.message, target });
+            } catch {
+              send("error", { message: e.message || "Storyboard error" });
+            }
           } finally {
             controller.close();
           }
