@@ -164,6 +164,20 @@ export function applyObserverFraming(prompt = "") {
 }
 
 // ── USER PROMPT BUILDER ──────────────────────────────────────────────────────
+// Детектор "ты-обращения": считаем плотность "ты/тебя/тебе/твой" в сценарии.
+// Если высокая — сценарий написан в OBSERVER MODE (зритель = главный герой),
+// и character_lock должен быть пустым или содержать только эпизодических людей.
+// Иначе модель выдумывает фиктивного "Mikhail"/"Ivan" и портит весь storyboard.
+export function detectObserverMode(script = "") {
+  const text = String(script || "");
+  const youMatches = text.match(/(?<![а-яёА-ЯЁ])(ты|тебя|тебе|тобой|твой|твоя|твоё|твои)(?![а-яёА-ЯЁ])/gi) || [];
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (wordCount === 0) return false;
+  const youDensity = youMatches.length / wordCount;
+  // Если на 100 слов приходится 2+ обращения "ты" — это observer mode
+  return youDensity >= 0.02 && youMatches.length >= 3;
+}
+
 export function buildStoryboardUserPrompt({
   script = "",
   duration = 60,
@@ -201,6 +215,28 @@ export function buildStoryboardUserPrompt({
     },
   };
   const arInfo = arMap[aspectRatio] || arMap["9:16"];
+  const isObserverMode = detectObserverMode(script);
+
+  // Specialized character_lock instruction depending on script style
+  const characterLockInstruction = isObserverMode
+    ? `
+🎯 SCRIPT MODE DETECTED: OBSERVER / SECOND-PERSON ("ты"-обращение)
+This script speaks DIRECTLY TO THE VIEWER. The viewer IS the protagonist.
+There is NO main character to lock. DO NOT invent a fictional hero (no "Mikhail", "Ivan", "Aldric", etc.).
+
+CHARACTER_LOCK RULES FOR OBSERVER MODE:
+- character_lock array MUST be EMPTY [] OR contain ONLY episodic background figures (witnesses, crowd, victims) without names
+- NEVER create a recurring "main character" with a name when the script uses "ты" (you)
+- Use POV / first-person framing in image_prompt_en where natural ("POV: looking at...", "from the viewer's perspective")
+- Episodic characters (if any) should be described generically: "a peasant in 19th century clothing", "a soldier with mud-covered uniform", NOT named individuals
+- Camera = the viewer. Frame the world AS IF the viewer is standing there.
+`
+    : `
+CHARACTER_LOCK RULES (standard third-person mode):
+- Build a complete character_lock for any recurring protagonist mentioned in the script
+- Include name, age, face_features, hair, clothing, physical_condition
+- Inject character_lock VERBATIM into every image_prompt_en where that character appears
+`;
 
   return `Generate a production storyboard JSON for NeuroCine Storyboard Engine v2.
 
@@ -217,7 +253,7 @@ Average shot duration: 3 seconds.
 total_duration MUST equal ${d}.
 
 ASPECT RATIO: ${aspectRatio} — ${arInfo.composition}
-
+${characterLockInstruction}
 ⚠️ STRICT SHOT DURATION LAW:
 Every "duration" field MUST be 2, 3, or 4 seconds. NEVER 5+.
 For ${d}s video → ${preset.targetScenes} scenes × ~3 seconds = ${d}s total.

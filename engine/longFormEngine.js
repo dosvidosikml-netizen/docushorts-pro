@@ -19,7 +19,7 @@
 //   4. last-scene context передаётся между chunks для continuity первого кадра
 //   5. склеиваем сцены, переиндексируем frame_01..frame_NN
 
-import { getDurationPreset } from "./sceneEngine_v2";
+import { getDurationPreset, detectObserverMode } from "./sceneEngine_v2";
 
 /**
  * splitScriptForChunks — нарезает длинный сценарий на куски пропорционально
@@ -85,6 +85,18 @@ export function buildChunkUserPrompt({
   else actPosition = "OUTRO + ВОПРОС (переворот + открытый вопрос для комментариев)";
 
   const targetScenes = Math.round(chunkDuration / 3);
+  const isObserverMode = detectObserverMode(globalScript);
+
+  const observerBlock = isObserverMode
+    ? `
+
+🎯 SCRIPT MODE: OBSERVER / SECOND-PERSON ("ты"-обращение)
+Скрипт обращён ПРЯМО К ЗРИТЕЛЮ. Зритель = главный герой.
+character_lock должен быть ПУСТЫМ [] или содержать только эпизодических людей без имён.
+НЕ выдумывай фиктивных героев типа "Mikhail" / "Ivan" / "Aldric".
+Используй POV / first-person framing где это уместно.
+`
+    : "";
 
   const continuityBlock = chunkIndex === 0
     ? `Это ПЕРВЫЙ chunk из ${totalChunks}. Создай детальный character_lock с описанием персонажей. Зафиксируй global_style_lock — он будет переиспользован во всех следующих chunks.`
@@ -120,7 +132,7 @@ ASPECT RATIO: ${aspectRatio}
 Target scenes для этого chunk: ${targetScenes} (MANDATORY).
 Каждая сцена 2-4 секунды.
 total_duration JSON для chunk = ${chunkDuration}.
-
+${observerBlock}
 ${continuityBlock}
 
 ОБЩИЙ СЦЕНАРИЙ (для контекста — что было до этого chunk и что будет после):
