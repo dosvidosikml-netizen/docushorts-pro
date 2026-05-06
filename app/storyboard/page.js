@@ -539,6 +539,7 @@ ${lines.join("\n")}` : "";
     setGridImg(null); setFrameIdx(null); setCroppedFrame(null);
     setSbBusy(true); setSbStat("gen"); setValidation(null);
     try {
+      // stream: true — SSE-режим. Заголовки уходят мгновенно, Render/Railway не рвут соединение.
       const r = await fetch("/api/storyboard", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -547,25 +548,65 @@ ${lines.join("\n")}` : "";
           style: stylePreset,
           project_name: projectName,
           mode: sbMode,
-          target
+          target,
+          stream: true,
         })
       });
-      const d = await r.json();
-      if (d.storyboard) {
-        // inject aspect_ratio from request into storyboard
-        const sb = { ...d.storyboard, aspect_ratio: aspectRatio };
-        setSB(sb);
-        setValidation(d.validation || null);
-        const valInfo = d.validation
-          ? (d.validation.ok ? " · ✓ valid" : ` · ⚠ ${d.validation.errors?.length} issues`)
-          : "";
-        const modeLabel = String(d.mode || "");
-        const isFallback = modeLabel.includes("fallback");
-        const fallbackReason = d.error ? ` — ${d.error}` : " — API не ответил или вернул невалидный JSON";
-        const fallbackWarn = isFallback ? ` · ⚠ FALLBACK${fallbackReason}` : "";
-        setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${modeLabel}${fallbackWarn}${valInfo}`);
-      } else {
-        setSbStat("err|" + (d.error || "unknown"));
+
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        setSbStat("err|" + (d.error || `HTTP ${r.status}`));
+        return;
+      }
+
+      // Читаем SSE-поток
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      const processEvent = (eventName, data) => {
+        if (eventName === "started") {
+          setSbStat("gen|" + (data.message || "Генерация..."));
+        } else if (eventName === "chunk_started") {
+          setSbStat(`gen|Chunk ${data.chunk_number}/${data.total_chunks} · ${data.chunk_duration}с...`);
+        } else if (eventName === "chunk_completed") {
+          setSbStat(`gen|Chunk ${data.chunk_number}/${data.total_chunks} готов · ${data.scenes_in_chunk} кадров`);
+        } else if (eventName === "merging") {
+          setSbStat("gen|Склейка chunks...");
+        } else if (eventName === "done") {
+          if (data.storyboard) {
+            const sb = { ...data.storyboard, aspect_ratio: aspectRatio };
+            setSB(sb);
+            setValidation(data.validation || null);
+            const valInfo = data.validation
+              ? (data.validation.ok ? " · ✓ valid" : ` · ⚠ ${data.validation.errors?.length} issues`)
+              : "";
+            const modeLabel = String(data.mode || "");
+            const isFallback = modeLabel.includes("fallback");
+            const fallbackReason = data.error ? ` — ${data.error}` : " — API не ответил или вернул невалидный JSON";
+            const fallbackWarn = isFallback ? ` · ⚠ FALLBACK${fallbackReason}` : "";
+            setSbStat(`ok|${sb.scenes?.length || 0} кадров · ${modeLabel}${fallbackWarn}${valInfo}`);
+          } else {
+            setSbStat("err|" + (data.error || "Пустой ответ от сервера"));
+          }
+        } else if (eventName === "error") {
+          setSbStat("err|" + (data.message || "Ошибка генерации"));
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        // SSE: события разделены двойным переносом
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          const evMatch = part.match(/^event:\s*(\S+)/m);
+          const dtMatch = part.match(/^data:\s*(.+)$/m);
+          if (!evMatch || !dtMatch) continue;
+          try { processEvent(evMatch[1], JSON.parse(dtMatch[1])); } catch {}
+        }
       }
     } catch (e) { setSbStat("err|" + e.message); }
     finally { setSbBusy(false); }
