@@ -268,3 +268,53 @@ export function buildCoverVariants({ topic = "", script = "", storyboard = null,
     variants: pack.variants.map((v) => ({ id: v.id, title: v.title, prompt_EN: v.prompt_EN })),
   };
 }
+
+
+export const COVER_DNA_PRESETS = {
+  conspiracy_documentary: {
+    palette: "red black orange",
+    typography: "bold distressed warning typography",
+    atmosphere: "classified mystery",
+    symbols: ["warning stamp", "evidence marks", "impact zone"],
+  },
+  historical_horror: {
+    palette: "burnt brown dark red",
+    typography: "aged distressed serif",
+    atmosphere: "medieval dread",
+    symbols: ["smoke", "torchlight", "dirty parchment"],
+  },
+  prison_survival: {
+    palette: "humid green yellow",
+    typography: "rough prison typography",
+    atmosphere: "suffocating tropical prison",
+    symbols: ["rust", "bars", "wet concrete"],
+  },
+  plague_nightmare: {
+    palette: "sick yellow black",
+    typography: "fear-driven gothic typography",
+    atmosphere: "death and infection",
+    symbols: ["fog", "candles", "church shadows"],
+  }
+};
+
+export function detectCoverDNA(script = "") {
+  const s = script.toLowerCase();
+
+  if (s.includes("тунгус") || s.includes("ufo") || s.includes("не земной")) {
+    return "conspiracy_documentary";
+  }
+
+  if (s.includes("казнь") || s.includes("средневек") || s.includes("ведьм")) {
+    return "historical_horror";
+  }
+
+  if (s.includes("тюрьм") || s.includes("остров дьявола")) {
+    return "prison_survival";
+  }
+
+  if (s.includes("чума") || s.includes("эпидем")) {
+    return "plague_nightmare";
+  }
+
+  return "conspiracy_documentary";
+}
