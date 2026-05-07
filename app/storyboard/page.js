@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   PROJECT_TYPES, STYLE_PRESETS,
@@ -14,7 +14,7 @@ import {
   splitScenesIntoParts, buildAutoChainPartPrompt, buildAutoChainAllParts,
   buildAutoVideoPack, buildAutoChainJson, buildFlowCompactPartPrompt
 } from "../../engine/autoChainEngine";
-import { downloadTextFile, safeFileName } from "../../lib/download";
+import { downloadTextFile, downloadJsonFile, safeFileName } from "../../lib/download";
 import { validateScript } from "../../lib/scriptValidator";
 import ProductionPack from "../../components/ProductionPack";
 
@@ -144,6 +144,28 @@ function safeJson(v) { try { return JSON.parse(v); } catch { return null; } }
 function tryLsSave(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)); return true; }
   catch { return false; }
+}
+
+function collectProductionCache() {
+  const out = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith("neurocine:production:")) out[key] = localStorage.getItem(key);
+    }
+  } catch {}
+  return out;
+}
+
+function restoreProductionCache(cache = {}) {
+  try {
+    Object.entries(cache || {}).forEach(([key, value]) => {
+      if (key.startsWith("neurocine:production:") && value != null) {
+        localStorage.setItem(key, String(value));
+      }
+    });
+  } catch {}
 }
 
 /* ─── tiny components ─── */
@@ -290,6 +312,8 @@ export default function StudioPage() {
   const [videoConsistency, setVideoConsistency] = useState("ultra");
 
   const [hydrated, setHydrated]         = useState(false);
+  const [snapshotStatus, setSnapshotStatus] = useState("");
+  const snapshotInputRef = useRef(null);
   const [showRu, setShowRu]             = useState(false);
   const [showFrameRu, setShowFrameRu]   = useState(false);
 
@@ -870,7 +894,113 @@ ${lines.join("\n")}` : "";
     localStorage.removeItem(KEY_TEXT); localStorage.removeItem(KEY_IMGS);
     setScript(""); setTopic(""); setProjectName("NeuroCine Project"); setJsonIn("");
     setSStat(""); setSbMode("safe"); setScriptValidation(null);
+    setSnapshotStatus("");
     resetStoryboardOutputs({ keepAnchors: false });
+  }
+
+  function buildProjectSnapshot() {
+    return {
+      neurocine_project_snapshot: true,
+      version: "v32",
+      exported_at: new Date().toISOString(),
+      app: "NeuroCine Studio",
+      project: { projectName, topic, projectType, stylePreset, duration, aspectRatio, tone },
+      script_pack: { script, scriptValidation },
+      storyboard_pack: { storyboard, jsonIn, sbMode, target, validation },
+      production_pipeline: {
+        frameIdx, gridColsOverride, gridManualFrames, exploreP, selVariant, p2k, videoP,
+        videoPromptMode, videoConsistency, analysis,
+        autoPartSize, autoPartIndex, autoChainMode, autoStrictLevel, autoReferenceMode,
+        autoAppearanceMode, autoIncludeVo, charOverrideEnabled, charFaceLock, charModifiers,
+        autoPartPrompt, autoVideoPack, autoAllPromptText
+      },
+      images: { gridImg, croppedFrame, variantImg, croppedVariant, finalImg },
+      production_pack_cache: collectProductionCache()
+    };
+  }
+
+  function applyProjectSnapshot(data) {
+    const p = data?.project || {};
+    const sp = data?.script_pack || {};
+    const sbp = data?.storyboard_pack || {};
+    const pipe = data?.production_pipeline || {};
+    const imgs = data?.images || {};
+
+    setProjectName(p.projectName || data?.projectName || "Imported NeuroCine Project");
+    setTopic(p.topic || data?.topic || "");
+    setProjectType(p.projectType || data?.projectType || "film");
+    setStylePreset(p.stylePreset || data?.stylePreset || "cinematic");
+    setDuration(Number(p.duration || data?.duration || 60));
+    setAspect(p.aspectRatio || data?.aspectRatio || "9:16");
+    setTone(p.tone || data?.tone || "cinematic documentary thriller");
+
+    setScript(sp.script || data?.script || "");
+    setScriptValidation(sp.scriptValidation || null);
+    setSB(sbp.storyboard || data?.storyboard || null);
+    setJsonIn(sbp.jsonIn || data?.jsonIn || "");
+    setSbMode(sbp.sbMode || data?.sbMode || "safe");
+    setTarget(sbp.target || data?.target || "veo3");
+    setValidation(sbp.validation || data?.validation || null);
+
+    setFrameIdx(pipe.frameIdx ?? null);
+    setGridColsOverride(pipe.gridColsOverride ?? null);
+    setGridManualFrames(pipe.gridManualFrames ?? null);
+    setExploreP(pipe.exploreP || "");
+    setSelVariant(pipe.selVariant || null);
+    setP2k(pipe.p2k || "");
+    setVideoP(pipe.videoP || "");
+    setVideoPromptMode(pipe.videoPromptMode || "cheap");
+    setVideoConsistency(pipe.videoConsistency || "ultra");
+    setAnalysis(pipe.analysis || null);
+
+    setAutoPartSize(pipe.autoPartSize || 4);
+    setAutoPartIndex(pipe.autoPartIndex || 0);
+    setAutoChainMode(pipe.autoChainMode || "worldHero");
+    setAutoStrictLevel(pipe.autoStrictLevel || "hard");
+    setAutoReferenceMode(pipe.autoReferenceMode || "heroAndPrevious");
+    setAutoAppearanceMode(pipe.autoAppearanceMode || "full");
+    setAutoIncludeVo(pipe.autoIncludeVo ?? true);
+    setCharOverrideEnabled(Boolean(pipe.charOverrideEnabled));
+    setCharFaceLock(pipe.charFaceLock || "");
+    setCharModifiers(pipe.charModifiers || { clothing: "", body: "", age: "", hair: "", extra: "" });
+    setAutoPartPrompt(pipe.autoPartPrompt || "");
+    setAutoVideoPack(pipe.autoVideoPack || "");
+    setAutoAllPromptText(pipe.autoAllPromptText || "");
+
+    setGridImg(imgs.gridImg || null);
+    setCroppedFrame(imgs.croppedFrame || null);
+    setVariantImg(imgs.variantImg || null);
+    setCropped(imgs.croppedVariant || null);
+    setFinalImg(imgs.finalImg || null);
+
+    restoreProductionCache(data?.production_pack_cache);
+    setSnapshotStatus("✓ Project Snapshot загружен");
+  }
+
+  function exportProjectSnapshot() {
+    const snapshot = buildProjectSnapshot();
+    downloadJsonFile(snapshot, safeFileName(projectName || "neurocine-project") + ".neurocine.json");
+    setSnapshotStatus("✓ Project Snapshot скачан");
+  }
+
+  function importProjectSnapshot(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result || "{}"));
+        if (!data.neurocine_project_snapshot && !data.storyboard && !data.script) {
+          throw new Error("Это не NeuroCine project snapshot");
+        }
+        applyProjectSnapshot(data);
+      } catch (e) {
+        setSnapshotStatus("✗ Не удалось загрузить Project Snapshot");
+        alert(e.message || "Не удалось загрузить Project Snapshot");
+      } finally {
+        if (snapshotInputRef.current) snapshotInputRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
   }
 
   /* ── RENDER ── */
@@ -887,6 +1017,15 @@ ${lines.join("\n")}` : "";
           <Link href="/" className="nav-btn">Главная</Link>
           <Link href="/chat" className="nav-btn">Chat</Link>
           <Link href="/storyboard" className="nav-btn active">Studio</Link>
+          <button className="nav-btn" onClick={exportProjectSnapshot}>💾 Project</button>
+          <button className="nav-btn" onClick={() => snapshotInputRef.current?.click()}>⬆ Project</button>
+          <input
+            ref={snapshotInputRef}
+            type="file"
+            accept=".json,.neurocine.json,application/json"
+            style={{ display: "none" }}
+            onChange={e => importProjectSnapshot(e.target.files?.[0])}
+          />
           {storyboard && <>
             <button className="nav-btn" onClick={exportJson}>⬇ JSON</button>
             <button className="nav-btn" onClick={exportTxt}>⬇ TXT</button>
@@ -895,6 +1034,10 @@ ${lines.join("\n")}` : "";
           <button className="nav-btn danger" onClick={clearAll}>Очистить</button>
         </div>
       </nav>
+
+      {snapshotStatus && (
+        <div className="snapshot-status">{snapshotStatus}</div>
+      )}
 
       <StudioDashboardHero
         projectName={projectName}
