@@ -1,5 +1,5 @@
 // components/ProductionPack.js
-// NeuroCine Production Pack v2.8
+// NeuroCine Production Pack v2.9
 // Использует родные классы сайта: .step-section, .step-header, .step-body,
 // .out-box, .out-head, .out-body, .out-pre, .field, .frow, .btn, .fb, .frame-card
 // Никакого inline-CSS — только токены globals.css.
@@ -732,10 +732,158 @@ function SocialPackTab({ topic, script, genre, cacheKey }) {
   );
 }
 
+
+
+// ─────── 🧭 VISUAL EXPLAINER STUDIO TAB ──────────────────────────
+function buildVisualExplainerPack({ topic = "", script = "", mode = "auto", format = "shorts" }) {
+  const source = `${topic}\n${script}`.toLowerCase();
+  const isTunguska = /тунгус|сибир|метеор|вспышк|воронк|оскол|тайг/.test(source);
+  const isPrison = /тюрьм|остров|заключ|побег|камера|каторг/.test(source);
+  const isPlague = /чума|эпидем|зараж|болезн|город|смерт/.test(source);
+  const isMedieval = /средневек|казн|ведьм|палач|король|инквиз/.test(source);
+
+  const dna = isTunguska ? "mystery_disaster_files" : isPrison ? "prison_escape_map" : isPlague ? "plague_spread_timeline" : isMedieval ? "medieval_evidence_board" : "documentary_evidence_graphics";
+  const title = isTunguska ? "Траектория вспышки над Сибирью" : isPrison ? "Карта побега и ловушка острова" : isPlague ? "Как страх накрыл город" : isMedieval ? "Схема средневекового приговора" : "Документальная схема события";
+  const visualSymbol = isTunguska ? "white-hot aerial blast, radial forest collapse, no crater marker" : isPrison ? "isolated island, sea currents, prison block, escape route" : isPlague ? "infected city map, spreading fog, death timeline" : isMedieval ? "court table, execution route, crowd pressure lines" : "evidence board, timeline, arrows, classified markers";
+
+  const overlays = [
+    {
+      name: "Animated Map Overlay",
+      use: "карта/локация/масштаб события",
+      prompt: `Create a cinematic documentary animated map overlay for: ${title}. Visual symbol: ${visualSymbol}. Dark Netflix/HBO documentary style, red evidence lines, subtle grain, clean readable labels in Russian, 9:16 vertical composition, no clutter, slow camera push-in, professional motion graphics.`
+    },
+    {
+      name: "Evidence Board Overlay",
+      use: "факты, версии, доказательства",
+      prompt: `Create a dark investigative evidence board overlay for: ${title}. Use pinned photos, red strings, classified stamps, short Russian labels, one central impossible clue, high contrast, cinematic realism, clean mobile readability, 9:16.`
+    },
+    {
+      name: "Timeline Motion Graphic",
+      use: "даты/последовательность событий",
+      prompt: `Create a vertical documentary timeline motion graphic for: ${title}. Show 4-5 key beats from the script, large date markers, smoky background, red highlight pulses, slow parallax, Russian labels, cinematic true mystery style.`
+    },
+    {
+      name: "Trajectory / Cause Diagram",
+      use: "траектория, причина, удар, распространение",
+      prompt: `Create a clean cinematic cause-and-effect diagram for: ${title}. Show arrows, blast radius or route lines, scale markers, minimal Russian labels, dark background, amber/red glow, 9:16 vertical, documentary explainer style.`
+    }
+  ];
+
+  const manimBlueprint = `# NeuroCine Visual Explainer Blueprint\nSCENE: ${title}\nDNA: ${dna}\nFORMAT: ${format === "shorts" ? "1080x1920 vertical" : "1920x1080 horizontal"}\n\nLAYERS:\n1. dark textured background with subtle film grain\n2. main map/evidence object appears with slow fade\n3. red trajectory/evidence lines animate from left to right\n4. 3-5 Russian labels pop in one by one\n5. final warning stamp / question appears\n\nCAMERA:\nslow push-in, slight parallax, no chaotic movement\n\nSFX:\nlow drone, soft impact hits on label reveals, distant wind, paper/evidence flickers`;
+
+  const shotList = [
+    "0.0–1.5s · dark background, map/evidence object fades in",
+    "1.5–3.0s · red line/trajectory starts moving",
+    "3.0–5.0s · 2-3 labels appear with soft impact hits",
+    "5.0–7.0s · main clue is highlighted",
+    "7.0–8.0s · final question/warning stamp appears"
+  ];
+
+  return { dna, title, visualSymbol, overlays, manimBlueprint, shotList };
+}
+
+function VisualExplainerTab({ topic, script, cacheKey }) {
+  const [data, setData] = useStoredState(`${cacheKey}:explainer:data`, null);
+  const [mode, setMode] = useStoredString(`${cacheKey}:explainer:mode`, "auto");
+  const [format, setFormat] = useStoredString(`${cacheKey}:explainer:format`, "shorts");
+  const [active, setActive] = useStoredString(`${cacheKey}:explainer:active`, "Animated Map Overlay");
+
+  function run() {
+    setData(buildVisualExplainerPack({ topic, script, mode, format }));
+  }
+
+  if (!data) {
+    return (
+      <div className="col">
+        <p className="step-desc" style={{ marginBottom: 14 }}>
+          Visual Explainer Studio создаёт промты и blueprint для документальных графических вставок: карты, таймлайны, evidence board, траектории и схемы. Это безопасный первый слой перед будущим Python/Manim render-worker.
+        </p>
+        <div className="frow frow2">
+          <div className="field">
+            <label>Тип графики</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="auto">AUTO · по сценарию</option>
+              <option value="map">Animated Map</option>
+              <option value="timeline">Timeline</option>
+              <option value="evidence">Evidence Board</option>
+              <option value="trajectory">Trajectory Diagram</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Формат</label>
+            <select value={format} onChange={(e) => setFormat(e.target.value)}>
+              <option value="shorts">9:16 Shorts / Reels</option>
+              <option value="wide">16:9 YouTube</option>
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-red btn-full" onClick={run} disabled={!topic && !script}>
+          Сгенерировать Visual Explainer Pack
+        </button>
+        {!topic && !script && <StatusLine text="Нужна тема или сценарий" />}
+      </div>
+    );
+  }
+
+  const current = data.overlays?.find(x => x.name === active) || data.overlays?.[0];
+  const allText = [
+    `TITLE: ${data.title}`,
+    `DNA: ${data.dna}`,
+    `VISUAL SYMBOL: ${data.visualSymbol}`,
+    "",
+    ...(data.overlays || []).map(x => `${x.name}:\n${x.prompt}`),
+    "",
+    data.manimBlueprint,
+    "",
+    `SHOT LIST:\n${(data.shotList || []).join("\n")}`
+  ].join("\n");
+
+  return (
+    <div className="col">
+      <StatusLine text={`Visual Explainer: ${data.title} · ${data.dna}`} />
+
+      <OutBox label="Explainer DNA" copy={`TITLE: ${data.title}\nDNA: ${data.dna}\nVISUAL SYMBOL: ${data.visualSymbol}`}>
+        <div className="frame-card-row"><div className="frame-card-lbl">TITLE</div><div className="frame-card-val" style={{ fontWeight: 900 }}>{data.title}</div></div>
+        <div className="frame-card-row"><div className="frame-card-lbl">DNA</div><div className="frame-card-val">{data.dna}</div></div>
+        <div className="frame-card-row"><div className="frame-card-lbl">SYMBOL</div><div className="frame-card-val">{data.visualSymbol}</div></div>
+      </OutBox>
+
+      <div className="frame-btns" style={{ marginBottom: 8 }}>
+        {(data.overlays || []).map(x => (
+          <button key={x.name} className={`fb ${active === x.name ? "active" : ""}`} onClick={() => setActive(x.name)}>
+            {x.name}
+          </button>
+        ))}
+      </div>
+
+      {current && (
+        <OutBox label={`PROMPT · ${current.name}`} copy={current.prompt}>
+          <div className="out-pre mono compact">{current.prompt}</div>
+          <div className="out-pre" style={{ marginTop: 8, color: "var(--muted)" }}>Использование: {current.use}</div>
+        </OutBox>
+      )}
+
+      <OutBox label="Manim / Render Blueprint" copy={data.manimBlueprint}>
+        <div className="out-pre mono compact">{data.manimBlueprint}</div>
+      </OutBox>
+
+      <OutBox label="Shot List · 8 секунд" copy={(data.shotList || []).join("\n")}>
+        <div className="out-pre compact">{(data.shotList || []).join("\n")}</div>
+      </OutBox>
+
+      <div className="brow">
+        <CopyBtn text={allText} label="Копировать весь pack" />
+        <button className="btn btn-sm btn-ghost" onClick={run}>Обновить</button>
+      </div>
+      <PackToolbar onClear={() => setData(null)} />
+    </div>
+  );
+}
+
 // ─────── MAIN COMPONENT ───────────────────────────────────────────
 export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null }) {
   const sourceKey = useMemo(() => hashString(`${topic}|${script?.slice(0, 1200)}|${storyboard?.scenes?.length || 0}`), [topic, script, storyboard]);
-  const cacheKey = `neurocine:production:v26:${sourceKey}`;
+  const cacheKey = `neurocine:production:v29:${sourceKey}`;
   const [activeTab, setActiveTab] = useStoredString(`neurocine:production:activeTab`, "cover");
 
   const tabs = [
@@ -743,6 +891,7 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
     { id: "cover",  label: "Cover Director", comp: <CoverTab topic={topic} script={script} storyboard={storyboard} cacheKey={cacheKey} /> },
     { id: "music",  label: "Музыка + SEO", comp: <MusicSeoTab topic={topic} script={script} genre={genre} storyboard={storyboard} cacheKey={cacheKey} /> },
     { id: "social", label: "Social Pack",  comp: <SocialPackTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
+    { id: "explainer", label: "Visual Explainer", comp: <VisualExplainerTab topic={topic} script={script} cacheKey={cacheKey} /> },
   ];
 
   return (
@@ -751,9 +900,9 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
         <div className="step-num">05</div>
         <div className="step-info">
           <div className="step-title">Production Pack</div>
-          <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social Visual Export — результаты сохраняются после обновления браузера</div>
+          <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social Visual Export · Visual Explainer — результаты сохраняются после обновления браузера</div>
         </div>
-        <span className="step-badge">v2.8</span>
+        <span className="step-badge">v2.9</span>
       </div>
       <div className="step-body">
         <div className="frame-btns" style={{ marginBottom: 18 }}>
