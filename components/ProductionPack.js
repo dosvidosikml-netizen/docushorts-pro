@@ -1,5 +1,5 @@
 // components/ProductionPack.js
-// NeuroCine Production Pack v2.9
+// NeuroCine Production Pack v3.0
 // Использует родные классы сайта: .step-section, .step-header, .step-body,
 // .out-box, .out-head, .out-body, .out-pre, .field, .frow, .btn, .fb, .frame-card
 // Никакого inline-CSS — только токены globals.css.
@@ -883,7 +883,7 @@ function VisualExplainerTab({ topic, script, cacheKey }) {
 // ─────── MAIN COMPONENT ───────────────────────────────────────────
 export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null }) {
   const sourceKey = useMemo(() => hashString(`${topic}|${script?.slice(0, 1200)}|${storyboard?.scenes?.length || 0}`), [topic, script, storyboard]);
-  const cacheKey = `neurocine:production:v29:${sourceKey}`;
+  const cacheKey = `neurocine:production:v30:${sourceKey}`;
   const [activeTab, setActiveTab] = useStoredString(`neurocine:production:activeTab`, "cover");
 
   const tabs = [
@@ -895,14 +895,14 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
   ];
 
   return (
-    <section className="step-section">
+    <section className="step-section studio-step-card production-pack-v30">
       <div className="step-header">
-        <div className="step-num">05</div>
+        <div className="step-num">04</div>
         <div className="step-info">
           <div className="step-title">Production Pack</div>
           <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social Visual Export · Visual Explainer — результаты сохраняются после обновления браузера</div>
         </div>
-        <span className="step-badge">v2.9</span>
+        <span className="step-badge">v3.0</span>
       </div>
       <div className="step-body">
         <div className="frame-btns" style={{ marginBottom: 18 }}>
