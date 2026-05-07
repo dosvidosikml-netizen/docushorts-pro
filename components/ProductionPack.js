@@ -10,6 +10,7 @@
 
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { buildMockTtsPack, buildMockCoverPack, buildMockMusicPack, buildMockSeoPack, buildMockSocialPack } from "../lib/mockData";
 
 // ─────── COMMON HELPERS ───────────────────────────────────────────
 function safeJsonParse(raw, fallback) {
@@ -274,14 +275,15 @@ function SocialExportButtons({ carousel = [], slides = [], topic = "neurocine" }
 }
 
 // ─────── 🎙 TTS STUDIO TAB ────────────────────────────────────────
-function TtsStudioTab({ topic, script, genre, cacheKey }) {
+function TtsStudioTab({ topic, script, genre, cacheKey, devMode }) {
   const [data, setData] = useStoredState(`${cacheKey}:tts:data`, null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [activeScript, setActiveScript] = useState("google");
 
   async function run() {
-    if (!script?.trim()) { setErr("Сначала создай сценарий в шаге 01"); return; }
+    if (!script?.trim() && !devMode) { setErr("Сначала создай сценарий в шаге 01"); return; }
+    if (devMode) { setErr(""); setData(buildMockTtsPack({ topic, script })); return; }
     setBusy(true); setErr(""); setData(null);
     try {
       const r = await fetch("/api/tts-studio", {
@@ -370,7 +372,7 @@ function TtsStudioTab({ topic, script, genre, cacheKey }) {
 }
 
 // ─────── 🖼 COVER DIRECTOR TAB ───────────────────────────────────
-function CoverTab({ topic, script, storyboard, cacheKey }) {
+function CoverTab({ topic, script, storyboard, cacheKey, devMode }) {
   const [data, setData] = useStoredState(`${cacheKey}:cover:data`, null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -379,6 +381,7 @@ function CoverTab({ topic, script, storyboard, cacheKey }) {
   const [activeVariant, setActiveVariant] = useStoredString(`${cacheKey}:cover:variant`, "poster");
 
   async function run() {
+    if (devMode) { setErr(""); setData(buildMockCoverPack({ topic, script, storyboard })); return; }
     setBusy(true); setErr(""); setData(null);
     try {
       const r = await fetch("/api/cover", {
@@ -496,7 +499,7 @@ function CoverTab({ topic, script, storyboard, cacheKey }) {
 }
 
 // ─────── 🎵 MUSIC + 🚀 SEO TAB ────────────────────────────────────
-function MusicSeoTab({ topic, script, genre, storyboard, cacheKey }) {
+function MusicSeoTab({ topic, script, genre, storyboard, cacheKey, devMode }) {
   const [music, setMusic] = useStoredState(`${cacheKey}:music:data`, null);
   const [seo, setSeo] = useStoredState(`${cacheKey}:seo:data`, null);
   const [musicMode, setMusicMode] = useStoredString(`${cacheKey}:music:mode`, "cinematic_thriller");
@@ -505,6 +508,7 @@ function MusicSeoTab({ topic, script, genre, storyboard, cacheKey }) {
   const [err, setErr] = useState("");
 
   async function run() {
+    if (devMode) { setErr(""); setMusic(buildMockMusicPack({ topic, script, genre, storyboard })); setSeo(buildMockSeoPack({ topic, script, genre })); return; }
     setBusy(true); setErr(""); setMusic(null); setSeo(null);
     try {
       const [m, s] = await Promise.all([
@@ -612,13 +616,14 @@ function MusicSeoTab({ topic, script, genre, storyboard, cacheKey }) {
 }
 
 // ─────── 📘 SOCIAL PACK TAB ───────────────────────────────────────
-function SocialPackTab({ topic, script, genre, cacheKey }) {
+function SocialPackTab({ topic, script, genre, cacheKey, devMode }) {
   const [data, setData] = useStoredState(`${cacheKey}:social:data`, null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   async function run() {
-    if (!script?.trim()) { setErr("Сначала создай сценарий"); return; }
+    if (!script?.trim() && !devMode) { setErr("Сначала создай сценарий"); return; }
+    if (devMode) { setErr(""); setData(buildMockSocialPack({ topic, script, genre })); return; }
     setBusy(true); setErr(""); setData(null);
     try {
       const r = await fetch("/api/social-pack", {
@@ -891,7 +896,7 @@ const PACK_I18N = {
   ru: {
     title: "Production Pack",
     desc: "TTS · Cover Director · Музыка · SEO · Social Visual Export · Visual Explainer — результаты сохраняются после обновления браузера",
-    version: "v3.3",
+    version: "v3.4",
     tabs: {
       tts: ["TTS Studio", "озвучка", "VOICE"],
       cover: ["Cover Director", "CTR превью", "CTR READY"],
@@ -902,8 +907,8 @@ const PACK_I18N = {
   },
   en: {
     title: "Production Pack",
-    desc: "TTS · Cover Director · Music · SEO · Social Visual Export · Visual Explainer — results persist after browser refresh",
-    version: "v3.3",
+    desc: "TTS · Cover Director · Music · SEO · Social Visual Export · Visual Explainer — DEMO/PRO mode, results persist after refresh",
+    version: "v3.4",
     tabs: {
       tts: ["TTS Studio", "voiceover", "VOICE"],
       cover: ["Cover Director", "CTR thumbnail", "CTR READY"],
@@ -914,17 +919,17 @@ const PACK_I18N = {
   }
 };
 
-export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null, lang = "ru" }) {
+export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null, lang = "ru", devMode = false }) {
   const sourceKey = useMemo(() => hashString(`${topic}|${script?.slice(0, 1200)}|${storyboard?.scenes?.length || 0}`), [topic, script, storyboard]);
-  const cacheKey = `neurocine:production:v33:${sourceKey}`;
+  const cacheKey = `neurocine:production:v34:${devMode ? "demo" : "pro"}:${sourceKey}`;
   const [activeTab, setActiveTab] = useStoredString(`neurocine:production:activeTab`, "cover");
   const t = PACK_I18N[lang] || PACK_I18N.ru;
 
   const tabs = [
-    { id: "tts", icon: "🎙️", label: t.tabs.tts[0], sub: t.tabs.tts[1], status: t.tabs.tts[2], comp: <TtsStudioTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
-    { id: "cover", icon: "🧲", label: t.tabs.cover[0], sub: t.tabs.cover[1], status: t.tabs.cover[2], comp: <CoverTab topic={topic} script={script} storyboard={storyboard} cacheKey={cacheKey} /> },
-    { id: "music", icon: "🎧", label: t.tabs.music[0], sub: t.tabs.music[1], status: t.tabs.music[2], comp: <MusicSeoTab topic={topic} script={script} genre={genre} storyboard={storyboard} cacheKey={cacheKey} /> },
-    { id: "social", icon: "📲", label: t.tabs.social[0], sub: t.tabs.social[1], status: t.tabs.social[2], comp: <SocialPackTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
+    { id: "tts", icon: "🎙️", label: t.tabs.tts[0], sub: t.tabs.tts[1], status: t.tabs.tts[2], comp: <TtsStudioTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} devMode={devMode} /> },
+    { id: "cover", icon: "🧲", label: t.tabs.cover[0], sub: t.tabs.cover[1], status: t.tabs.cover[2], comp: <CoverTab topic={topic} script={script} storyboard={storyboard} cacheKey={cacheKey} devMode={devMode} /> },
+    { id: "music", icon: "🎧", label: t.tabs.music[0], sub: t.tabs.music[1], status: t.tabs.music[2], comp: <MusicSeoTab topic={topic} script={script} genre={genre} storyboard={storyboard} cacheKey={cacheKey} devMode={devMode} /> },
+    { id: "social", icon: "📲", label: t.tabs.social[0], sub: t.tabs.social[1], status: t.tabs.social[2], comp: <SocialPackTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} devMode={devMode} /> },
     { id: "explainer", icon: "🗺️", label: t.tabs.explainer[0], sub: t.tabs.explainer[1], status: t.tabs.explainer[2], comp: <VisualExplainerTab topic={topic} script={script} cacheKey={cacheKey} /> },
   ];
 
@@ -936,7 +941,7 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
           <div className="step-title">{t.title}</div>
           <div className="step-desc">{t.desc}</div>
         </div>
-        <span className="step-badge">{t.version}</span>
+        <span className="step-badge">{devMode ? "DEMO PREVIEW" : t.version}</span>
       </div>
       <div className="step-body">
         <div className="pack-v31-grid" role="tablist" aria-label="Production Pack modules">
