@@ -17,6 +17,7 @@ import {
 import { downloadTextFile, downloadJsonFile, safeFileName } from "../../lib/download";
 import { validateScript } from "../../lib/scriptValidator";
 import ProductionPack from "../../components/ProductionPack";
+import { MOCK_SCRIPT_RU, buildMockStoryboard, buildMockVideoPrompt } from "../../lib/mockData";
 
 /* ─── autosave keys ─── */
 const KEY_TEXT  = "nc_text_v3";
@@ -227,25 +228,25 @@ function UploadZone({ label, hint, onFile, accept = "image/*" }) {
 const UI_TEXT = {
   ru: {
     lang: "RU", otherLang: "EN", ready: "READY", waiting: "WAITING", generating: "GENERATING", active: "ACTIVE", locked: "LOCKED", frames: "FRAMES",
-    dashboard: "NeuroCine Studio Dashboard V33", titleA: "Cinematic", titleB: "Control Room",
+    dashboard: "NeuroCine Studio Dashboard V34", titleA: "Cinematic", titleB: "Control Room",
     desc: "Единый production-пульт: сценарий, storyboard, PART grid, video prompts, cover, social export и visual explainer в одном рабочем потоке.",
     project: "PROJECT", emptyTopic: "Введи тему или вставь готовый сценарий",
     style: "Style", target: "Model target", scenes: "Scenes",
     navHome: "Главная", navChat: "Chat", navStudio: "Studio", save: "💾 Project", load: "⬆ Project", clear: "Очистить",
     railScript: "Script", railStoryboard: "Storyboard", railPipeline: "Pipeline", railPack: "Pack",
     statusScript: "SCRIPT", statusStoryboard: "STORYBOARD", statusPart: "PART", statusVideo: "VIDEO", statusCover: "COVER", statusSave: "SAVE",
-    ok: "✓", no: "—", focus: "Focus", compact: "Compact", open: "Открыть", close: "Свернуть", copy: "Копировать", copied: "✓ Скопировано", empty: "Пусто"
+    ok: "✓", no: "—", focus: "Focus", compact: "Compact", open: "Открыть", close: "Свернуть", copy: "Копировать", copied: "✓ Скопировано", empty: "Пусто", devMode: "DEMO", liveMode: "PRO", devHint: "DEMO MODE · API не используется · можно протестировать студию бесплатно"
   },
   en: {
     lang: "EN", otherLang: "RU", ready: "READY", waiting: "WAITING", generating: "GENERATING", active: "ACTIVE", locked: "LOCKED", frames: "FRAMES",
-    dashboard: "NeuroCine Studio Dashboard V33", titleA: "Cinematic", titleB: "Control Room",
+    dashboard: "NeuroCine Studio Dashboard V34", titleA: "Cinematic", titleB: "Control Room",
     desc: "A unified production console for script, storyboard, PART grid, video prompts, covers, social export and visual explainers in one workflow.",
     project: "PROJECT", emptyTopic: "Enter a topic or paste a finished script",
     style: "Style", target: "Model target", scenes: "Scenes",
     navHome: "Home", navChat: "Chat", navStudio: "Studio", save: "💾 Project", load: "⬆ Project", clear: "Clear",
     railScript: "Script", railStoryboard: "Storyboard", railPipeline: "Pipeline", railPack: "Pack",
     statusScript: "SCRIPT", statusStoryboard: "STORYBOARD", statusPart: "PART", statusVideo: "VIDEO", statusCover: "COVER", statusSave: "SAVE",
-    ok: "✓", no: "—", focus: "Focus", compact: "Compact", open: "Open", close: "Collapse", copy: "Copy", copied: "✓ Copied", empty: "Empty"
+    ok: "✓", no: "—", focus: "Focus", compact: "Compact", open: "Open", close: "Collapse", copy: "Copy", copied: "✓ Copied", empty: "Empty", devMode: "DEMO", liveMode: "PRO", devHint: "DEMO MODE · API is not used · test the studio for free"
   }
 };
 
@@ -372,6 +373,7 @@ export default function StudioPage() {
   const [snapshotStatus, setSnapshotStatus] = useState("");
   const snapshotInputRef = useRef(null);
   const [uiLang, setUiLang] = useState("ru");
+  const [devMode, setDevMode] = useState(false);
   const t = UI_TEXT[uiLang] || UI_TEXT.ru;
   const [showRu, setShowRu]             = useState(false);
   const [showFrameRu, setShowFrameRu]   = useState(false);
@@ -553,6 +555,7 @@ ${lines.join("\n")}` : "";
       if (text.videoP)      setVideoP(text.videoP);
       if (text.videoPromptMode) setVideoPromptMode(text.videoPromptMode);
       if (text.videoConsistency) setVideoConsistency(text.videoConsistency);
+      if (typeof text.devMode === "boolean") setDevMode(text.devMode);
       if (text.analysis)    setAnalysis(text.analysis);
     }
 
@@ -572,10 +575,10 @@ ${lines.join("\n")}` : "";
     tryLsSave(KEY_TEXT, {
       projectName, topic, projectType, stylePreset, duration,
       aspectRatio, tone, script, storyboard, jsonIn, sbMode, target, validation,
-      frameIdx, exploreP, selVariant, p2k, videoP, videoPromptMode, videoConsistency, analysis
+      frameIdx, exploreP, selVariant, p2k, videoP, videoPromptMode, videoConsistency, analysis, devMode
     });
   }, [hydrated, projectName, topic, projectType, stylePreset, duration, aspectRatio,
-      tone, script, storyboard, jsonIn, sbMode, target, validation, frameIdx, exploreP, selVariant, p2k, videoP, videoPromptMode, videoConsistency, analysis]);
+      tone, script, storyboard, jsonIn, sbMode, target, validation, frameIdx, exploreP, selVariant, p2k, videoP, videoPromptMode, videoConsistency, analysis, devMode]);
 
   /* ── AUTOSAVE WRITE (images — separate key, с защитой от quota) ── */
   useEffect(() => {
@@ -627,7 +630,15 @@ ${lines.join("\n")}` : "";
       setSStat("ok");
       return;
     }
-    if (!topic.trim()) return;
+    if (!topic.trim() && !devMode) return;
+    if (devMode) {
+      resetStoryboardOutputs({ keepAnchors: true });
+      setJsonIn("");
+      setScript(MOCK_SCRIPT_RU);
+      setScriptValidation(validateScript(MOCK_SCRIPT_RU));
+      setSStat("ok|DEMO MODE · sample script");
+      return;
+    }
     resetStoryboardOutputs({ keepAnchors: true });
     setJsonIn("");
     setSBusy(true); setSStat("gen"); setScriptValidation(null);
@@ -667,9 +678,17 @@ ${lines.join("\n")}` : "";
     if (!src && jsonIn.trim()) {
       try { const p = JSON.parse(jsonIn); src = String(p.script || p.text || "").trim(); } catch {}
     }
-    if (!src.trim()) return;
+    if (!src.trim() && !devMode) return;
     setAutoPartIndex(0); setAutoPartPrompt(""); setAutoVideoPack(""); setAutoAllPromptText("");
     setGridImg(null); setFrameIdx(null); setCroppedFrame(null);
+    if (devMode) {
+      const sb = buildMockStoryboard({ projectName, topic: topic || "DEMO Sample Story", duration, aspectRatio, style: stylePreset });
+      setScript(prev => prev?.trim() ? prev : MOCK_SCRIPT_RU);
+      setSB(sb);
+      setValidation({ ok: true, errors: [], warnings: ["DEMO MODE: sample storyboard, API not used"] });
+      setSbStat(`ok|${sb.scenes?.length || 0} кадров · DEMO MODE · sample storyboard`);
+      return;
+    }
     setSbBusy(true); setSbStat("gen"); setValidation(null);
     try {
       // stream: true — SSE-режим. Заголовки уходят мгновенно, Render/Railway не рвут соединение.
@@ -818,6 +837,11 @@ ${lines.join("\n")}` : "";
 
   async function doVideoPrompt() {
     if (!curFrame || !finalImg) return;
+    if (devMode) {
+      setVideoP(buildMockVideoPrompt(curFrame));
+      setAnalysis({ sfx: "DEMO MODE · sample SFX: low drone, wind, distant rumble" });
+      return;
+    }
     setVidBusy(true); setVideoP(""); setAnalysis(null);
     try {
       const r2 = await fetch("/api/video", {
@@ -1091,10 +1115,12 @@ ${lines.join("\n")}` : "";
             <button className="nav-btn" onClick={exportFlow}>⬇ Flow/VEO</button>
           </>}
           <button className="nav-btn danger" onClick={clearAll}>{t.clear}</button>
+          <button className={`nav-btn dev-toggle-v34 ${devMode ? "active" : ""}`} onClick={() => setDevMode(v => !v)}>{devMode ? t.devMode : t.liveMode}</button>
           <button className="nav-btn lang-mobile-v33" onClick={() => setUiLang(v => v === "ru" ? "en" : "ru")}>{t.otherLang}</button>
         </div>
       </nav>
 
+      {devMode && <div className="dev-banner-v34">{t.devHint}</div>}
       {snapshotStatus && (
         <div className="snapshot-status">{snapshotStatus}</div>
       )}
@@ -2137,6 +2163,7 @@ ${lines.join("\n")}` : "";
             genre={projectType}
             storyboard={storyboard}
             lang={uiLang}
+            devMode={devMode}
           />
         ) : (
           <div className="step-section studio-step-card">
