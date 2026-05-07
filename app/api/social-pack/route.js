@@ -1,59 +1,35 @@
-// app/api/social-pack/route.js
-// NeuroCine Social Pack — Facebook + Reels caption + Instagram карусель + Stories тизеры.
+// app/api/seo-pack/route.js
+// NeuroCine SEO Director V2 — platform-aware titles, descriptions and hashtags.
 
 import { callOpenRouter, TASK_TYPES } from "../../../lib/modelRouter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYS = (genre) => `Ты — elite SMM-копирайтер для Facebook и Instagram. Пиши ТОЛЬКО на русском. Output ONLY valid JSON (no markdown).
-ЖАНР: ${genre}.
+const SYS = `You are NeuroCine SEO Director V2 for YouTube Shorts / TikTok / Reels.
+Output ONLY valid JSON. No markdown.
+Language: Russian.
 
-ПРАВИЛА FB:
-— Первая строка = стоп-скроллер.
-— Абзацы 2-3 предложения через \\n\\n.
-— Факты с цифрами и физикой.
-— Финал = вопрос раскалывающий аудиторию.
-— 5-7 хештегов тематики.
-— БАН: "невероятно", "удивительно", "мало кто знает".
+Create 4 variants, not generic SEO:
+1) shock — direct impact / number / scale
+2) intrigue — mystery question / curiosity gap
+3) search — keyword-friendly, discoverable
+4) controversial — debate trigger, but not misinformation stated as fact
 
-REELS CAPTION:
-— Макс 3 строки до "ещё".
-— Строка 1: цифра+шок (5-7 слов).
-— Строка 2: КАК это произошло.
-— Строка 3: незакрытая интрига.
-— 3-5 хештегов.
-
-CAROUSEL 5 СЛАЙДОВ:
-1 — ОБЛОЖКА (bg #0d0010): КАПСЛОК. 1-2 строки.
-2 — КОНТЕКСТ (#0a0500): физика, числа.
-3 — ПОВОРОТ (#000a06): неожиданный факт.
-4 — ПИК (#0a000a): шокирующий момент.
-5 — CTA (#00060d): смотри видео + вопрос.
-
-STORIES 3:
-1 — УДАР (#0d0010): 7 слов max, КАПСЛОК.
-2 — ИНТРИГА (#0a0500): риторический вопрос.
-3 — ПРИЗЫВ (#00060d): CTA.
+Rules:
+- Titles must be short, punchy, mobile-readable.
+- Avoid #fyp #viral #foryou.
+- Descriptions 100-180 chars.
+- Hashtags: 6-10 specific tags, mix broad + niche.
+- Include platform_note_ru for how to use it.
 
 JSON:
 {
-  "post_hook": "Первая строка",
-  "post_body": "Тело через \\n\\n",
-  "post_question": "Финальный вопрос",
-  "post_tags": "#тег1 #тег2 #тег3 #тег4 #тег5",
-  "reels_caption": "3 строки + \\n\\n + хештеги",
-  "carousel": [
-    { "emoji":"🎬","headline":"ЗАГ","sub":"подзаг","bg":"#0d0010" },
-    { "emoji":"📊","headline":"КОНТЕКСТ","sub":"...","bg":"#0a0500" },
-    { "emoji":"⚡","headline":"ПОВОРОТ","sub":"...","bg":"#000a06" },
-    { "emoji":"🔥","headline":"ПИК","sub":"...","bg":"#0a000a" },
-    { "emoji":"👁","headline":"СМОТРИ","sub":"...","bg":"#00060d" }
-  ],
-  "slides": [
-    { "emoji":"💥","headline":"УДАР","sub":"...","bg":"#0d0010" },
-    { "emoji":"❓","headline":"ИНТРИГА","sub":"...","bg":"#0a0500" },
-    { "emoji":"🎯","headline":"ПРИЗЫВ","sub":"...","bg":"#00060d" }
+  "seo_variants": [
+    { "type":"shock", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." },
+    { "type":"intrigue", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." },
+    { "type":"search", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." },
+    { "type":"controversial", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." }
   ]
 }`;
 
@@ -62,18 +38,19 @@ export async function POST(req) {
     const body = await req.json();
     const topic = String(body.topic || "").trim();
     const script = String(body.script || "").trim();
-    const genre = String(body.genre || "ИСТОРИЯ").trim();
-    if (!script || script.length < 30) return Response.json({ error: "Нужен сценарий минимум 30 символов" }, { status: 400 });
+    const genre = String(body.genre || "").trim();
+    const platform = String(body.platform || "youtube_shorts").trim();
+    if (!topic && !script) return Response.json({ error: "Нужна тема или сценарий" }, { status: 400 });
 
-    const userMsg = `Тема: ${topic}\nСценарий:\n${script}\n\nСгенерируй полный пакет: FB + Reels + Carousel + Stories.`;
+    const userMsg = `Платформа: ${platform}\nТема: ${topic}\nЖанр: ${genre}\nСценарий:\n${script.slice(0, 6000) || "(не задан)"}\n\nСгенерируй 4 SEO варианта под выбранную платформу.`;
 
     const r = await callOpenRouter({
-      taskType: TASK_TYPES.SCRIPT_WRITING,
-      systemPrompt: SYS(genre),
+      taskType: TASK_TYPES.LIGHT_TASK,
+      systemPrompt: SYS,
       userMessage: userMsg,
-      maxTokensOverride: 4000,
+      maxTokensOverride: 3200,
       responseFormat: { type: "json_object" },
-      appTitle: "NeuroCine Social Pack v1",
+      appTitle: "NeuroCine SEO Director V2",
     });
     if (!r.ok) return Response.json({ error: r.error }, { status: 500 });
 
@@ -83,6 +60,6 @@ export async function POST(req) {
       parsed = JSON.parse(c);
     } catch (e) { return Response.json({ error: "Невалидный JSON: " + e.message, raw: r.content?.slice(0,500) }, { status: 500 }); }
 
-    return Response.json({ social: parsed, model_used: r.model_used });
+    return Response.json({ ...parsed, model_used: r.model_used });
   } catch (e) { return Response.json({ error: e.message }, { status: 500 }); }
 }
