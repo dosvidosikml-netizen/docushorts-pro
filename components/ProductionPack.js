@@ -1,5 +1,5 @@
 // components/ProductionPack.js
-// NeuroCine Production Pack v3.1.5 — compact mobile menus + cleaned premium pack navigation
+// NeuroCine Production Pack v3.3 — RU/EN Studio UX + premium compact workflow
 // Использует родные классы сайта: .step-section, .step-header, .step-body,
 // .out-box, .out-head, .out-body, .out-pre, .field, .frow, .btn, .fb, .frame-card
 // Никакого inline-CSS — только токены globals.css.
@@ -887,17 +887,45 @@ function VisualExplainerTab({ topic, script, cacheKey }) {
 }
 
 // ─────── MAIN COMPONENT ───────────────────────────────────────────
-export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null }) {
+const PACK_I18N = {
+  ru: {
+    title: "Production Pack",
+    desc: "TTS · Cover Director · Музыка · SEO · Social Visual Export · Visual Explainer — результаты сохраняются после обновления браузера",
+    version: "v3.3",
+    tabs: {
+      tts: ["TTS Studio", "озвучка", "VOICE"],
+      cover: ["Cover Director", "CTR превью", "CTR READY"],
+      music: ["Музыка + SEO", "публикация", "SEO READY"],
+      social: ["Social Pack", "PNG export", "PNG EXPORT"],
+      explainer: ["Visual Explainer", "карты/схемы", "OVERLAYS"],
+    }
+  },
+  en: {
+    title: "Production Pack",
+    desc: "TTS · Cover Director · Music · SEO · Social Visual Export · Visual Explainer — results persist after browser refresh",
+    version: "v3.3",
+    tabs: {
+      tts: ["TTS Studio", "voiceover", "VOICE"],
+      cover: ["Cover Director", "CTR thumbnail", "CTR READY"],
+      music: ["Music + SEO", "publishing", "SEO READY"],
+      social: ["Social Pack", "PNG export", "PNG EXPORT"],
+      explainer: ["Visual Explainer", "maps/diagrams", "OVERLAYS"],
+    }
+  }
+};
+
+export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null, lang = "ru" }) {
   const sourceKey = useMemo(() => hashString(`${topic}|${script?.slice(0, 1200)}|${storyboard?.scenes?.length || 0}`), [topic, script, storyboard]);
-  const cacheKey = `neurocine:production:v31:${sourceKey}`;
+  const cacheKey = `neurocine:production:v33:${sourceKey}`;
   const [activeTab, setActiveTab] = useStoredString(`neurocine:production:activeTab`, "cover");
+  const t = PACK_I18N[lang] || PACK_I18N.ru;
 
   const tabs = [
-    { id: "tts",    icon: "🎙️", label: "TTS Studio",   sub: "озвучка", comp: <TtsStudioTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
-    { id: "cover",  icon: "🧲", label: "Cover Director", sub: "CTR превью", comp: <CoverTab topic={topic} script={script} storyboard={storyboard} cacheKey={cacheKey} /> },
-    { id: "music",  icon: "🎧", label: "Музыка + SEO", sub: "публикация", comp: <MusicSeoTab topic={topic} script={script} genre={genre} storyboard={storyboard} cacheKey={cacheKey} /> },
-    { id: "social", icon: "📲", label: "Social Pack",  sub: "PNG export", comp: <SocialPackTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
-    { id: "explainer", icon: "🗺️", label: "Visual Explainer", sub: "карты/схемы", comp: <VisualExplainerTab topic={topic} script={script} cacheKey={cacheKey} /> },
+    { id: "tts", icon: "🎙️", label: t.tabs.tts[0], sub: t.tabs.tts[1], status: t.tabs.tts[2], comp: <TtsStudioTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
+    { id: "cover", icon: "🧲", label: t.tabs.cover[0], sub: t.tabs.cover[1], status: t.tabs.cover[2], comp: <CoverTab topic={topic} script={script} storyboard={storyboard} cacheKey={cacheKey} /> },
+    { id: "music", icon: "🎧", label: t.tabs.music[0], sub: t.tabs.music[1], status: t.tabs.music[2], comp: <MusicSeoTab topic={topic} script={script} genre={genre} storyboard={storyboard} cacheKey={cacheKey} /> },
+    { id: "social", icon: "📲", label: t.tabs.social[0], sub: t.tabs.social[1], status: t.tabs.social[2], comp: <SocialPackTab topic={topic} script={script} genre={genre} cacheKey={cacheKey} /> },
+    { id: "explainer", icon: "🗺️", label: t.tabs.explainer[0], sub: t.tabs.explainer[1], status: t.tabs.explainer[2], comp: <VisualExplainerTab topic={topic} script={script} cacheKey={cacheKey} /> },
   ];
 
   return (
@@ -905,16 +933,16 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
       <div className="step-header">
         <div className="step-num">04</div>
         <div className="step-info">
-          <div className="step-title">Production Pack</div>
-          <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social Visual Export · Visual Explainer — результаты сохраняются после обновления браузера</div>
+          <div className="step-title">{t.title}</div>
+          <div className="step-desc">{t.desc}</div>
         </div>
-        <span className="step-badge">v3.1.5</span>
+        <span className="step-badge">{t.version}</span>
       </div>
       <div className="step-body">
         <div className="pack-v31-grid" role="tablist" aria-label="Production Pack modules">
           {tabs.map(t => {
             const isActive = activeTab === t.id;
-            const status = t.id === "cover" ? "CTR READY" : t.id === "social" ? "PNG EXPORT" : t.id === "music" ? "SEO READY" : t.id === "explainer" ? "OVERLAYS" : "VOICE";
+            const status = t.status;
             return (
               <button
                 key={t.id}
