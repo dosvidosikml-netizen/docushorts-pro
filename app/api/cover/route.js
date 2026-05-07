@@ -1,8 +1,8 @@
 // app/api/cover/route.js
-// NeuroCine Cover/Thumbnail Engine — 2 виральных варианта обложки.
-// Детерминированно (без LLM запроса) — instant response.
+// NeuroCine Cover Director API v2.0
+// Instant deterministic thumbnail director: script -> viral text hierarchy -> 9:16 cover prompts.
 
-import { buildCoverVariants } from "../../../engine/coverEngine";
+import { buildCoverDirectorPack } from "../../../engine/coverEngine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,16 +11,19 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const topic = String(body.topic || "").trim();
+    const script = String(body.script || "").trim();
     const storyboard = body.storyboard || null;
-    const hook = String(body.hook || "").trim();
+    const mode = String(body.mode || "viral").trim();
+    const style = String(body.style || "viral").trim();
+    const platform = String(body.platform || "shorts").trim();
 
-    if (!topic && !storyboard?.scenes?.length) {
-      return Response.json({ error: "Нужны topic или storyboard со сценами" }, { status: 400 });
+    if (!topic && !script && !storyboard?.scenes?.length) {
+      return Response.json({ error: "Нужны topic, script или storyboard со сценами" }, { status: 400 });
     }
 
-    const result = buildCoverVariants({ topic, storyboard, hook });
-    return Response.json({ ...result, mode: "deterministic" });
+    const cover = buildCoverDirectorPack({ topic, script, storyboard, mode, style, platform });
+    return Response.json({ cover, mode: "cover-director-v2" });
   } catch (e) {
-    return Response.json({ error: e.message || "Cover engine error" }, { status: 500 });
+    return Response.json({ error: e.message || "Cover Director error" }, { status: 500 });
   }
 }
