@@ -1,26 +1,35 @@
 // app/api/seo-pack/route.js
-// NeuroCine SEO Engine — 3 виральных варианта SEO для YouTube/Shorts/Reels.
+// NeuroCine SEO Director V2 — platform-aware titles, descriptions and hashtags.
 
 import { callOpenRouter, TASK_TYPES } from "../../../lib/modelRouter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYS = `You are a viral SEO copywriter for YouTube Shorts / Reels / TikTok. Output ONLY valid JSON (no markdown).
+const SYS = `You are NeuroCine SEO Director V2 for YouTube Shorts / TikTok / Reels.
+Output ONLY valid JSON. No markdown.
+Language: Russian.
 
-3 variants in RUSSIAN:
-- shock = SHOCK / NUMBER (clickbait with number)
-- intrigue = INTRIGUE / QUESTION (curiosity gap)
-- keyword = SEARCH / KEYWORD (algorithm-friendly)
+Create 4 variants, not generic SEO:
+1) shock — direct impact / number / scale
+2) intrigue — mystery question / curiosity gap
+3) search — keyword-friendly, discoverable
+4) controversial — debate trigger, but not misinformation stated as fact
 
-Each: title + desc (100-150 chars) + minimum 5 specific hashtags. NO #fyp #viral #foryou.
+Rules:
+- Titles must be short, punchy, mobile-readable.
+- Avoid #fyp #viral #foryou.
+- Descriptions 100-180 chars.
+- Hashtags: 6-10 specific tags, mix broad + niche.
+- Include platform_note_ru for how to use it.
 
 JSON:
 {
   "seo_variants": [
-    { "type": "shock", "title": "...", "desc": "...", "tags": ["#тег1","#тег2","#тег3","#тег4","#тег5"] },
-    { "type": "intrigue", "title": "...", "desc": "...", "tags": [...] },
-    { "type": "keyword", "title": "...", "desc": "...", "tags": [...] }
+    { "type":"shock", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." },
+    { "type":"intrigue", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." },
+    { "type":"search", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." },
+    { "type":"controversial", "title":"...", "desc":"...", "tags":["#..."], "platform_note_ru":"..." }
   ]
 }`;
 
@@ -30,17 +39,18 @@ export async function POST(req) {
     const topic = String(body.topic || "").trim();
     const script = String(body.script || "").trim();
     const genre = String(body.genre || "").trim();
+    const platform = String(body.platform || "youtube_shorts").trim();
     if (!topic && !script) return Response.json({ error: "Нужна тема или сценарий" }, { status: 400 });
 
-    const userMsg = `Тема: ${topic}\nЖанр: ${genre}\nСценарий:\n${script || "(не задан)"}\n\nСгенерируй 3 SEO варианта.`;
+    const userMsg = `Платформа: ${platform}\nТема: ${topic}\nЖанр: ${genre}\nСценарий:\n${script.slice(0, 6000) || "(не задан)"}\n\nСгенерируй 4 SEO варианта под выбранную платформу.`;
 
     const r = await callOpenRouter({
       taskType: TASK_TYPES.LIGHT_TASK,
       systemPrompt: SYS,
       userMessage: userMsg,
-      maxTokensOverride: 2500,
+      maxTokensOverride: 3200,
       responseFormat: { type: "json_object" },
-      appTitle: "NeuroCine SEO Pack v1",
+      appTitle: "NeuroCine SEO Director V2",
     });
     if (!r.ok) return Response.json({ error: r.error }, { status: 500 });
 
