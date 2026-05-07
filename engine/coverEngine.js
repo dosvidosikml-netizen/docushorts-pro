@@ -1,5 +1,5 @@
 // engine/coverEngine.js
-// NeuroCine Cover Director Engine v2.0
+// NeuroCine Cover Director Engine v2.5 — Cover DNA + CTR hierarchy + stronger typography rules
 // Делает не просто image prompt, а полноценный вирусный thumbnail brief:
 // сценарий -> главный страх/тайна -> текстовая иерархия -> 9:16 poster composition -> готовый EN prompt.
 
@@ -196,7 +196,7 @@ function buildBrief({ topic = "", script = "", storyboard = null, mode = "viral"
   }[mode] || "viral curiosity gap";
 
   return {
-    version: "Cover Director v2.0",
+    version: "Cover Director v2.5",
     theme,
     mode,
     style,
@@ -207,7 +207,10 @@ function buildBrief({ topic = "", script = "", storyboard = null, mode = "viral"
     side_facts: derived.facts,
     bottom_hook: mode === "safe" ? preset.hook.replace("ЗАПРЕЩЁННАЯ", "ГЛАВНАЯ") : preset.hook,
     visual_symbol: preset.visual,
-    psychology: ["curiosity gap", "forbidden knowledge", "scale shock", "one impossible visual symbol", "text hierarchy first"],
+    psychology: ["тайна без полного ответа", "запретная версия", "масштабный шок", "один невозможный визуальный символ", "сначала читается главный заголовок"],
+    ctr_score: mode === "extreme" ? 92 : mode === "viral" ? 84 : 71,
+    typography_system: "3-level hierarchy: huge top headline, small evidence facts, bottom red-stamp hook",
+    readability_rule: "all key text readable on a phone in under 1 second",
     mode_line: modeLine,
   };
 }
@@ -233,7 +236,9 @@ function composePrompt(brief, variant = "poster") {
     `ADD LEFT-SIDE FACT BLOCKS: ${factsText}. Use compact white/yellow text with small documentary icons.`,
     `ADD BOTTOM HOOK / RED STAMP TEXT: "${brief.bottom_hook}".`,
     `STYLE: ${style}, cinematic realism, high contrast, dramatic lighting, sharp details, dark atmosphere, professional poster design, mobile readability first.`,
-    "NEGATIVE: no watermark, no logo, no subtitles, no random extra text, no misspelled extra labels, no cartoon, no flat illustration, no gore, no UI elements."
+    "TYPOGRAPHY SYSTEM: use a strict three-level hierarchy only — 1) giant top headline, 2) compact evidence facts, 3) bottom red stamp. Do not create extra captions, random labels, fake UI, channel names, or small unreadable text.",
+    "CTR POLISH: one impossible visual symbol must dominate; keep clean negative space behind the headline; make the bottom hook feel like a forbidden-file stamp; sharpen contrast around the central object.",
+    "NEGATIVE: no watermark, no logo, no subtitles, no random extra text, no misspelled extra labels, no cartoon, no flat illustration, no gore, no UI elements, no duplicated Russian words."
   ].join("\n");
 }
 
