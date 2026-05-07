@@ -191,6 +191,55 @@ function UploadZone({ label, hint, onFile, accept = "image/*" }) {
   );
 }
 
+
+function StudioDashboardHero({ projectName, topic, script, storyboard, scenes, duration, aspectRatio, target, stylePreset, sbBusy, sBusy }) {
+  const progress = [
+    { id: "#script", n: "01", title: "Script", value: script?.trim() ? "READY" : "WAITING", ok: !!script?.trim() },
+    { id: "#storyboard", n: "02", title: "Storyboard", value: storyboard ? `${scenes?.length || 0} FRAMES` : "WAITING", ok: !!storyboard },
+    { id: "#production", n: "03", title: "Production", value: target?.toUpperCase?.() || "VEO3", ok: !!storyboard },
+    { id: "#pack", n: "04", title: "Pack", value: script?.trim() || storyboard ? "ACTIVE" : "LOCKED", ok: !!(script?.trim() || storyboard) }
+  ];
+  return (
+    <section className="studio-control-room">
+      <div className="control-glow" />
+      <div className="control-left">
+        <div className="control-kicker">NeuroCine Studio Dashboard V30</div>
+        <h1 className="control-title">Cinematic<br /><span>Control Room</span></h1>
+        <p className="control-desc">
+          Единый production-пульт: сценарий, storyboard, PART grid, video prompts, cover, social export и visual explainer в одном рабочем потоке.
+        </p>
+        <div className="control-topic">
+          <span>PROJECT</span>
+          <strong>{projectName || "NeuroCine Project"}</strong>
+          <em>{topic?.trim() || "Введи тему или вставь готовый сценарий"}</em>
+        </div>
+      </div>
+      <div className="control-right">
+        <div className="control-status-card">
+          <div className="control-status-head">
+            <span>{sBusy || sbBusy ? "GENERATING" : "READY"}</span>
+            <b>{duration}s · {aspectRatio}</b>
+          </div>
+          <div className="control-progress-grid">
+            {progress.map((x) => (
+              <a href={x.id} key={x.n} className={`control-step ${x.ok ? "ok" : ""}`}>
+                <span>{x.n}</span>
+                <strong>{x.title}</strong>
+                <em>{x.value}</em>
+              </a>
+            ))}
+          </div>
+          <div className="control-micro-row">
+            <span>Style: {stylePreset}</span>
+            <span>Model target: {target}</span>
+            <span>Scenes: {scenes?.length || 0}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── main page ─── */
 export default function StudioPage() {
 
@@ -847,8 +896,31 @@ ${lines.join("\n")}` : "";
         </div>
       </nav>
 
+      <StudioDashboardHero
+        projectName={projectName}
+        topic={topic}
+        script={script}
+        storyboard={storyboard}
+        scenes={scenes}
+        duration={duration}
+        aspectRatio={aspectRatio}
+        target={target}
+        stylePreset={stylePreset}
+        sbBusy={sbBusy}
+        sBusy={sBusy}
+      />
+
+      <div className="studio-flow-shell">
+        <aside className="studio-rail" aria-label="Production steps">
+          <a href="#script"><span>01</span> Script</a>
+          <a href="#storyboard"><span>02</span> Storyboard</a>
+          <a href="#production"><span>03</span> Pipeline</a>
+          <a href="#pack"><span>04</span> Pack</a>
+        </aside>
+        <main className="studio-flow-main">
+
       {/* ══ STEP 01 — SCRIPT ══ */}
-      <section className="step-section">
+      <section className="step-section studio-step-card" id="script">
         <div className="step-header">
           <div className="step-num">01</div>
           <div className="step-info">
@@ -1345,7 +1417,7 @@ ${lines.join("\n")}` : "";
       </section>
 
       {/* ══ STEP 02 — STORYBOARD ══ */}
-      <section className="step-section">
+      <section className="step-section studio-step-card" id="storyboard">
         <div className="step-header">
           <div className="step-num">02</div>
           <div className="step-info">
@@ -1476,7 +1548,7 @@ ${lines.join("\n")}` : "";
 
 
       {/* ══ STEP 03 — PRODUCTION PIPELINE · FINAL CLEAN PART GRID ══ */}
-      <section className="step-section">
+      <section className="step-section studio-step-card" id="production">
         <div className="step-header">
           <div className="step-num">03</div>
           <div className="step-info">
@@ -1842,15 +1914,29 @@ ${lines.join("\n")}` : "";
         </div>
       </section>
 
-      {/* ─── 05 PRODUCTION PACK v2.4 ──────────────────────── */}
-      {(script.trim() || storyboard) && (
-        <ProductionPack
-          topic={topic}
-          script={script}
-          genre={projectType}
-          storyboard={storyboard}
-        />
-      )}
+      {/* ─── 04 PRODUCTION PACK V30 ──────────────────────── */}
+      <section id="pack" className="studio-pack-anchor">
+        {(script.trim() || storyboard) ? (
+          <ProductionPack
+            topic={topic}
+            script={script}
+            genre={projectType}
+            storyboard={storyboard}
+          />
+        ) : (
+          <div className="step-section studio-step-card">
+            <div className="step-header">
+              <div className="step-num">04</div>
+              <div className="step-info">
+                <div className="step-title">Production Pack</div>
+                <div className="step-desc">Cover Director, Social PNG, Music/SEO и Visual Explainer появятся после сценария или storyboard.</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+        </main>
+      </div>
     </div>
   );
 }
