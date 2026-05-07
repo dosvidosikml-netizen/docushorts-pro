@@ -596,3 +596,59 @@ table.sb-t { width: 100%; min-width: 800px; border-collapse: separate; border-sp
   .control-title { font-size: 44px; }
   .studio-rail { top: 82px; grid-template-columns: repeat(4, minmax(118px, 1fr)); }
 }
+
+
+/* ─────────────────────────────────────────────
+   V31 · Cinematic UX polish
+   ───────────────────────────────────────────── */
+.studio-mini-nav {
+  min-height: 46px !important;
+  padding: 8px 16px !important;
+  backdrop-filter: blur(18px);
+}
+.out-actions { display: flex; gap: 8px; align-items: center; }
+.out-box-v31 .out-body {
+  position: relative;
+  overflow: hidden;
+  transition: max-height .22s ease, opacity .22s ease;
+}
+.out-box-v31.is-compact .out-body { max-height: 230px; }
+.out-box-v31.is-open .out-body { max-height: none; }
+.out-box-v31.is-compact .out-body::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: 0; height: 72px;
+  background: linear-gradient(to bottom, rgba(8,8,13,0), rgba(8,8,13,.96));
+  pointer-events: none;
+}
+.pack-v31-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.pack-v31-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  color: var(--text);
+  padding: 14px 12px;
+  text-align: left;
+  min-height: 104px;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.pack-v31-card:hover { transform: translateY(-2px); border-color: rgba(248,113,113,.45); }
+.pack-v31-card.active {
+  border-color: rgba(248,113,113,.85);
+  background: radial-gradient(circle at 0 0, rgba(239,68,68,.22), rgba(255,255,255,.035) 55%, rgba(255,255,255,.015));
+}
+.pack-v31-icon { display:block; font-size: 20px; margin-bottom: 10px; }
+.pack-v31-card strong { display:block; font-size: 12px; line-height:1.2; }
+.pack-v31-card em { display:block; margin-top: 5px; font-size: 10px; color: var(--muted); font-style: normal; }
+.pack-v31-content { animation: fadeIn .18s ease; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform:none; } }
+@media (max-width: 760px) {
+  .pack-v31-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .pack-v31-card { min-height: 92px; }
+  .out-box-v31.is-compact .out-body { max-height: 190px; }
+}
