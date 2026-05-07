@@ -921,7 +921,7 @@ const PACK_I18N = {
 
 export default function ProductionPack({ topic = "", script = "", genre = "ИСТОРИЯ", storyboard = null, lang = "ru", devMode = false }) {
   const sourceKey = useMemo(() => hashString(`${topic}|${script?.slice(0, 1200)}|${storyboard?.scenes?.length || 0}`), [topic, script, storyboard]);
-  const cacheKey = `neurocine:production:v34:${devMode ? "demo" : "pro"}:${sourceKey}`;
+  const cacheKey = `neurocine:production:v35:${devMode ? "demo" : "pro"}:${sourceKey}`;
   const [activeTab, setActiveTab] = useStoredString(`neurocine:production:activeTab`, "cover");
   const t = PACK_I18N[lang] || PACK_I18N.ru;
 
