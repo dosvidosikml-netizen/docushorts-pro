@@ -1,5 +1,5 @@
 // components/ProductionPack.js
-// NeuroCine Production Pack v1
+// NeuroCine Production Pack v2.8
 // Использует родные классы сайта: .step-section, .step-header, .step-body,
 // .out-box, .out-head, .out-body, .out-pre, .field, .frow, .btn, .fb, .frame-card
 // Никакого inline-CSS — только токены globals.css.
@@ -97,6 +97,174 @@ function OutBox({ label, children, copy }) {
 
 function StatusLine({ type, text }) {
   return <div className={`status-line${type ? " " + type : ""}`}>{text}</div>;
+}
+
+
+// ─────── SOCIAL VISUAL EXPORT HELPERS ─────────────────────────────
+function safeFileName(input = "neurocine") {
+  return String(input || "neurocine")
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 70) || "neurocine";
+}
+
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function wrapCanvasText(ctx, text, maxWidth) {
+  const words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawSocialCard({ item, index, total, type = "carousel", topic = "NeuroCine" }) {
+  const isStory = type === "story";
+  const W = 1080;
+  const H = isStory ? 1920 : 1350;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  const bg = item?.bg || (isStory ? "#090b14" : "#100011");
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, bg);
+  grad.addColorStop(0.55, "#08080d");
+  grad.addColorStop(1, "#170006");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // cinematic texture grid
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = "#ffffff";
+  for (let y = 0; y < H; y += 54) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  for (let x = 0; x < W; x += 54) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const pad = 78;
+  roundRectPath(ctx, pad, pad, W - pad * 2, H - pad * 2, 54);
+  ctx.fillStyle = "rgba(0,0,0,0.34)";
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(255,255,255,0.16)";
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.48)";
+  ctx.font = "900 34px Arial, sans-serif";
+  ctx.fillText(`${index + 1}/${total}`, W / 2, isStory ? 190 : 160);
+
+  ctx.font = isStory ? "140px Arial, sans-serif" : "112px Arial, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(item?.emoji || "🎬", W / 2, isStory ? 430 : 340);
+
+  const headline = String(item?.headline || "").toUpperCase();
+  ctx.font = isStory ? "900 86px Arial, sans-serif" : "900 72px Arial, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0,0,0,0.65)";
+  ctx.shadowBlur = 18;
+  const headLines = wrapCanvasText(ctx, headline, W - pad * 3).slice(0, isStory ? 5 : 4);
+  const headStart = isStory ? 620 : 470;
+  const headLineH = isStory ? 100 : 84;
+  headLines.forEach((line, i) => ctx.fillText(line, W / 2, headStart + i * headLineH));
+  ctx.shadowBlur = 0;
+
+  const sub = String(item?.sub || "");
+  ctx.font = isStory ? "500 48px Arial, sans-serif" : "500 40px Arial, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  const subLines = wrapCanvasText(ctx, sub, W - pad * 3).slice(0, isStory ? 7 : 5);
+  const subStart = headStart + headLines.length * headLineH + 70;
+  const subLineH = isStory ? 64 : 54;
+  subLines.forEach((line, i) => ctx.fillText(line, W / 2, subStart + i * subLineH));
+
+  const stampY = H - (isStory ? 250 : 185);
+  roundRectPath(ctx, pad + 34, stampY, W - (pad + 34) * 2, isStory ? 98 : 82, 22);
+  ctx.fillStyle = "rgba(185,28,28,0.18)";
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(248,113,113,0.88)";
+  ctx.stroke();
+  ctx.fillStyle = "#fca5a5";
+  ctx.font = isStory ? "900 42px Arial, sans-serif" : "900 36px Arial, sans-serif";
+  ctx.fillText(String(topic || "NEUROCINE").toUpperCase().slice(0, 38), W / 2, stampY + (isStory ? 63 : 54));
+
+  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  ctx.font = "700 24px Arial, sans-serif";
+  ctx.fillText("NEUROCINE · SOCIAL VISUAL EXPORT", W / 2, H - 70);
+
+  return canvas.toDataURL("image/png");
+}
+
+function SocialExportButtons({ carousel = [], slides = [], topic = "neurocine" }) {
+  const [status, setStatus] = useState("");
+  const base = safeFileName(topic || "neurocine");
+
+  function exportSet(items, type) {
+    if (!items?.length) return;
+    setStatus("Готовлю PNG…");
+    items.forEach((item, index) => {
+      setTimeout(() => {
+        const url = drawSocialCard({ item, index, total: items.length, type, topic });
+        downloadDataUrl(url, `${base}-${type}-${String(index + 1).padStart(2, "0")}.png`);
+        if (index === items.length - 1) setStatus("✓ PNG скачаны. Загрузи их в Facebook как обычные изображения.");
+      }, index * 220);
+    });
+  }
+
+  return (
+    <div className="out-box">
+      <div className="out-head">
+        <span className="out-label">Экспорт визуалов для Facebook / Stories</span>
+      </div>
+      <div className="out-body">
+        <div className="brow" style={{ marginBottom: 10 }}>
+          <button className="btn btn-sm btn-ghost" onClick={() => exportSet(carousel, "carousel")} disabled={!carousel?.length}>
+            Скачать карусель PNG
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={() => exportSet(slides, "story")} disabled={!slides?.length}>
+            Скачать Stories PNG 9:16
+          </button>
+        </div>
+        <div className="out-pre" style={{ color: "var(--muted)", fontSize: 12 }}>
+          Копировать = текст. Для красивой публикации Facebook нужны PNG-карточки. После скачивания выбери их в Facebook как изображения/карусель.
+        </div>
+        {status && <StatusLine text={status} />}
+      </div>
+    </div>
+  );
 }
 
 // ─────── 🎙 TTS STUDIO TAB ────────────────────────────────────────
@@ -475,6 +643,7 @@ function SocialPackTab({ topic, script, genre, cacheKey }) {
 
   return (
     <div className="col">
+      <SocialExportButtons carousel={data.carousel || []} slides={data.slides || []} topic={topic || data.post_hook || "neurocine"} />
       <OutBox label="Facebook публикация" copy={fbText}>
         <div className="out-pre" style={{ fontWeight: 800, marginBottom: 8 }}>{data.post_hook}</div>
         <div className="out-pre" style={{ whiteSpace: "pre-wrap", marginBottom: 10, color: "var(--muted)" }}>{data.post_body}</div>
@@ -582,9 +751,9 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
         <div className="step-num">05</div>
         <div className="step-info">
           <div className="step-title">Production Pack</div>
-          <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social — результаты сохраняются после обновления браузера</div>
+          <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social Visual Export — результаты сохраняются после обновления браузера</div>
         </div>
-        <span className="step-badge">v2.6</span>
+        <span className="step-badge">v2.8</span>
       </div>
       <div className="step-body">
         <div className="frame-btns" style={{ marginBottom: 18 }}>
@@ -603,41 +772,3 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
     </section>
   );
 }
-
-
-{/* COVER DNA ENGINE */}
-<div style={{
-  marginTop: 24,
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: 18,
-  padding: 18,
-  background: '#09090f'
-}}>
-  <div style={{
-    fontSize: 12,
-    letterSpacing: '0.28em',
-    opacity: 0.6,
-    marginBottom: 12
-  }}>
-    COVER DNA ENGINE
-  </div>
-
-  <div style={{
-    display: 'grid',
-    gap: 10
-  }}>
-    <div>• Conspiracy Documentary</div>
-    <div>• Historical Horror</div>
-    <div>• Prison Survival</div>
-    <div>• Plague Nightmare</div>
-    <div>• Netflix Documentary</div>
-  </div>
-
-  <div style={{
-    marginTop: 14,
-    opacity: 0.7,
-    lineHeight: 1.6
-  }}>
-    NeuroCine now changes thumbnail visual language automatically depending on the scenario genre and emotional tone.
-  </div>
-</div>
