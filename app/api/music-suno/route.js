@@ -1,19 +1,41 @@
 // app/api/music-suno/route.js
-// NeuroCine Music Engine — Suno AI prompt по storyboard mood.
+// NeuroCine Music Director V2 — production-ready Suno prompt by scenario, mode and storyboard mood.
 
 import { callOpenRouter, TASK_TYPES } from "../../../lib/modelRouter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYS = `You are a Suno AI music prompt director. Output ONLY valid JSON (no markdown).
-Rules: Min 5 tags [Genre], [Mood], [Instruments], [Tempo], [Vibe]. Specific, not generic.
+const MODE_MAP = {
+  cinematic_thriller: "cinematic orchestral thriller, documentary tension, slow dread",
+  dark_documentary: "dark documentary score, investigative mystery, restrained tension",
+  alien_mystery: "alien mystery, cosmic dread, classified-file atmosphere, eerie pulses",
+  historical_horror: "historical horror, primitive drums, low strings, cold ritual atmosphere",
+  epic_disaster: "epic disaster score, huge scale, low brass, slow impact build",
+};
+
+const SYS = `You are NeuroCine Music Director V2 for Suno AI.
+Output ONLY valid JSON. No markdown.
+
+Goal: create a usable instrumental prompt for short documentary / Shorts / Reels production.
+The result must NOT feel like generic text. It must include exact mood, instruments, tempo, arc, and usage notes.
+
+Rules:
+- English Suno prompt only in music_EN.
+- No vocals, no lyrics, no singing unless explicitly requested. Default: instrumental.
+- Avoid generic words alone. Use cinematic, physical sound language.
+- Fit the script: extract scale, threat, mystery, emotional curve.
+- For Suno free style field, include a compact 200-character version.
+
 JSON:
 {
-  "music_EN": "[Genre: cinematic documentary score], [Mood: tense, slow build], [Instruments: deep bass, heartbeat drum], [Tempo: 70-85 BPM], [Vibe: atmospheric, no vocals]",
-  "negative_EN": "no lyrics, no rap, no harsh distortion, no tempo changes",
-  "duration_hint": "60s | 2min | 3min — based on storyboard total_duration",
-  "notes_ru": "1-2 предложения на русском зачем именно такой саунд."
+  "music_EN": "[Genre: ...], [Mood: ...], [Instruments: ...], [Tempo: ... BPM], [Rhythm: ...], [Arc: ...], [Vibe: instrumental, documentary-like, no vocals]",
+  "style_200_EN": "max 200 characters, compact Suno style prompt",
+  "negative_EN": "no lyrics, no singing, no bright melodies...",
+  "duration_hint": "60s / 90s / 2min / 3min",
+  "best_for": "intro / full short / background bed / climax",
+  "usage_ru": "коротко: куда вставлять в ролике и как громко держать",
+  "notes_ru": "почему этот звук подходит к сценарию"
 }`;
 
 export async function POST(req) {
@@ -21,22 +43,25 @@ export async function POST(req) {
     const body = await req.json();
     const topic = String(body.topic || "").trim();
     const genre = String(body.genre || "").trim();
+    const script = String(body.script || "").trim();
+    const musicMode = String(body.musicMode || "cinematic_thriller").trim();
     const storyboard = body.storyboard || null;
 
-    const moodHints = storyboard?.scenes?.slice(0, 8).map(s =>
-      `${s.beat_type || ""}: ${s.description_ru || ""} (sfx: ${s.sfx || ""})`
+    const moodHints = storyboard?.scenes?.slice(0, 10).map(s =>
+      `${s.beat_type || ""}: ${s.description_ru || s.visual || ""} (sfx: ${s.sfx || ""})`
     ).join("\n") || "";
-    const totalDur = storyboard?.total_duration || 60;
+    const totalDur = storyboard?.total_duration || storyboard?.scenes?.reduce?.((a, s) => a + Number(s.duration || 0), 0) || 60;
+    const modeDesc = MODE_MAP[musicMode] || MODE_MAP.cinematic_thriller;
 
-    const userMsg = `Тема: ${topic}\nЖанр: ${genre}\nДлительность: ${totalDur}с\nАтмосфера сцен:\n${moodHints}\n\nПодбери Suno музыкальный промт под эту атмосферу.`;
+    const userMsg = `Тема: ${topic || "(не задана)"}\nЖанр: ${genre}\nДлительность ролика: ${totalDur}с\nМузыкальный режим: ${musicMode} — ${modeDesc}\n\nСценарий:\n${script.slice(0, 5000) || "(не задан)"}\n\nАтмосфера storyboard:\n${moodHints || "(нет storyboard)"}\n\nСобери production-ready Suno instrumental prompt.`;
 
     const r = await callOpenRouter({
       taskType: TASK_TYPES.LIGHT_TASK,
       systemPrompt: SYS,
       userMessage: userMsg,
-      maxTokensOverride: 1500,
+      maxTokensOverride: 2200,
       responseFormat: { type: "json_object" },
-      appTitle: "NeuroCine Music Suno v1",
+      appTitle: "NeuroCine Music Director V2",
     });
     if (!r.ok) return Response.json({ error: r.error }, { status: 500 });
 
