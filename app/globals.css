@@ -1012,3 +1012,257 @@ table.sb-t { width: 100%; min-width: 800px; border-collapse: separate; border-sp
     letter-spacing: 0.1em;
   }
 }
+
+
+/* ─────────────────────────────────────────────
+   V35 · Cinematic Dock + Unified Design System
+   Goal: less admin-grid, more compact production studio.
+   ───────────────────────────────────────────── */
+.studio {
+  max-width: 1280px;
+  padding-top: 14px;
+}
+.studio-nav {
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px !important;
+  border-radius: 28px !important;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+    rgba(8,9,16,.82) !important;
+  border: 1px solid rgba(255,255,255,.105) !important;
+  box-shadow: 0 22px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+.nav-brand {
+  min-width: 188px;
+  padding-left: 6px;
+}
+.nav-kicker {
+  color: #ff5959 !important;
+  letter-spacing: .42em !important;
+}
+.nav-title {
+  font-size: 18px !important;
+  letter-spacing: -.055em;
+}
+.nav-links {
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px !important;
+}
+.nav-btn {
+  min-height: 38px;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.045) !important;
+  border-color: rgba(255,255,255,.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  font-size: 12px !important;
+  letter-spacing: -.01em;
+}
+.nav-btn.active {
+  background: #f8f8fb !important;
+  color: #080910 !important;
+  border-color: rgba(255,255,255,.8) !important;
+  box-shadow: 0 10px 32px rgba(255,255,255,.10);
+}
+.nav-btn.danger {
+  color: #ff6b6b !important;
+  background: rgba(229,53,53,.06) !important;
+}
+.access-toggle-v35 {
+  color: #34d399 !important;
+  border-color: rgba(52,211,153,.36) !important;
+  background: rgba(52,211,153,.07) !important;
+}
+.access-toggle-v35.active {
+  background: rgba(52,211,153,.14) !important;
+  box-shadow: 0 0 0 1px rgba(52,211,153,.20), 0 12px 36px rgba(52,211,153,.08) !important;
+}
+.lang-mobile-v33 {
+  min-width: 52px;
+}
+.demo-banner-v35 {
+  max-width: 1180px;
+  margin: 0 auto 14px;
+  border: 1px solid rgba(52,211,153,.28);
+  background: linear-gradient(135deg, rgba(52,211,153,.14), rgba(255,255,255,.035));
+  color: #b9f6d4;
+  border-radius: 20px;
+  padding: 11px 14px;
+  font-weight: 850;
+  letter-spacing: .02em;
+  box-shadow: 0 16px 48px rgba(0,0,0,.28);
+}
+.studio-control-room {
+  padding: 26px !important;
+  border-radius: 30px !important;
+  min-height: auto !important;
+  background:
+    radial-gradient(circle at 90% 5%, rgba(124,106,247,.22), transparent 42%),
+    linear-gradient(135deg, rgba(229,53,53,.12), rgba(255,255,255,.035) 42%, rgba(59,130,246,.08)),
+    rgba(255,255,255,.035) !important;
+}
+.control-kicker {
+  margin-bottom: 10px !important;
+}
+.control-title {
+  font-size: clamp(42px, 7.4vw, 86px) !important;
+  line-height: .86 !important;
+  margin-bottom: 14px !important;
+}
+.control-desc {
+  max-width: 720px !important;
+  margin-bottom: 18px !important;
+}
+.control-project-card,
+.control-status-card {
+  border-radius: 24px !important;
+  background: rgba(5,6,12,.54) !important;
+}
+.control-progress-grid {
+  gap: 10px !important;
+}
+.control-step {
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, rgba(34,197,94,.095), rgba(255,255,255,.026)) !important;
+  min-height: 94px !important;
+}
+.control-step span {
+  opacity: .42 !important;
+}
+.studio-rail {
+  background: rgba(8,9,16,.74) !important;
+  border-radius: 999px !important;
+  padding: 8px !important;
+  box-shadow: 0 16px 54px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.055);
+}
+.studio-rail a {
+  border-radius: 999px !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.studio-rail a:hover,
+.studio-rail a:focus {
+  background: rgba(255,255,255,.07) !important;
+}
+.step-section,
+.studio-step-card,
+.pack-shell,
+.production-pack {
+  border-radius: 28px !important;
+  background: linear-gradient(135deg, rgba(255,255,255,.045), rgba(255,255,255,.022)) !important;
+  border-color: rgba(255,255,255,.095) !important;
+}
+.step-header {
+  background: linear-gradient(90deg, rgba(229,53,53,.085), rgba(59,130,246,.045), rgba(255,255,255,.018)) !important;
+}
+.btn, .action-btn, .copy-btn, .pack-btn, .nav-btn {
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.btn:hover, .action-btn:hover, .copy-btn:hover, .pack-btn:hover, .nav-btn:hover {
+  transform: translateY(-1px);
+}
+.pack-v31-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+.pack-v31-card {
+  background: linear-gradient(150deg, rgba(255,255,255,.07), rgba(255,255,255,.025)) !important;
+  border-color: rgba(255,255,255,.11) !important;
+}
+.pack-v31-card.active {
+  border-color: rgba(248,113,113,.78) !important;
+}
+
+@media (max-width: 860px) {
+  .studio-nav {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    position: static !important;
+  }
+  .nav-brand {
+    min-width: 0;
+    padding: 2px 4px 0;
+  }
+  .nav-links {
+    display: flex !important;
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    padding-bottom: 3px;
+    scrollbar-width: thin;
+  }
+  .nav-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
+    min-height: 40px !important;
+  }
+  .studio-control-room {
+    padding: 20px !important;
+  }
+  .control-title {
+    font-size: 48px !important;
+  }
+  .control-desc {
+    font-size: 14px !important;
+  }
+  .studio-rail {
+    border-radius: 22px !important;
+    overflow-x: auto !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+  }
+  .studio-rail a {
+    flex: 0 0 auto;
+    min-width: 120px;
+  }
+  .pack-v31-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .studio { padding: 10px 8px 72px !important; }
+  .studio-nav {
+    border-radius: 24px !important;
+    margin-bottom: 14px !important;
+  }
+  .nav-title { font-size: 18px !important; }
+  .nav-kicker { font-size: 8px !important; }
+  .nav-links { gap: 7px !important; }
+  .nav-btn {
+    min-height: 40px !important;
+    padding: 0 14px !important;
+    font-size: 12px !important;
+  }
+  .studio-control-room {
+    padding: 18px !important;
+    border-radius: 26px !important;
+  }
+  .control-title { font-size: 42px !important; }
+  .control-project-card { padding: 14px !important; }
+  .control-status-card { padding: 14px !important; }
+  .control-progress-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  }
+  .control-step {
+    min-height: 76px !important;
+  }
+  .studio-rail {
+    margin-bottom: 12px !important;
+    padding: 7px !important;
+  }
+  .studio-rail a {
+    min-width: 104px !important;
+    padding: 9px 12px !important;
+    flex-direction: row !important;
+  }
+  .step-section, .studio-step-card, .production-pack {
+    border-radius: 24px !important;
+  }
+  .step-header { padding: 14px 16px !important; }
+  .step-body { padding: 16px !important; }
+  .pack-v31-card { min-height: 104px !important; }
+}
