@@ -1,5 +1,5 @@
 // components/ProductionPack.js
-// NeuroCine Production Pack v3.1 — Cinematic UX + compact prompts + premium pack cards
+// NeuroCine Production Pack v3.1.5 — compact mobile menus + cleaned premium pack navigation
 // Использует родные классы сайта: .step-section, .step-header, .step-body,
 // .out-box, .out-head, .out-body, .out-pre, .field, .frow, .btn, .fb, .frame-card
 // Никакого inline-CSS — только токены globals.css.
@@ -908,32 +908,28 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
           <div className="step-title">Production Pack</div>
           <div className="step-desc">TTS · Cover Director · Музыка · SEO · Social Visual Export · Visual Explainer — результаты сохраняются после обновления браузера</div>
         </div>
-        <span className="step-badge">v3.1</span>
+        <span className="step-badge">v3.1.5</span>
       </div>
       <div className="step-body">
-        <div className="pack-v31-grid">
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              className={`pack-v31-card ${activeTab === t.id ? "active" : ""}`}
-              onClick={() => setActiveTab(t.id)}
-            >
-              <span className="pack-v31-icon">{t.icon}</span>
-              <strong>{t.label}</strong>
-              <em>{t.sub}</em>
-            </button>
-          ))}
-        </div>
-        <div className="frame-btns pack-v31-tabs" style={{ marginBottom: 18 }}>
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              className={`fb ${activeTab === t.id ? "active" : ""}`}
-              onClick={() => setActiveTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="pack-v31-grid" role="tablist" aria-label="Production Pack modules">
+          {tabs.map(t => {
+            const isActive = activeTab === t.id;
+            const status = t.id === "cover" ? "CTR READY" : t.id === "social" ? "PNG EXPORT" : t.id === "music" ? "SEO READY" : t.id === "explainer" ? "OVERLAYS" : "VOICE";
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`pack-v31-card ${isActive ? "active" : ""}`}
+                onClick={() => setActiveTab(t.id)}
+              >
+                <span className="pack-v31-topline"><span className="pack-v31-icon">{t.icon}</span><span>{status}</span></span>
+                <strong>{t.label}</strong>
+                <em>{t.sub}</em>
+              </button>
+            );
+          })}
         </div>
         <div className="pack-v31-content">
           {tabs.find(t => t.id === activeTab)?.comp}
