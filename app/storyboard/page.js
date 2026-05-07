@@ -184,14 +184,23 @@ function CopyBtn({ text, label = "Копировать" }) {
 }
 
 function OutBox({ label, text, empty = "Пусто", compact = false, mono = false }) {
+  const [open, setOpen] = useState(!compact && String(text || "").length < 900);
+  const hasText = !!text;
   return (
-    <div className="out-box">
+    <div className={`out-box prompt-card-v33 ${open ? "is-open" : "is-closed"}`}>
       <div className="out-head">
         <span className="out-label">{label}</span>
-        <CopyBtn text={text} />
+        <div className="out-actions-v33">
+          {hasText && (
+            <button className="btn btn-sm btn-ghost" onClick={() => setOpen(v => !v)}>
+              {open ? "Свернуть" : "Открыть"}
+            </button>
+          )}
+          <CopyBtn text={text} />
+        </div>
       </div>
       <div className="out-body">
-        {text
+        {hasText
           ? <pre className={`out-pre${compact ? " compact" : ""}${mono ? " mono" : ""}`}>{text}</pre>
           : <div className="out-empty">{empty}</div>}
       </div>
@@ -214,33 +223,81 @@ function UploadZone({ label, hint, onFile, accept = "image/*" }) {
 }
 
 
-function StudioDashboardHero({ projectName, topic, script, storyboard, scenes, duration, aspectRatio, target, stylePreset, sbBusy, sBusy }) {
+
+const UI_TEXT = {
+  ru: {
+    lang: "RU", otherLang: "EN", ready: "READY", waiting: "WAITING", generating: "GENERATING", active: "ACTIVE", locked: "LOCKED", frames: "FRAMES",
+    dashboard: "NeuroCine Studio Dashboard V33", titleA: "Cinematic", titleB: "Control Room",
+    desc: "Единый production-пульт: сценарий, storyboard, PART grid, video prompts, cover, social export и visual explainer в одном рабочем потоке.",
+    project: "PROJECT", emptyTopic: "Введи тему или вставь готовый сценарий",
+    style: "Style", target: "Model target", scenes: "Scenes",
+    navHome: "Главная", navChat: "Chat", navStudio: "Studio", save: "💾 Project", load: "⬆ Project", clear: "Очистить",
+    railScript: "Script", railStoryboard: "Storyboard", railPipeline: "Pipeline", railPack: "Pack",
+    statusScript: "SCRIPT", statusStoryboard: "STORYBOARD", statusPart: "PART", statusVideo: "VIDEO", statusCover: "COVER", statusSave: "SAVE",
+    ok: "✓", no: "—", focus: "Focus", compact: "Compact", open: "Открыть", close: "Свернуть", copy: "Копировать", copied: "✓ Скопировано", empty: "Пусто"
+  },
+  en: {
+    lang: "EN", otherLang: "RU", ready: "READY", waiting: "WAITING", generating: "GENERATING", active: "ACTIVE", locked: "LOCKED", frames: "FRAMES",
+    dashboard: "NeuroCine Studio Dashboard V33", titleA: "Cinematic", titleB: "Control Room",
+    desc: "A unified production console for script, storyboard, PART grid, video prompts, covers, social export and visual explainers in one workflow.",
+    project: "PROJECT", emptyTopic: "Enter a topic or paste a finished script",
+    style: "Style", target: "Model target", scenes: "Scenes",
+    navHome: "Home", navChat: "Chat", navStudio: "Studio", save: "💾 Project", load: "⬆ Project", clear: "Clear",
+    railScript: "Script", railStoryboard: "Storyboard", railPipeline: "Pipeline", railPack: "Pack",
+    statusScript: "SCRIPT", statusStoryboard: "STORYBOARD", statusPart: "PART", statusVideo: "VIDEO", statusCover: "COVER", statusSave: "SAVE",
+    ok: "✓", no: "—", focus: "Focus", compact: "Compact", open: "Open", close: "Collapse", copy: "Copy", copied: "✓ Copied", empty: "Empty"
+  }
+};
+
+function ProductionStatusBar({ t, script, storyboard, autoPartIndex, videoP, finalImg }) {
+  const scenes = storyboard?.scenes || [];
+  const cells = [
+    { label: t.statusScript, value: script?.trim() ? t.ok : t.no, ok: !!script?.trim() },
+    { label: t.statusStoryboard, value: storyboard ? `${scenes.length}` : t.no, ok: !!storyboard },
+    { label: t.statusPart, value: storyboard ? `#${Number(autoPartIndex || 0) + 1}` : t.no, ok: !!storyboard },
+    { label: t.statusVideo, value: videoP ? t.ready : t.no, ok: !!videoP },
+    { label: t.statusCover, value: script?.trim() || storyboard ? t.active : t.locked, ok: !!(script?.trim() || storyboard) },
+    { label: t.statusSave, value: t.ready, ok: true },
+  ];
+  return (
+    <div className="studio-status-bar-v33">
+      {cells.map((c) => (
+        <div key={c.label} className={`studio-status-cell-v33 ${c.ok ? "ok" : ""}`}>
+          <span>{c.label}</span>
+          <strong>{c.value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StudioDashboardHero({ projectName, topic, script, storyboard, scenes, duration, aspectRatio, target, stylePreset, sbBusy, sBusy, lang, onLang }) {
+  const t = UI_TEXT[lang] || UI_TEXT.ru;
   const progress = [
-    { id: "#script", n: "01", title: "Script", value: script?.trim() ? "READY" : "WAITING", ok: !!script?.trim() },
-    { id: "#storyboard", n: "02", title: "Storyboard", value: storyboard ? `${scenes?.length || 0} FRAMES` : "WAITING", ok: !!storyboard },
-    { id: "#production", n: "03", title: "Production", value: target?.toUpperCase?.() || "VEO3", ok: !!storyboard },
-    { id: "#pack", n: "04", title: "Pack", value: script?.trim() || storyboard ? "ACTIVE" : "LOCKED", ok: !!(script?.trim() || storyboard) }
+    { id: "#script", n: "01", title: t.railScript, value: script?.trim() ? t.ready : t.waiting, ok: !!script?.trim() },
+    { id: "#storyboard", n: "02", title: t.railStoryboard, value: storyboard ? `${scenes?.length || 0} ${t.frames}` : t.waiting, ok: !!storyboard },
+    { id: "#production", n: "03", title: t.railPipeline, value: target?.toUpperCase?.() || "VEO3", ok: !!storyboard },
+    { id: "#pack", n: "04", title: t.railPack, value: script?.trim() || storyboard ? t.active : t.locked, ok: !!(script?.trim() || storyboard) }
   ];
   return (
     <section className="studio-control-room">
       <div className="control-glow" />
       <div className="control-left">
-        <div className="control-kicker">NeuroCine Studio Dashboard V30</div>
-        <h1 className="control-title">Cinematic<br /><span>Control Room</span></h1>
-        <p className="control-desc">
-          Единый production-пульт: сценарий, storyboard, PART grid, video prompts, cover, social export и visual explainer в одном рабочем потоке.
-        </p>
+        <div className="control-kicker">{t.dashboard}</div>
+        <h1 className="control-title">{t.titleA}<br /><span>{t.titleB}</span></h1>
+        <p className="control-desc">{t.desc}</p>
         <div className="control-topic">
-          <span>PROJECT</span>
+          <span>{t.project}</span>
           <strong>{projectName || "NeuroCine Project"}</strong>
-          <em>{topic?.trim() || "Введи тему или вставь готовый сценарий"}</em>
+          <em>{topic?.trim() || t.emptyTopic}</em>
         </div>
       </div>
       <div className="control-right">
         <div className="control-status-card">
           <div className="control-status-head">
-            <span>{sBusy || sbBusy ? "GENERATING" : "READY"}</span>
+            <span>{sBusy || sbBusy ? t.generating : t.ready}</span>
             <b>{duration}s · {aspectRatio}</b>
+            <button className="lang-toggle-v33" onClick={onLang} type="button">{t.otherLang}</button>
           </div>
           <div className="control-progress-grid">
             {progress.map((x) => (
@@ -252,9 +309,9 @@ function StudioDashboardHero({ projectName, topic, script, storyboard, scenes, d
             ))}
           </div>
           <div className="control-micro-row">
-            <span>Style: {stylePreset}</span>
-            <span>Model target: {target}</span>
-            <span>Scenes: {scenes?.length || 0}</span>
+            <span>{t.style}: {stylePreset}</span>
+            <span>{t.target}: {target}</span>
+            <span>{t.scenes}: {scenes?.length || 0}</span>
           </div>
         </div>
       </div>
@@ -314,6 +371,8 @@ export default function StudioPage() {
   const [hydrated, setHydrated]         = useState(false);
   const [snapshotStatus, setSnapshotStatus] = useState("");
   const snapshotInputRef = useRef(null);
+  const [uiLang, setUiLang] = useState("ru");
+  const t = UI_TEXT[uiLang] || UI_TEXT.ru;
   const [showRu, setShowRu]             = useState(false);
   const [showFrameRu, setShowFrameRu]   = useState(false);
 
@@ -1014,11 +1073,11 @@ ${lines.join("\n")}` : "";
           <div className="nav-title">Director Studio</div>
         </div>
         <div className="nav-links">
-          <Link href="/" className="nav-btn">Главная</Link>
-          <Link href="/chat" className="nav-btn">Chat</Link>
-          <Link href="/storyboard" className="nav-btn active">Studio</Link>
-          <button className="nav-btn" onClick={exportProjectSnapshot}>💾 Project</button>
-          <button className="nav-btn" onClick={() => snapshotInputRef.current?.click()}>⬆ Project</button>
+          <Link href="/" className="nav-btn">{t.navHome}</Link>
+          <Link href="/chat" className="nav-btn">{t.navChat}</Link>
+          <Link href="/storyboard" className="nav-btn active">{t.navStudio}</Link>
+          <button className="nav-btn" onClick={exportProjectSnapshot}>{t.save}</button>
+          <button className="nav-btn" onClick={() => snapshotInputRef.current?.click()}>{t.load}</button>
           <input
             ref={snapshotInputRef}
             type="file"
@@ -1031,7 +1090,8 @@ ${lines.join("\n")}` : "";
             <button className="nav-btn" onClick={exportTxt}>⬇ TXT</button>
             <button className="nav-btn" onClick={exportFlow}>⬇ Flow/VEO</button>
           </>}
-          <button className="nav-btn danger" onClick={clearAll}>Очистить</button>
+          <button className="nav-btn danger" onClick={clearAll}>{t.clear}</button>
+          <button className="nav-btn lang-mobile-v33" onClick={() => setUiLang(v => v === "ru" ? "en" : "ru")}>{t.otherLang}</button>
         </div>
       </nav>
 
@@ -1051,14 +1111,25 @@ ${lines.join("\n")}` : "";
         stylePreset={stylePreset}
         sbBusy={sbBusy}
         sBusy={sBusy}
+        lang={uiLang}
+        onLang={() => setUiLang(v => v === "ru" ? "en" : "ru")}
+      />
+
+      <ProductionStatusBar
+        t={t}
+        script={script}
+        storyboard={storyboard}
+        autoPartIndex={autoPartIndex}
+        videoP={videoP}
+        finalImg={finalImg}
       />
 
       <div className="studio-flow-shell">
         <aside className="studio-rail" aria-label="Production steps">
-          <a href="#script"><span>01</span> Script</a>
-          <a href="#storyboard"><span>02</span> Storyboard</a>
-          <a href="#production"><span>03</span> Pipeline</a>
-          <a href="#pack"><span>04</span> Pack</a>
+          <a href="#script"><span>01</span> {t.railScript}</a>
+          <a href="#storyboard"><span>02</span> {t.railStoryboard}</a>
+          <a href="#production"><span>03</span> {t.railPipeline}</a>
+          <a href="#pack"><span>04</span> {t.railPack}</a>
         </aside>
         <main className="studio-flow-main">
 
@@ -2065,6 +2136,7 @@ ${lines.join("\n")}` : "";
             script={script}
             genre={projectType}
             storyboard={storyboard}
+            lang={uiLang}
           />
         ) : (
           <div className="step-section studio-step-card">
@@ -2078,6 +2150,13 @@ ${lines.join("\n")}` : "";
           </div>
         )}
       </section>
+
+          <div className="floating-dock-v33" aria-label="Studio quick actions">
+            <button onClick={exportProjectSnapshot}>💾 {uiLang === "en" ? "Save" : "Сохранить"}</button>
+            <button onClick={() => snapshotInputRef.current?.click()}>⬆ {uiLang === "en" ? "Load" : "Загрузить"}</button>
+            {storyboard && <button onClick={exportFlow}>⬇ Flow</button>}
+            {storyboard && <button onClick={exportJson}>JSON</button>}
+          </div>
         </main>
       </div>
     </div>
