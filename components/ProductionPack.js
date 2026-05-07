@@ -603,3 +603,41 @@ export default function ProductionPack({ topic = "", script = "", genre = "ИС�
     </section>
   );
 }
+
+
+{/* COVER DNA ENGINE */}
+<div style={{
+  marginTop: 24,
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 18,
+  padding: 18,
+  background: '#09090f'
+}}>
+  <div style={{
+    fontSize: 12,
+    letterSpacing: '0.28em',
+    opacity: 0.6,
+    marginBottom: 12
+  }}>
+    COVER DNA ENGINE
+  </div>
+
+  <div style={{
+    display: 'grid',
+    gap: 10
+  }}>
+    <div>• Conspiracy Documentary</div>
+    <div>• Historical Horror</div>
+    <div>• Prison Survival</div>
+    <div>• Plague Nightmare</div>
+    <div>• Netflix Documentary</div>
+  </div>
+
+  <div style={{
+    marginTop: 14,
+    opacity: 0.7,
+    lineHeight: 1.6
+  }}>
+    NeuroCine now changes thumbnail visual language automatically depending on the scenario genre and emotional tone.
+  </div>
+</div>
