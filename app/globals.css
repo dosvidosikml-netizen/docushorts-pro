@@ -823,3 +823,25 @@ table.sb-t { width: 100%; min-width: 800px; border-collapse: separate; border-sp
   .pack-v31-card em { font-size: 11px; }
   .pack-v31-topline span:last-child { display: none; }
 }
+
+/* V32 — Project Snapshot Save/Load */
+.snapshot-status {
+  max-width: 1180px;
+  margin: 10px auto 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(67,217,173,0.25);
+  background: rgba(67,217,173,0.08);
+  color: #86efac;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 760px) {
+  .snapshot-status {
+    margin: 8px 16px 0;
+    font-size: 11px;
+    padding: 9px 12px;
+  }
+}
