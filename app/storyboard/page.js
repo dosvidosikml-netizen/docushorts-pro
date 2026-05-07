@@ -228,7 +228,7 @@ function UploadZone({ label, hint, onFile, accept = "image/*" }) {
 const UI_TEXT = {
   ru: {
     lang: "RU", otherLang: "EN", ready: "READY", waiting: "WAITING", generating: "GENERATING", active: "ACTIVE", locked: "LOCKED", frames: "FRAMES",
-    dashboard: "NeuroCine Studio Dashboard V34", titleA: "Cinematic", titleB: "Control Room",
+    dashboard: "NeuroCine Studio Dashboard V35", titleA: "Cinematic", titleB: "Control Room",
     desc: "Единый production-пульт: сценарий, storyboard, PART grid, video prompts, cover, social export и visual explainer в одном рабочем потоке.",
     project: "PROJECT", emptyTopic: "Введи тему или вставь готовый сценарий",
     style: "Style", target: "Model target", scenes: "Scenes",
@@ -239,7 +239,7 @@ const UI_TEXT = {
   },
   en: {
     lang: "EN", otherLang: "RU", ready: "READY", waiting: "WAITING", generating: "GENERATING", active: "ACTIVE", locked: "LOCKED", frames: "FRAMES",
-    dashboard: "NeuroCine Studio Dashboard V34", titleA: "Cinematic", titleB: "Control Room",
+    dashboard: "NeuroCine Studio Dashboard V35", titleA: "Cinematic", titleB: "Control Room",
     desc: "A unified production console for script, storyboard, PART grid, video prompts, covers, social export and visual explainers in one workflow.",
     project: "PROJECT", emptyTopic: "Enter a topic or paste a finished script",
     style: "Style", target: "Model target", scenes: "Scenes",
@@ -1115,12 +1115,12 @@ ${lines.join("\n")}` : "";
             <button className="nav-btn" onClick={exportFlow}>⬇ Flow/VEO</button>
           </>}
           <button className="nav-btn danger" onClick={clearAll}>{t.clear}</button>
-          <button className={`nav-btn dev-toggle-v34 ${devMode ? "active" : ""}`} onClick={() => setDevMode(v => !v)}>{devMode ? t.devMode : t.liveMode}</button>
+          <button className={`nav-btn access-toggle-v35 ${devMode ? "active" : ""}`} onClick={() => setDevMode(v => !v)}>{devMode ? t.devMode : t.liveMode}</button>
           <button className="nav-btn lang-mobile-v33" onClick={() => setUiLang(v => v === "ru" ? "en" : "ru")}>{t.otherLang}</button>
         </div>
       </nav>
 
-      {devMode && <div className="dev-banner-v34">{t.devHint}</div>}
+      {devMode && <div className="demo-banner-v35">{t.devHint}</div>}
       {snapshotStatus && (
         <div className="snapshot-status">{snapshotStatus}</div>
       )}
