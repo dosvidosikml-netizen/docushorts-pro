@@ -1,5 +1,5 @@
 // engine/videoPromptAgent.js
-// NeuroCine Video Prompt Agent v2.8 — Grok/Flow Minor-Safe I2V Lock
+// NeuroCine Video Prompt Agent v3.0 — cinematic pacing, shot progression memory, stronger I2V continuity
 // Purpose: build clean image/video prompts with separate compact Grok mode,
 // no VO by default, no "No No" garbage, and safer wording for minor-related scenes.
 
@@ -213,6 +213,20 @@ export function buildImagePrompt({ frame = {}, storyboard = {}, target = "veo3" 
   ].filter(Boolean).join(". "));
 }
 
+
+function getShotProgression(frame = {}) {
+  const id = String(frame?.id || "");
+  const n = Number(id.match(/\d+/)?.[0] || frame?.index || 1);
+  const phase = n <= 3 ? "HOOK" : n <= 8 ? "BUILD" : n <= 15 ? "ESCALATION" : "PAYOFF";
+  const rhythm = {
+    HOOK: "immediate visual hook, minimal motion, suspended dread",
+    BUILD: "slow reveal, camera discovers one new clue, tension grows without rushing",
+    ESCALATION: "stronger motion cues, pressure rises, environmental movement becomes more noticeable",
+    PAYOFF: "controlled final emphasis, hold the question, do not over-animate"
+  }[phase];
+  return { n, phase, rhythm };
+}
+
 function buildGrokCheapPrompt({ frame = {}, storyboard = {}, includeVo = false, consistency = "ultra" } = {}) {
   const minorSafe = hasMinorContext(frame, storyboard);
   const sfx = cleanAudioText(frame.sfx || "mud, fabric, wind, distant non-verbal ambience");
@@ -252,6 +266,7 @@ function buildGrokProPrompt({ frame = {}, storyboard = {}, includeVo = false, co
   action = sanitizeSensitiveMinorTerms(action, minorSafe);
   const camera = cleanText(frame.camera || "subtle handheld documentary camera movement");
   const noVoice = includeVo ? "" : "NO SPEECH. NO HUMAN VOICES. NO NARRATION. NO DIALOGUE. NO VOICEOVER. AMBIENT SFX ONLY.";
+  const shot = getShotProgression(frame);
   const continuity = isFirstFrame(frame)
     ? "Maintain exact appearance from the uploaded frame."
     : "Maintain exact character appearance, face, clothing and condition as previous frame without copying composition.";
@@ -264,6 +279,7 @@ function buildGrokProPrompt({ frame = {}, storyboard = {}, includeVo = false, co
     "ANIMATE ONLY THE UPLOADED FRAME. Do not recompose or add characters.",
     `${camera}.`,
     action,
+    `Shot progression: ${shot.phase} — ${shot.rhythm}.`,
     "Natural overcast light, damp historical realism, subtle 35mm grain, real weight and inertia.",
     `SFX: ${sfx}.`,
     continuity,
@@ -292,6 +308,7 @@ export function buildVideoPromptFor({
   const minorSafe = hasMinorContext(frame, storyboard);
   const aspectRatio = storyboard.aspect_ratio || "9:16";
   const duration = Number(frame.duration || 3);
+  const shot = getShotProgression(frame);
   const action = sanitizeSensitiveMinorTerms(removeGeneratedNames(getFrameAction(frame), storyboard), minorSafe) || "subtle movement only";
   const camera = cleanText(frame.camera || "static documentary shot with subtle handheld drift");
   const sfx = cleanAudioText(frame.sfx || "subtle realistic ambience");
@@ -307,14 +324,15 @@ export function buildVideoPromptFor({
     `${camera}, ${duration}-second shot.`,
     characterBlock ? `Subject: ${characterBlock}.` : "",
     `Action: ${action}.`,
-    "Camera behavior: organic handheld micro-shake, slight focus breathing, natural exposure shifts.",
+    `Shot progression: ${shot.phase} — ${shot.rhythm}.`,
+    "Camera behavior: organic handheld micro-shake, slight focus breathing, natural exposure shifts; motion must support the current story beat, not decorate it.",
     "Lighting: natural available light, soft bounce fill, realistic shadow penumbra.",
     "Color grade: lifted blacks, desaturated shadows, natural skin tones, subtle 35mm film grain.",
     "Physics: realistic inertia, grounded contact with surfaces, fabric reacting to movement.",
     audioBlock,
     `Format: ${aspectRatio}, 24fps, live-action photographic realism.`,
     continuity,
-    consistency === "ultra" ? "Ultra consistency: do not change face structure, age, clothing, dirt level, lighting style, color grade, or historical period; do not clone the previous composition." : "",
+    consistency === "ultra" ? "Ultra consistency: do not change face structure, age, clothing, dirt level, lighting style, color grade, or historical period; do not clone the previous composition. Maintain story rhythm from previous frame while varying the camera angle naturally." : "",
     minorSafe ? "No violence shown, no injury shown, no graphic content." : "",
   ].filter(Boolean).join(" "));
 
